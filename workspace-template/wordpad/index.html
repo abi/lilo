@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WordPad</title>
+<link rel="icon" href="/workspace/wordpad/icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; border-radius: 0; }
+
+  :root {
+    --surface: #fbf9f6;
+    --surface-container-low: #f1eeea;
+    --surface-container: #e9e6e2;
+    --surface-container-high: #dfdcd8;
+    --surface-container-highest: #d2cfcb;
+    --surface-bright: #cac7c3;
+    --primary: #2e5bff;
+    --primary-container: #2e5bff;
+    --on-primary-container: #ffffff;
+    --secondary-container: #343d96;
+    --tertiary: #0e8fa3;
+    --on-surface: #1a1c20;
+    --on-surface-variant: #44464f;
+    --outline: #74767e;
+    --outline-variant: rgba(116,118,126,0.18);
+    --shadow: rgba(0,53,190,0.08);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: #10141a;
+      --surface-container-low: #181c22;
+      --surface-container: #1c2026;
+      --surface-container-high: #262a30;
+      --surface-container-highest: #31353c;
+      --surface-bright: #353940;
+      --primary: #7da1ff;
+      --primary-container: #2e5bff;
+      --on-primary-container: #efefff;
+      --secondary-container: #343d96;
+      --tertiary: #44d8f1;
+      --on-surface: #dfe2eb;
+      --on-surface-variant: #c4c5d9;
+      --outline: #8e9099;
+      --outline-variant: rgba(142,144,153,0.15);
+      --shadow: rgba(0,53,190,0.08);
+    }
+  }
+
+  html, body {
+    height: 100%;
+    font-family: 'Manrope', sans-serif;
+    background: var(--surface);
+    color: var(--on-surface);
+    overflow: hidden;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* ── Toolbar ── */
+  .toolbar-wrap {
+    background: var(--surface-container-low);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 100;
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 12px;
+    background: var(--surface-container-low);
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+    position: relative;
+    overflow: visible;
+  }
+
+  .toolbar-row-2 {
+    border-top: 1px solid var(--outline-variant);
+  }
+
+  .toolbar-row-3 {
+    border-top: 1px solid var(--outline-variant);
+    border-bottom: 1px solid var(--outline-variant);
+  }
+
+  .toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .toolbar-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--outline-variant);
+    margin: 0 8px;
+    flex-shrink: 0;
+  }
+
+  .toolbar-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    color: var(--on-surface-variant);
+    cursor: pointer;
+    font-size: 14px;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 600;
+    transition: background 0ms;
+    flex-shrink: 0;
+  }
+
+  .toolbar-btn:hover { background: var(--surface-container); }
+  .toolbar-btn.active { background: var(--surface-container-high); color: var(--primary); }
+  .toolbar-btn-label { width: auto; gap: 5px; padding: 0 10px; font-size: 12px; font-weight: 500; }
+  .toolbar-btn svg { width: 16px; height: 16px; fill: currentColor; }
+  .toolbar-btn.danger:hover { color: #e53935; }
+
+  .toolbar-select {
+    height: 32px;
+    padding: 0 8px;
+    background: var(--surface-container);
+    border: 1px solid var(--outline-variant);
+    color: var(--on-surface);
+    font-family: 'Manrope', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    outline: none;
+  }
+  .toolbar-select:focus { border-color: var(--primary); }
+  .font-family-select { width: 140px; }
+  .font-size-select { width: 60px; }
+
+  .color-input-wrap {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .color-input-wrap:hover { background: var(--surface-container); }
+  .color-input-wrap input[type="color"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+  .color-input-wrap .color-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    pointer-events: none;
+  }
+  .color-input-wrap .color-bar {
+    width: 14px;
+    height: 3px;
+  }
+
+  /* ── Popover (for insert / more) ── */
+  .popover-anchor { position: relative; }
+  .popover {
+    display: none;
+    position: fixed;
+    min-width: 180px;
+    background: var(--surface-container);
+    box-shadow: 0 8px 24px var(--shadow);
+    z-index: 10000;
+    padding: 4px 0;
+  }
+  .popover.open { display: block; }
+  .popover-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--on-surface);
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: 'Manrope', sans-serif;
+  }
+  .popover-item:hover { background: var(--surface-bright); }
+  .popover-item svg { width: 14px; height: 14px; fill: currentColor; flex-shrink: 0; }
+  .popover-item.danger { color: #e53935; }
+  .popover-sep { height: 1px; background: var(--outline-variant); margin: 4px 0; }
+
+  /* ── Title area (in toolbar) ── */
+  .doc-name-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    margin-right: 0;
+  }
+  .unsaved-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--tertiary);
+    display: none;
+    flex-shrink: 0;
+  }
+  .unsaved-dot.visible { display: block; }
+  .doc-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 4px 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--on-surface);
+    font-family: 'Space Grotesk', sans-serif;
+    max-width: 280px;
+    transition: background 150ms ease-in-out;
+  }
+  .doc-name:hover { background: var(--surface-container); }
+  .doc-name .doc-name-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .doc-name .doc-name-auto {
+    color: var(--outline);
+    font-style: italic;
+  }
+  .doc-name .doc-name-edit-icon {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    color: var(--outline);
+    opacity: 0;
+    transition: opacity 150ms ease-in-out;
+  }
+  .doc-name:hover .doc-name-edit-icon { opacity: 1; }
+  .doc-name-editing {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--surface-container);
+  }
+  .doc-name-editing input {
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid var(--primary);
+    outline: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--on-surface);
+    width: 220px;
+    padding: 2px 0;
+  }
+  .doc-name-editing .doc-name-hint {
+    font-size: 10px;
+    color: var(--outline);
+    white-space: nowrap;
+  }
+
+  /* ── Find/Replace Bar ── */
+  .find-bar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--surface-container);
+    border-bottom: 1px solid var(--outline-variant);
+    flex-shrink: 0;
+  }
+  .find-bar.visible { display: flex; flex-wrap: wrap; }
+  .find-bar input {
+    height: 28px;
+    padding: 0 8px;
+    background: var(--surface);
+    border: 1px solid var(--outline-variant);
+    color: var(--on-surface);
+    font-family: 'Manrope', sans-serif;
+    font-size: 12px;
+    outline: none;
+    width: 200px;
+  }
+  .find-bar input:focus { border-color: var(--primary); }
+  .find-bar button {
+    height: 28px;
+    padding: 0 10px;
+    background: var(--surface-container-high);
+    border: none;
+    color: var(--on-surface-variant);
+    font-family: 'Manrope', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .find-bar button:hover { background: var(--surface-bright); }
+  .find-bar .find-close { margin-left: auto; width: 28px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .find-bar .match-count { font-size: 11px; color: var(--outline); min-width: 60px; }
+
+  /* ── Editor Area ── */
+  .editor-area {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 240px;
+    background: var(--surface-container-low);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-right: 1px solid var(--outline-variant);
+  }
+  .sidebar.hidden { display: none; }
+
+  .sidebar-open-btn {
+    display: none;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 50;
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-container);
+    border: 1px solid var(--outline-variant);
+    color: var(--on-surface-variant);
+    cursor: pointer;
+    box-shadow: 0 2px 8px var(--shadow);
+  }
+  .sidebar-open-btn:hover { background: var(--surface-container-high); }
+  .sidebar-open-btn.visible { display: flex; }
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--on-surface);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .sidebar-header button {
+    background: none;
+    border: none;
+    color: var(--primary);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 2px;
+    font-weight: 600;
+  }
+  .doc-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
+  .doc-list-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--on-surface-variant);
+    user-select: none;
+  }
+  .doc-list-item:hover { background: var(--surface-bright); }
+  .doc-list-item.active { background: var(--surface-container); color: var(--on-surface); font-weight: 600; }
+  .doc-list-item .doc-icon { flex-shrink: 0; color: var(--outline); font-size: 14px; }
+  .doc-list-item .doc-info { flex: 1; min-width: 0; }
+  .doc-list-item .doc-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .doc-list-item .doc-date { font-size: 11px; color: var(--outline); margin-top: 2px; }
+  .doc-list-item .doc-delete {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--outline);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .doc-list-item .doc-delete:hover { color: #e53935; }
+  .doc-list-item:hover .doc-delete { display: flex; }
+
+  /* ── Editor ── */
+  .editor-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); }
+  .editor-scroll { flex: 1; overflow-y: auto; display: flex; justify-content: center; padding: 32px 24px; }
+  .editor {
+    width: 100%;
+    max-width: 800px;
+    min-height: 600px;
+    padding: 48px;
+    background: var(--surface-container-low);
+    color: var(--on-surface);
+    font-family: 'Manrope', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    outline: none;
+    box-shadow: 0 2px 24px var(--shadow);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  .editor:empty::before {
+    content: 'Start typing…';
+    color: var(--outline);
+    font-style: italic;
+    pointer-events: none;
+  }
+  .editor h1, .editor h2, .editor h3 { font-family: 'Space Grotesk', sans-serif; margin: 16px 0 8px; }
+  .editor h1 { font-size: 28px; font-weight: 700; }
+  .editor h2 { font-size: 22px; font-weight: 600; }
+  .editor h3 { font-size: 18px; font-weight: 600; }
+  .editor p { margin: 4px 0; }
+  .editor ul, .editor ol { margin: 8px 0; padding-left: 24px; }
+  .editor blockquote { border-left: 3px solid var(--primary); padding-left: 16px; margin: 8px 0; color: var(--on-surface-variant); }
+  .editor a { color: var(--primary); }
+  .editor hr { border: none; height: 2px; background: var(--outline-variant); margin: 16px 0; }
+  .editor pre { background: var(--surface-container-high); padding: 12px; font-family: 'Courier New', monospace; font-size: 13px; overflow-x: auto; margin: 8px 0; }
+  .editor table { border-collapse: collapse; margin: 8px 0; }
+  .editor td, .editor th { border: 1px solid var(--outline-variant); padding: 6px 10px; font-size: 14px; }
+
+  /* ── Status Bar ── */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 16px;
+    background: var(--surface-container-low);
+    font-size: 11px;
+    color: var(--outline);
+    flex-shrink: 0;
+    font-family: 'Manrope', sans-serif;
+    border-top: 1px solid var(--outline-variant);
+    user-select: none;
+  }
+  .status-bar .status-left, .status-bar .status-right { display: flex; align-items: center; gap: 16px; }
+  .status-bar .label { color: var(--tertiary); text-transform: uppercase; font-weight: 600; font-size: 10px; letter-spacing: 0.5px; }
+
+  /* ── Print ── */
+  @media print {
+    .toolbar-wrap, .sidebar, .status-bar, .find-bar { display: none !important; }
+    .editor-area { overflow: visible !important; }
+    .editor-container { overflow: visible !important; }
+    .editor-scroll { overflow: visible !important; padding: 0 !important; }
+    .editor { box-shadow: none !important; max-width: 100% !important; padding: 0 !important; background: white !important; color: black !important; }
+  }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface-container-highest); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--surface-bright); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Toolbar ── -->
+  <div class="toolbar-wrap">
+    <!-- Row 1: Document actions, typography, document name -->
+    <div class="toolbar">
+      <!-- Document actions -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn toolbar-btn-label" onclick="newDocument()" title="New Document (Ctrl+N)">
+          <svg viewBox="0 0 16 16"><path d="M3 1h7l3 3v11H3V1zm7 0v3h3" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="6" y1="8" x2="10" y2="8" stroke="currentColor" stroke-width="1.3"/><line x1="8" y1="6" x2="8" y2="10" stroke="currentColor" stroke-width="1.3"/></svg>
+          <span>New</span>
+        </button>
+        <button class="toolbar-btn toolbar-btn-label" onclick="saveDocument()" title="Save (Ctrl+S)">
+          <svg viewBox="0 0 16 16"><path d="M2 2h9l3 3v9H2V2z" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="5" y="2" width="5" height="4" fill="none" stroke="currentColor" stroke-width="1"/><rect x="4" y="9" width="8" height="5" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+          <span>Save</span>
+        </button>
+        <button class="toolbar-btn toolbar-btn-label" onclick="execCmd('undo')" title="Undo (Ctrl+Z)">
+          <svg viewBox="0 0 16 16"><path d="M5 5l-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 8h8a4 4 0 010 0c2 0 4 1.5 4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Undo</span>
+        </button>
+        <button class="toolbar-btn toolbar-btn-label" onclick="execCmd('redo')" title="Redo (Ctrl+Y)">
+          <svg viewBox="0 0 16 16"><path d="M11 5l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 8H6a4 4 0 000 0c-2 0-4 1.5-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Redo</span>
+        </button>
+      </div>
+
+
+    </div>
+
+    <!-- Row 2: Text formatting, paragraph, tools -->
+    <!-- Row 2: Typography, inline formatting, colors -->
+    <div class="toolbar toolbar-row-2">
+      <div class="toolbar-group">
+        <select class="toolbar-select font-family-select" id="fontFamily" onchange="changeFontFamily(this.value)">
+          <option value="Manrope">Manrope</option>
+          <option value="Space Grotesk">Space Grotesk</option>
+          <option value="Arial">Arial</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Verdana">Verdana</option>
+          <option value="Trebuchet MS">Trebuchet MS</option>
+          <option value="Tahoma">Tahoma</option>
+        </select>
+        <select class="toolbar-select font-size-select" id="fontSize" onchange="changeFontSize(this.value)">
+          <option value="1">8</option>
+          <option value="2">10</option>
+          <option value="3" selected>12</option>
+          <option value="4">14</option>
+          <option value="5">18</option>
+          <option value="6">24</option>
+          <option value="7">36</option>
+        </select>
+        <select class="toolbar-select" id="blockFormat" onchange="changeBlockFormat(this.value)" style="width:110px">
+          <option value="p">Paragraph</option>
+          <option value="h1">Heading 1</option>
+          <option value="h2">Heading 2</option>
+          <option value="h3">Heading 3</option>
+          <option value="pre">Code</option>
+        </select>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <div class="toolbar-group">
+        <button class="toolbar-btn" data-cmd="bold" onclick="execCmd('bold')" title="Bold (Ctrl+B)"><b>B</b></button>
+        <button class="toolbar-btn" data-cmd="italic" onclick="execCmd('italic')" title="Italic (Ctrl+I)"><i>I</i></button>
+        <button class="toolbar-btn" data-cmd="underline" onclick="execCmd('underline')" title="Underline (Ctrl+U)"><u>U</u></button>
+        <button class="toolbar-btn" data-cmd="strikeThrough" onclick="execCmd('strikeThrough')" title="Strikethrough"><s>S</s></button>
+        <button class="toolbar-btn" data-cmd="subscript" onclick="execCmd('subscript')" title="Subscript" style="font-size:12px">X<sub style="font-size:8px">2</sub></button>
+        <button class="toolbar-btn" data-cmd="superscript" onclick="execCmd('superscript')" title="Superscript" style="font-size:12px">X<sup style="font-size:8px">2</sup></button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <div class="toolbar-group">
+        <div class="color-input-wrap" title="Text Color">
+          <div class="color-icon">
+            <span style="font-weight:700;font-size:14px;color:var(--on-surface)">A</span>
+            <div class="color-bar" id="fgColorBar" style="background:#1a1c20"></div>
+          </div>
+          <input type="color" id="fgColor" value="#1a1c20" onchange="changeForeColor(this.value)">
+        </div>
+        <div class="color-input-wrap" title="Highlight Color">
+          <div class="color-icon">
+            <svg viewBox="0 0 16 16" style="width:14px;height:14px;fill:var(--on-surface-variant)"><rect x="2" y="2" width="12" height="12"/></svg>
+            <div class="color-bar" id="bgColorBar" style="background:#ffff00"></div>
+          </div>
+          <input type="color" id="bgColor" value="#ffff00" onchange="changeHighlight(this.value)">
+        </div>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <button class="toolbar-btn" onclick="execCmd('removeFormat')" title="Clear Formatting">
+        <svg viewBox="0 0 16 16"><path d="M2 2h12v2H8.5L6.5 14H4l2-10H2V2z" fill="currentColor"/><line x1="2" y1="14" x2="14" y2="3" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+    </div>
+
+    <!-- Row 3: Paragraph, lists, insert, tools -->
+    <div class="toolbar toolbar-row-3">
+      <div class="toolbar-group">
+        <button class="toolbar-btn" data-cmd="justifyLeft" onclick="execCmd('justifyLeft')" title="Align Left">
+          <svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="1.5"/><rect x="1" y="6" width="10" height="1.5"/><rect x="1" y="10" width="14" height="1.5"/><rect x="1" y="14" width="8" height="1.5"/></svg>
+        </button>
+        <button class="toolbar-btn" data-cmd="justifyCenter" onclick="execCmd('justifyCenter')" title="Align Center">
+          <svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="1.5"/><rect x="3" y="6" width="10" height="1.5"/><rect x="1" y="10" width="14" height="1.5"/><rect x="4" y="14" width="8" height="1.5"/></svg>
+        </button>
+        <button class="toolbar-btn" data-cmd="justifyRight" onclick="execCmd('justifyRight')" title="Align Right">
+          <svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="1.5"/><rect x="5" y="6" width="10" height="1.5"/><rect x="1" y="10" width="14" height="1.5"/><rect x="7" y="14" width="8" height="1.5"/></svg>
+        </button>
+        <button class="toolbar-btn" data-cmd="justifyFull" onclick="execCmd('justifyFull')" title="Justify">
+          <svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="1.5"/><rect x="1" y="6" width="14" height="1.5"/><rect x="1" y="10" width="14" height="1.5"/><rect x="1" y="14" width="14" height="1.5"/></svg>
+        </button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <div class="toolbar-group">
+        <button class="toolbar-btn" data-cmd="insertUnorderedList" onclick="execCmd('insertUnorderedList')" title="Bullet List">
+          <svg viewBox="0 0 16 16"><circle cx="3" cy="4" r="1.5"/><circle cx="3" cy="8" r="1.5"/><circle cx="3" cy="12" r="1.5"/><rect x="6" y="3" width="9" height="1.5"/><rect x="6" y="7" width="9" height="1.5"/><rect x="6" y="11" width="9" height="1.5"/></svg>
+        </button>
+        <button class="toolbar-btn" data-cmd="insertOrderedList" onclick="execCmd('insertOrderedList')" title="Numbered List">
+          <svg viewBox="0 0 16 16"><text x="1" y="5" font-size="5" fill="currentColor" font-weight="700">1.</text><text x="1" y="9.5" font-size="5" fill="currentColor" font-weight="700">2.</text><text x="1" y="13.5" font-size="5" fill="currentColor" font-weight="700">3.</text><rect x="6" y="3" width="9" height="1.5" fill="currentColor"/><rect x="6" y="7" width="9" height="1.5" fill="currentColor"/><rect x="6" y="11" width="9" height="1.5" fill="currentColor"/></svg>
+        </button>
+        <button class="toolbar-btn" onclick="execCmd('outdent')" title="Decrease Indent">
+          <svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="1.5"/><rect x="1" y="14" width="14" height="1.5"/><rect x="5" y="6" width="10" height="1.5"/><rect x="5" y="10" width="10" height="1.5"/><path d="M4 8L1 5.5v5z"/></svg>
+        </button>
+        <button class="toolbar-btn" onclick="execCmd('indent')" title="Increase Indent">
+          <svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="1.5"/><rect x="1" y="14" width="14" height="1.5"/><rect x="5" y="6" width="10" height="1.5"/><rect x="5" y="10" width="10" height="1.5"/><path d="M1 8l3-2.5v5z"/></svg>
+        </button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <button class="toolbar-btn" onclick="toggleFindBar()" title="Find & Replace (Ctrl+H)">
+        <svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Find/Replace Bar ── -->
+  <div class="find-bar" id="findBar">
+    <input type="text" id="findInput" placeholder="Find…" oninput="doFind()">
+    <span class="match-count" id="matchCount"></span>
+    <button onclick="doFindPrev()">◀</button>
+    <button onclick="doFindNext()">▶</button>
+    <input type="text" id="replaceInput" placeholder="Replace…">
+    <button onclick="doReplace()">Replace</button>
+    <button onclick="doReplaceAll()">All</button>
+    <button class="find-close" onclick="toggleFindBar()">✕</button>
+  </div>
+
+  <!-- ── Main Editor Area ── -->
+  <div class="editor-area">
+    <!-- Sidebar reopen button (visible when sidebar hidden) -->
+    <button class="sidebar-open-btn" id="sidebarOpenBtn" onclick="toggleSidebar()" title="Show Documents">
+      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1" y="2" width="4" height="12" opacity=".5" fill="currentColor" stroke="none"/><rect x="6" y="2" width="9" height="12"/></svg>
+    </button>
+
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span>Documents</span>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <button onclick="newDocument()" title="New Document">+</button>
+          <button onclick="toggleSidebar()" title="Hide Sidebar" style="font-size:14px;">✕</button>
+        </div>
+      </div>
+      <div class="doc-list" id="docList"></div>
+    </div>
+
+    <div class="editor-container">
+      <div class="editor-scroll">
+        <div class="editor" id="editor" contenteditable="true" spellcheck="true"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Status Bar ── -->
+  <div class="status-bar">
+    <div class="status-left">
+      <div class="status-item"><span class="label">Words</span> <span id="wordCount">0</span></div>
+      <div class="status-item"><span class="label">Chars</span> <span id="charCount">0</span></div>
+      <div class="status-item"><span class="label">Lines</span> <span id="lineCount">0</span></div>
+    </div>
+    <div class="status-right">
+      <div class="status-item" id="savedStatus">Saved</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ State ============
+const DATA_PATH = '/workspace/wordpad/data';
+let documents = [];
+let currentDocId = null;
+let unsaved = false;
+let autoSaveTimer = null;
+
+// ============ Init ============
+async function init() {
+  await loadDocumentList();
+  if (documents.length === 0) {
+    await newDocument();
+  } else {
+    await openDocument(documents[0].id);
+  }
+  renderDocList();
+}
+
+// ============ Data Persistence ============
+async function loadDocumentList() {
+  try {
+    const resp = await fetch(`${DATA_PATH}/index.json`);
+    if (resp.ok) documents = await resp.json();
+  } catch (e) { documents = []; }
+}
+
+async function saveDocumentList() {
+  await fetch(`${DATA_PATH}/index.json`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(documents)
+  });
+}
+
+async function loadDocumentContent(id) {
+  try {
+    const resp = await fetch(`${DATA_PATH}/${id}.json`);
+    if (resp.ok) return await resp.json();
+  } catch (e) {}
+  return { html: '' };
+}
+
+async function saveDocumentContent(id, html) {
+  await fetch(`${DATA_PATH}/${id}.json`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ html })
+  });
+}
+
+async function deleteDocumentFile(id) {
+  await fetch(`${DATA_PATH}/${id}.json`, { method: 'DELETE' });
+}
+
+// ============ Document Operations ============
+function generateId() {
+  return 'doc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+}
+
+async function newDocument() {
+  closeAllPopovers();
+  if (unsaved && currentDocId) await saveDocument();
+  const id = generateId();
+  const doc = { id, name: 'Untitled', customName: false, created: new Date().toISOString(), modified: new Date().toISOString() };
+  documents.unshift(doc);
+  await saveDocumentList();
+  await saveDocumentContent(id, '');
+  currentDocId = id;
+  editor.innerHTML = '';
+  updateDocNameDisplay();
+  renderDocList();
+  setUnsaved(false);
+  editor.focus();
+}
+
+async function openDocument(id) {
+  if (unsaved && currentDocId) await saveDocument();
+  currentDocId = id;
+  const content = await loadDocumentContent(id);
+  editor.innerHTML = content.html || '';
+  updateDocNameDisplay();
+  renderDocList();
+  setUnsaved(false);
+  updateCounts();
+}
+
+async function saveDocument() {
+  if (!currentDocId) return;
+  const doc = documents.find(d => d.id === currentDocId);
+  if (doc) doc.modified = new Date().toISOString();
+  await saveDocumentContent(currentDocId, editor.innerHTML);
+  await saveDocumentList();
+  setUnsaved(false);
+  renderDocList();
+}
+
+async function duplicateDocument() {
+  closeAllPopovers();
+  if (!currentDocId) return;
+  await saveDocument();
+  const original = documents.find(d => d.id === currentDocId);
+  const id = generateId();
+  const doc = { id, name: (original ? original.name : 'Untitled') + ' (copy)', customName: original ? original.customName : false, created: new Date().toISOString(), modified: new Date().toISOString() };
+  documents.unshift(doc);
+  await saveDocumentList();
+  await saveDocumentContent(id, editor.innerHTML);
+  currentDocId = id;
+  updateDocNameDisplay();
+  renderDocList();
+  setUnsaved(false);
+}
+
+async function deleteDocument() {
+  closeAllPopovers();
+  if (!currentDocId) return;
+  await deleteDocById(currentDocId);
+}
+
+async function deleteDocById(id) {
+  closeAllPopovers();
+  const doc = documents.find(d => d.id === id);
+  if (!doc) return;
+  if (!confirm(`Delete "${doc.name}" permanently?`)) return;
+  await deleteDocumentFile(id);
+  documents = documents.filter(d => d.id !== id);
+  await saveDocumentList();
+  if (id === currentDocId) {
+    currentDocId = null;
+    if (documents.length > 0) await openDocument(documents[0].id);
+    else await newDocument();
+  } else {
+    renderDocList();
+  }
+}
+
+// ============ UI Updates ============
+function getCurrentDoc() { return documents.find(d => d.id === currentDocId); }
+
+function getFirstLineText() {
+  const text = (editor.innerText || '').trim();
+  if (!text) return '';
+  const firstLine = text.split('\n')[0].trim();
+  return firstLine.substring(0, 60) || '';
+}
+
+function getDocDisplayName(doc) {
+  if (!doc) return 'Untitled';
+  if (doc.customName) return doc.name;
+  // Auto-derive from first line if available
+  if (doc.id === currentDocId) {
+    const fl = getFirstLineText();
+    return fl || 'Untitled';
+  }
+  return doc.name || 'Untitled';
+}
+
+function isAutoNamed(doc) {
+  return doc && !doc.customName;
+}
+
+function updateDocNameDisplay() {
+  const doc = getCurrentDoc();
+  const displayName = getDocDisplayName(doc);
+  const nameEl = document.getElementById('docNameText');
+  if (nameEl) {
+    nameEl.textContent = displayName;
+    nameEl.classList.toggle('doc-name-auto', isAutoNamed(doc));
+  }
+  document.title = `${displayName} — WordPad`;
+}
+
+function setUnsaved(val) {
+  unsaved = val;
+  document.getElementById('unsavedDot').classList.toggle('visible', val);
+  document.getElementById('savedStatus').textContent = val ? 'Unsaved' : 'Saved';
+}
+
+function renderDocList() {
+  const list = document.getElementById('docList');
+  list.innerHTML = documents.map(doc => {
+    const active = doc.id === currentDocId ? 'active' : '';
+    const date = new Date(doc.modified).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    return `<div class="doc-list-item ${active}" onclick="openDocument('${doc.id}')">
+      <span class="doc-icon">📄</span>
+      <div class="doc-info"><div class="doc-title">${escapeHTML(getDocDisplayName(doc))}</div><div class="doc-date">${date}</div></div>
+      <button class="doc-delete" onclick="event.stopPropagation(); deleteDocById('${doc.id}')" title="Delete">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function escapeHTML(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
+// ============ Renaming ============
+function startRenaming() {
+  const container = document.getElementById('docNameContainer');
+  const doc = getCurrentDoc();
+  if (!doc || !container) return;
+  const currentName = doc.customName ? doc.name : '';
+  const placeholder = getFirstLineText() || 'Untitled';
+  container.innerHTML = `
+    <div class="doc-name-editing">
+      <input id="docNameInput" value="${escapeHTML(currentName)}" placeholder="${escapeHTML(placeholder)}" />
+      <span class="doc-name-hint">Empty = auto from first line</span>
+    </div>`;
+  const input = document.getElementById('docNameInput');
+  input.focus();
+  input.select();
+  input.addEventListener('blur', finishRenaming);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); input.blur(); }
+  });
+}
+
+async function finishRenaming() {
+  const input = document.getElementById('docNameInput');
+  if (!input) return;
+  const doc = getCurrentDoc();
+  if (doc) {
+    const val = input.value.trim();
+    if (val) {
+      doc.name = val;
+      doc.customName = true;
+    } else {
+      doc.customName = false;
+      doc.name = getFirstLineText() || 'Untitled';
+    }
+    await saveDocumentList();
+  }
+  updateDocNameDisplay();
+  renderDocList();
+}
+
+// ============ Editor Commands ============
+const editor = document.getElementById('editor');
+
+function execCmd(cmd, val) {
+  document.execCommand(cmd, false, val || null);
+  editor.focus();
+  updateToolbarState();
+}
+
+function changeFontFamily(val) { document.execCommand('fontName', false, val); editor.focus(); }
+function changeFontSize(val) { document.execCommand('fontSize', false, val); editor.focus(); }
+function changeBlockFormat(tag) { document.execCommand('formatBlock', false, tag); editor.focus(); }
+function changeForeColor(color) { document.execCommand('foreColor', false, color); document.getElementById('fgColorBar').style.background = color; editor.focus(); }
+function changeHighlight(color) { document.execCommand('hiliteColor', false, color); document.getElementById('bgColorBar').style.background = color; editor.focus(); }
+
+async function doPaste() { try { const t = await navigator.clipboard.readText(); document.execCommand('insertText', false, t); } catch(e){} }
+
+// ============ Insert Operations ============
+function insertLink() { closeAllPopovers(); const url = prompt('Enter URL:', 'https://'); if (url) document.execCommand('createLink', false, url); editor.focus(); }
+function insertHR() { closeAllPopovers(); document.execCommand('insertHorizontalRule'); editor.focus(); }
+function insertTable() {
+  closeAllPopovers();
+  const html = '<table><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></table><p></p>';
+  document.execCommand('insertHTML', false, html);
+  editor.focus();
+}
+function insertBlockquote() { closeAllPopovers(); document.execCommand('formatBlock', false, 'blockquote'); editor.focus(); }
+function insertCodeBlock() { closeAllPopovers(); document.execCommand('insertHTML', false, '<pre>code here</pre><p></p>'); editor.focus(); }
+function insertDateTime() { closeAllPopovers(); document.execCommand('insertText', false, new Date().toLocaleString()); editor.focus(); }
+
+// ============ Export ============
+function exportHTML() {
+  closeAllPopovers();
+  const doc = getCurrentDoc();
+  const name = doc ? doc.name : 'document';
+  downloadFile(name + '.html', `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${escapeHTML(name)}</title></head><body>${editor.innerHTML}</body></html>`, 'text/html');
+}
+
+function exportText() {
+  closeAllPopovers();
+  const doc = getCurrentDoc();
+  downloadFile((doc ? doc.name : 'document') + '.txt', editor.innerText, 'text/plain');
+}
+
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function printDocument() { closeAllPopovers(); window.print(); }
+
+// ============ Popovers ============
+function togglePopover(id, event) {
+  if (event) { event.stopPropagation(); }
+  const el = document.getElementById(id);
+  const isOpen = el.classList.contains('open');
+  closeAllPopovers();
+  if (!isOpen) {
+    const btn = event ? event.currentTarget : el.previousElementSibling;
+    const rect = btn.getBoundingClientRect();
+    el.style.top = (rect.bottom + 4) + 'px';
+    if (el.dataset.alignRight || rect.left + 180 > window.innerWidth) {
+      el.style.left = 'auto';
+      el.style.right = (window.innerWidth - rect.right) + 'px';
+    } else {
+      el.style.left = rect.left + 'px';
+      el.style.right = 'auto';
+    }
+    el.classList.add('open');
+  }
+}
+
+function closeAllPopovers() {
+  document.querySelectorAll('.popover').forEach(p => p.classList.remove('open'));
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.popover')) closeAllPopovers();
+});
+
+// ============ Find & Replace ============
+function toggleFindBar() {
+  closeAllPopovers();
+  const bar = document.getElementById('findBar');
+  bar.classList.toggle('visible');
+  if (bar.classList.contains('visible')) document.getElementById('findInput').focus();
+}
+
+let currentMatchIndex = -1;
+
+function doFind() {
+  clearHighlights();
+  const query = document.getElementById('findInput').value;
+  if (!query) { document.getElementById('matchCount').textContent = ''; return; }
+  const count = highlightMatches(query);
+  document.getElementById('matchCount').textContent = `${count} match${count !== 1 ? 'es' : ''}`;
+}
+
+function highlightMatches(query) {
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null, false);
+  const textNodes = [];
+  while (walker.nextNode()) textNodes.push(walker.currentNode);
+  let count = 0;
+  const lq = query.toLowerCase();
+  for (const node of textNodes) {
+    const text = node.textContent;
+    const lt = text.toLowerCase();
+    let idx = lt.indexOf(lq);
+    if (idx === -1) continue;
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    while (idx !== -1) {
+      frag.appendChild(document.createTextNode(text.slice(last, idx)));
+      const mark = document.createElement('mark');
+      mark.className = 'find-highlight';
+      mark.style.background = 'rgba(46,91,255,0.3)';
+      mark.style.color = 'inherit';
+      mark.textContent = text.slice(idx, idx + query.length);
+      frag.appendChild(mark);
+      count++;
+      last = idx + query.length;
+      idx = lt.indexOf(lq, last);
+    }
+    frag.appendChild(document.createTextNode(text.slice(last)));
+    node.parentNode.replaceChild(frag, node);
+  }
+  currentMatchIndex = -1;
+  return count;
+}
+
+function clearHighlights() {
+  editor.querySelectorAll('mark.find-highlight').forEach(m => { m.replaceWith(document.createTextNode(m.textContent)); });
+  editor.normalize();
+}
+
+function doFindNext() {
+  const marks = editor.querySelectorAll('mark.find-highlight');
+  if (!marks.length) return;
+  marks.forEach(m => m.style.background = 'rgba(46,91,255,0.3)');
+  currentMatchIndex = (currentMatchIndex + 1) % marks.length;
+  marks[currentMatchIndex].style.background = 'rgba(46,91,255,0.6)';
+  marks[currentMatchIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function doFindPrev() {
+  const marks = editor.querySelectorAll('mark.find-highlight');
+  if (!marks.length) return;
+  marks.forEach(m => m.style.background = 'rgba(46,91,255,0.3)');
+  currentMatchIndex = currentMatchIndex <= 0 ? marks.length - 1 : currentMatchIndex - 1;
+  marks[currentMatchIndex].style.background = 'rgba(46,91,255,0.6)';
+  marks[currentMatchIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function doReplace() {
+  const marks = editor.querySelectorAll('mark.find-highlight');
+  if (!marks.length || currentMatchIndex < 0) { doFindNext(); return; }
+  marks[currentMatchIndex].replaceWith(document.createTextNode(document.getElementById('replaceInput').value));
+  editor.normalize(); doFind(); markEdited();
+}
+
+function doReplaceAll() {
+  const marks = editor.querySelectorAll('mark.find-highlight');
+  const rv = document.getElementById('replaceInput').value;
+  marks.forEach(m => m.replaceWith(document.createTextNode(rv)));
+  editor.normalize();
+  document.getElementById('matchCount').textContent = `${marks.length} replaced`;
+  markEdited();
+}
+
+// ============ Sidebar ============
+function toggleSidebar() {
+  closeAllPopovers();
+  const sidebar = document.getElementById('sidebar');
+  const btn = document.getElementById('sidebarOpenBtn');
+  sidebar.classList.toggle('hidden');
+  btn.classList.toggle('visible', sidebar.classList.contains('hidden'));
+}
+
+// ============ Toolbar State ============
+function updateToolbarState() {
+  ['bold','italic','underline','strikeThrough','subscript','superscript','justifyLeft','justifyCenter','justifyRight','justifyFull','insertUnorderedList','insertOrderedList'].forEach(cmd => {
+    const btn = document.querySelector(`.toolbar-btn[data-cmd="${cmd}"]`);
+    if (btn) btn.classList.toggle('active', document.queryCommandState(cmd));
+  });
+  const ff = document.queryCommandValue('fontName').replace(/['"]/g, '');
+  const ffSel = document.getElementById('fontFamily');
+  for (let o of ffSel.options) { if (o.value.toLowerCase() === ff.toLowerCase()) { ffSel.value = o.value; break; } }
+  const fs = document.queryCommandValue('fontSize');
+  if (fs) document.getElementById('fontSize').value = fs;
+  const bf = document.queryCommandValue('formatBlock').toLowerCase();
+  document.getElementById('blockFormat').value = { p:'p', h1:'h1', h2:'h2', h3:'h3', pre:'pre' }[bf] || 'p';
+}
+
+// ============ Counts ============
+function updateCounts() {
+  const text = editor.innerText || '';
+  const trimmed = text.trim();
+  document.getElementById('wordCount').textContent = trimmed ? trimmed.split(/\s+/).length : 0;
+  document.getElementById('charCount').textContent = text.length;
+  document.getElementById('lineCount').textContent = text.split('\n').length;
+}
+
+// ============ Auto-save ============
+function markEdited() {
+  setUnsaved(true);
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => saveDocument(), 2000);
+  updateCounts();
+  // Update auto-title from first line
+  const doc = getCurrentDoc();
+  if (doc && !doc.customName) {
+    const fl = getFirstLineText() || 'Untitled';
+    if (doc.name !== fl) {
+      doc.name = fl;
+      updateDocNameDisplay();
+      renderDocList();
+    }
+  }
+}
+
+// ============ Editor Events ============
+editor.addEventListener('input', markEdited);
+editor.addEventListener('mouseup', updateToolbarState);
+editor.addEventListener('keyup', updateToolbarState);
+
+// ============ Keyboard Shortcuts ============
+document.addEventListener('keydown', (e) => {
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (ctrl && e.key === 's') { e.preventDefault(); saveDocument(); }
+  if (ctrl && e.key === 'n') { e.preventDefault(); newDocument(); }
+  if (ctrl && e.key === 'h') { e.preventDefault(); toggleFindBar(); }
+  if (ctrl && e.key === 'p') { e.preventDefault(); printDocument(); }
+  if (e.key === 'F3') { e.preventDefault(); doFindNext(); }
+  if (e.key === 'Tab' && document.activeElement === editor) { e.preventDefault(); execCmd(e.shiftKey ? 'outdent' : 'indent'); }
+});
+
+document.getElementById('findInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? doFindPrev() : doFindNext(); }
+  if (e.key === 'Escape') toggleFindBar();
+});
+document.getElementById('replaceInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); doReplace(); }
+  if (e.key === 'Escape') toggleFindBar();
+});
+
+// ============ Drag & Drop ============
+editor.addEventListener('dragover', (e) => e.preventDefault());
+editor.addEventListener('drop', (e) => {
+  e.preventDefault();
+  for (const file of e.dataTransfer.files) {
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = () => { document.execCommand('insertHTML', false, `<img src="${reader.result}" style="max-width:100%">`); markEdited(); };
+      reader.readAsDataURL(file);
+    } else if (file.type.startsWith('text/')) {
+      const reader = new FileReader();
+      reader.onload = () => { document.execCommand('insertText', false, reader.result); markEdited(); };
+      reader.readAsText(file);
+    }
+  }
+});
+
+// ============ Start ============
+init();
+</script>
+</body>
+</html>

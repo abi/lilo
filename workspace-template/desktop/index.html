@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Desktop</title>
+<link rel="icon" href="/workspace/desktop/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --surface: #fbf9f6;
+    --surface-container-low: #f1eeea;
+    --surface-container: #e9e6e2;
+    --surface-container-high: #dfdcd8;
+    --surface-container-highest: #d2cfcb;
+    --surface-bright: #cac7c3;
+    --primary: #2e5bff;
+    --primary-container: #2e5bff;
+    --on-primary-container: #ffffff;
+    --secondary-container: #343d96;
+    --tertiary: #0e8fa3;
+    --on-surface: #1a1c20;
+    --on-surface-variant: #44464f;
+    --outline: #74767e;
+    --outline-variant: rgba(116,118,126,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: #10141a;
+      --surface-container-low: #181c22;
+      --surface-container: #1c2026;
+      --surface-container-high: #262a30;
+      --surface-container-highest: #31353c;
+      --surface-bright: #353940;
+      --primary: #7da1ff;
+      --primary-container: #2e5bff;
+      --on-primary-container: #efefff;
+      --secondary-container: #343d96;
+      --tertiary: #44d8f1;
+      --on-surface: #dfe2eb;
+      --on-surface-variant: #c4c5d9;
+      --outline: #8e9099;
+      --outline-variant: rgba(142,144,153,0.15);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    min-height: 100%;
+    font-family: 'Manrope', system-ui, sans-serif;
+    background: var(--surface);
+    color: var(--on-surface);
+  }
+  body {
+    padding: 32px 16px 48px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .container {
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ===== GRID ===== */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 28px 16px;
+    flex: 1;
+    align-content: center;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 180ms ease-in-out;
+    padding: 4px 2px;
+    background: none;
+    border: none;
+    font-family: inherit;
+  }
+  .app:hover {
+    transform: translateY(-3px);
+  }
+  .app:active {
+    transform: translateY(-1px);
+  }
+
+  .app-icon {
+    width: 96px;
+    height: 96px;
+    border-radius: 20px;
+    background: var(--surface-container-low);
+    box-shadow:
+      0 6px 16px rgba(0, 53, 190, 0.08),
+      0 1px 3px rgba(0, 53, 190, 0.04);
+    position: relative;
+    transition: box-shadow 180ms ease-in-out;
+    /* No overflow:hidden here — the badge needs to extend past the corner. */
+  }
+  .app:hover .app-icon {
+    box-shadow:
+      0 16px 36px rgba(0, 53, 190, 0.14),
+      0 4px 8px rgba(0, 53, 190, 0.06);
+  }
+  .app-icon img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border-radius: inherit;
+  }
+  .app-icon .fallback {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 36px;
+    font-weight: 500;
+    color: var(--on-primary-container);
+    background: linear-gradient(45deg, var(--primary-container), var(--secondary-container));
+  }
+
+  .app-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--on-surface);
+    text-align: center;
+    max-width: 130px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.005em;
+  }
+  .app.archived .app-icon {
+    opacity: 0.5;
+    filter: saturate(0.6);
+  }
+  .app.archived .app-name {
+    color: var(--on-surface-variant);
+  }
+
+  /* ===== FOOTER TOGGLE ===== */
+  footer.bottom {
+    margin-top: 24px;
+    display: flex;
+    justify-content: center;
+  }
+  .archive-toggle {
+    background: none;
+    border: none;
+    color: var(--on-surface-variant);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 8px 16px;
+    transition: color 150ms ease-in-out, background 150ms ease-in-out;
+  }
+  .archive-toggle:hover {
+    color: var(--on-surface);
+    background: var(--surface-container-low);
+  }
+
+  /* Pointer-based drag states */
+  .app {
+    cursor: pointer;
+    position: relative;
+    touch-action: none;      /* we handle pointer moves ourselves; don't let the browser scroll/select */
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  body.dragging-active { cursor: grabbing; user-select: none; }
+  body.dragging-active .app { cursor: grabbing; }
+  .app.drag-source {
+    opacity: 0.25;
+    transition: opacity 120ms ease-in-out;
+  }
+  .app.drop-before::before,
+  .app.drop-after::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    bottom: 24px;
+    width: 3px;
+    background: linear-gradient(var(--primary-container), var(--secondary-container));
+    box-shadow: 0 0 8px rgba(46, 91, 255, 0.5);
+    pointer-events: none;
+    z-index: 3;
+  }
+  .app.drop-before::before { left: -10px; }
+  .app.drop-after::before  { right: -10px; }
+
+  /* Floating drag ghost that follows the pointer */
+  .drag-ghost {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    opacity: 0.92;
+    transform: translate(-50%, -50%) scale(1.05);
+    filter: drop-shadow(0 16px 32px rgba(0, 53, 190, 0.25));
+  }
+  .drag-ghost .app-icon {
+    width: 96px;
+    height: 96px;
+    border-radius: 20px;
+    overflow: hidden;
+    background: var(--surface-container-low);
+  }
+  .drag-ghost .app-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .drag-ghost .app-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--on-surface);
+  }
+
+  /* Archive/unarchive hover button per-tile.
+     .app-icon no longer clips, so the badge can sit at its top-right corner. */
+  .archive-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 150ms ease-in-out, transform 150ms ease-in-out, background 150ms ease-in-out;
+    z-index: 3;
+    user-select: none;
+  }
+  .archive-badge svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+  }
+  /* Don't let the (invisible) archive badge eat drag/pointer events until it's visible. */
+  .app:not(:hover) .archive-badge {
+    pointer-events: none;
+  }
+  .app:hover .archive-badge,
+  .archive-badge:focus-visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .app:not(.archived) .archive-badge {
+    background: #c5484e;
+    color: #ffffff;
+    box-shadow:
+      0 2px 8px rgba(197, 72, 78, 0.35),
+      0 0 0 1.5px var(--surface);
+  }
+  .app.archived .archive-badge {
+    background: var(--tertiary);
+    color: var(--surface);
+    box-shadow:
+      0 2px 8px rgba(14, 143, 163, 0.35),
+      0 0 0 1.5px var(--surface);
+  }
+  .archive-badge:hover {
+    filter: brightness(1.08);
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 1024px) {
+    .grid { grid-template-columns: repeat(5, 1fr); }
+  }
+  @media (max-width: 768px) {
+    body { padding: 24px 12px 40px; }
+    .grid { grid-template-columns: repeat(4, 1fr); gap: 24px 12px; }
+    .app-icon { width: 80px; height: 80px; border-radius: 18px; }
+  }
+  @media (max-width: 480px) {
+    body { padding: 20px 8px 40px; }
+    .grid { grid-template-columns: repeat(3, 1fr); gap: 24px 8px; }
+    .app-icon { width: 72px; height: 72px; border-radius: 16px; }
+  }
+
+  .empty-state {
+    text-align: center;
+    color: var(--on-surface-variant);
+    padding: 64px 16px;
+    grid-column: 1 / -1;
+  }
+
+  /* ===== MOBILE CHAT DOCK ===== */
+  /* Hidden by default; revealed only on narrow viewports. */
+  .chat-dock { display: none; }
+
+  @media (max-width: 768px) {
+    .chat-dock {
+      display: flex;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+      background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0) 0%,
+        var(--surface) 40%,
+        var(--surface) 100%
+      );
+      pointer-events: none; /* let the gradient area pass through touches */
+    }
+    .chat-dock-inner {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      background: var(--surface-container-low);
+      padding: 6px 6px 6px 14px;
+      box-shadow:
+        0 8px 24px rgba(0, 53, 190, 0.08),
+        0 1px 3px rgba(0, 53, 190, 0.04);
+    }
+    .chat-dock input {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 15px;
+      color: var(--on-surface);
+      padding: 10px 4px;
+      letter-spacing: -0.005em;
+    }
+    .chat-dock input::placeholder { color: var(--outline); }
+    .chat-dock .send-btn {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(45deg, var(--primary-container), var(--secondary-container));
+      color: var(--on-primary-container);
+      transition: filter 150ms ease-in-out, opacity 150ms ease-in-out;
+    }
+    .chat-dock .send-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+    .chat-dock .send-btn:not(:disabled):hover { filter: brightness(1.08); }
+    .chat-dock .send-btn svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+
+    /* Leave room at the bottom so the grid / archive toggle don't sit under the dock. */
+    body { padding-bottom: 96px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="grid" id="grid"></div>
+
+  <footer class="bottom">
+    <button class="archive-toggle" id="archiveToggle">Show archived apps</button>
+  </footer>
+</div>
+
+<form class="chat-dock" id="chatDock" autocomplete="off">
+  <div class="chat-dock-inner">
+    <input
+      type="text"
+      id="chatDockInput"
+      placeholder="Chat with Lilo"
+      enterkeyhint="send"
+      autocomplete="off"
+      autocapitalize="sentences"
+    />
+    <button type="submit" class="send-btn" id="chatDockSend" aria-label="Send" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+</form>
+
+<script>
+/* ===== Config ===== */
+// Desktop itself should not appear in its own launcher.
+// (The original Desktop app also hides itself; we hide this one too so the
+// grid matches exactly what the user launched this app *from*.)
+const SELF = 'desktop';
+
+/* ===== State ===== */
+let showArchived = false;
+// `fullOrder` includes EVERY workspace app name (including this app itself),
+// in the order returned by window.lilo.os.apps.list(). This is what we pass
+// back to apps.setOrder(...) — that API requires every app name exactly once.
+let fullOrder = [];
+// `allApps` is the filtered, renderable list (no SELF).
+let allApps = []; // [{ name, folder, iconUrl, href?, archived }]
+
+/* ===== Utilities ===== */
+const appsApi = window.lilo && window.lilo.os && window.lilo.os.apps;
+
+function openApp(name) {
+  // Use Lilo's embedded OS navigation so the main preview pane switches to
+  // the app. Pass the bare app name — that's the documented form.
+  try {
+    window.lilo.os.open(name);
+  } catch (err) {
+    console.error('window.lilo.os.open failed:', err);
+  }
+}
+
+/* ===== Rendering ===== */
+function render() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  let apps = allApps.slice();
+  if (!showArchived) apps = apps.filter(a => !a.archived);
+
+  // Archived apps always come after active ones.
+  // Within each group, sort by the authoritative order from the apps API.
+  apps.sort((a, b) => {
+    if (a.archived !== b.archived) return a.archived ? 1 : -1;
+    const ai = fullOrder.indexOf(a.folder);
+    const bi = fullOrder.indexOf(b.folder);
+    const av = ai === -1 ? Infinity : ai;
+    const bv = bi === -1 ? Infinity : bi;
+    if (av !== bv) return av - bv;
+    return String(a.name).localeCompare(String(b.name));
+  });
+
+  if (!apps.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'No apps found.';
+    grid.appendChild(empty);
+  }
+
+  apps.forEach(app => {
+    const btn = document.createElement('button');
+    btn.className = 'app' + (app.archived ? ' archived' : '');
+    btn.title = app.name + (app.archived ? ' (archived)' : '');
+    btn.dataset.folder = app.folder;
+    btn.onclick = (ev) => {
+      // If a drag just happened, don't treat the mouseup as a click.
+      if (justDragged) { ev.preventDefault(); return; }
+      openApp(app.folder);
+    };
+    btn.addEventListener('pointerdown', (ev) => onPointerDown(ev, app, btn));
+
+    const iconWrap = document.createElement('div');
+    iconWrap.className = 'app-icon';
+
+    const badge = document.createElement('button');
+    badge.className = 'archive-badge';
+    badge.type = 'button';
+    badge.title = app.archived ? 'Unarchive' : 'Archive';
+    badge.setAttribute('aria-label', app.archived ? 'Unarchive ' + app.name : 'Archive ' + app.name);
+    // Archive: box with down arrow. Unarchive: box with up arrow.
+    badge.innerHTML = app.archived
+      ? `<svg viewBox="0 0 24 24" aria-hidden="true">
+           <path d="M3 4h18v4H3z" fill="currentColor" opacity="0.9"/>
+           <path d="M5 8v12h14V8" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+           <path d="M12 18V11M8 14l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+         </svg>`
+      : `<svg viewBox="0 0 24 24" aria-hidden="true">
+           <path d="M3 4h18v4H3z" fill="currentColor" opacity="0.9"/>
+           <path d="M5 8v12h14V8" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+           <path d="M12 11v7M8 15l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+         </svg>`;
+    badge.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      toggleArchive(app);
+    });
+    badge.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); });
+    badge.addEventListener('mousedown', (ev) => { ev.stopPropagation(); });
+
+    if (app.iconUrl) {
+      const img = document.createElement('img');
+      img.src = app.iconUrl;
+      img.alt = '';
+      iconWrap.appendChild(img);
+    } else {
+      const fb = document.createElement('div');
+      fb.className = 'fallback';
+      fb.textContent = app.name.charAt(0).toUpperCase();
+      iconWrap.appendChild(fb);
+    }
+
+    const name = document.createElement('div');
+    name.className = 'app-name';
+    name.textContent = app.name;
+
+    iconWrap.appendChild(badge);
+    btn.appendChild(iconWrap);
+    btn.appendChild(name);
+    grid.appendChild(btn);
+  });
+
+  // Toggle label
+  const archivedCount = allApps.filter(a => a.archived).length;
+  const toggle = document.getElementById('archiveToggle');
+  toggle.textContent = showArchived
+    ? `Hide archived apps (${archivedCount})`
+    : `Show archived apps (${archivedCount})`;
+  toggle.style.display = archivedCount ? '' : 'none';
+}
+
+/* ===== Load =====
+   window.lilo.os.apps.list() is the canonical app catalog — display names,
+   icon URLs, archive state, and order. We require it; no filesystem fallback. */
+
+async function loadApps() {
+  if (!appsApi || typeof appsApi.list !== 'function') {
+    document.getElementById('grid').innerHTML =
+      '<div class="empty-state">Desktop requires the Lilo workspace runtime.</div>';
+    return;
+  }
+  try {
+    const list = await appsApi.list();
+    applyAppsFromApi(list);
+  } catch (err) {
+    console.error('apps.list() failed:', err);
+    document.getElementById('grid').innerHTML =
+      '<div class="empty-state">Could not load apps: ' + (err.message || String(err)) + '</div>';
+  }
+}
+
+function applyAppsFromApi(list) {
+  // The API returns apps with an `order` field; sort by that.
+  // Keep the FULL ordered list (including SELF) in `fullOrder`,
+  // since apps.setOrder(...) requires every app name exactly once.
+  const sorted = (list || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  fullOrder = sorted.map(a => a.name);
+
+  allApps = sorted
+    .filter(a => a && a.name && a.name !== SELF)
+    .map(a => ({
+      name: a.displayName || a.name,
+      folder: a.name,
+      href: a.href || null,
+      iconUrl: a.iconHref || null,
+      archived: !!a.archived,
+    }));
+  render();
+}
+
+/* ===== Archive toggle ===== */
+async function toggleArchive(app) {
+  const newArchived = !app.archived;
+  // Optimistic UI update.
+  app.archived = newArchived;
+  render();
+
+  try {
+    await appsApi.setArchived(app.folder, newArchived);
+    // Refresh from source of truth in case the API normalized state.
+    const list = await appsApi.list();
+    applyAppsFromApi(list);
+  } catch (err) {
+    console.error('apps.setArchived failed:', err);
+    // Roll back optimistic update.
+    app.archived = !newArchived;
+    render();
+  }
+}
+
+/* ===== Pointer-based Drag Reorder =====
+   HTML5 drag-and-drop is unreliable inside Lilo's iframe viewer. Using
+   pointer events gives us a consistent drag experience everywhere. */
+let dragState = null; // { app, btn, ghost, pointerId, startX, startY, activated, offsetX, offsetY }
+let justDragged = false;
+const DRAG_THRESHOLD = 6; // px before we treat it as a drag
+
+function clearDropIndicators() {
+  document.querySelectorAll('.app.drop-before, .app.drop-after').forEach(el => {
+    el.classList.remove('drop-before', 'drop-after');
+  });
+}
+
+function onPointerDown(ev, app, btn) {
+  // Only respond to primary button/touch/pen, and ignore clicks on the archive badge.
+  if (ev.button !== undefined && ev.button !== 0) return;
+  if (ev.target.closest('.archive-badge')) return;
+  // Prevent the browser from starting its own drag/text-selection on the button.
+  ev.preventDefault();
+
+  dragState = {
+    app,
+    btn,
+    pointerId: ev.pointerId,
+    startX: ev.clientX,
+    startY: ev.clientY,
+    activated: false,
+    ghost: null,
+    offsetX: 0,
+    offsetY: 0,
+    lastTarget: null,
+    lastBefore: false,
+  };
+
+  // Attach listeners on the window so we keep tracking even if the pointer
+  // leaves the original tile.
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp, { once: false });
+  window.addEventListener('pointercancel', onPointerUp, { once: false });
+}
+
+function activateDrag(ev) {
+  if (!dragState || dragState.activated) return;
+  dragState.activated = true;
+  justDragged = true;
+
+  const btn = dragState.btn;
+  const rect = btn.getBoundingClientRect();
+  dragState.offsetX = ev.clientX - rect.left;
+  dragState.offsetY = ev.clientY - rect.top;
+
+  // Floating ghost tile.
+  const ghost = document.createElement('div');
+  ghost.className = 'drag-ghost';
+  // Clone the icon + name so the user sees exactly what they're dragging.
+  const iconSrc = btn.querySelector('.app-icon');
+  const nameSrc = btn.querySelector('.app-name');
+  if (iconSrc) ghost.appendChild(iconSrc.cloneNode(true));
+  if (nameSrc) ghost.appendChild(nameSrc.cloneNode(true));
+  // Hide the archive badge on the ghost.
+  const ghostBadge = ghost.querySelector('.archive-badge');
+  if (ghostBadge) ghostBadge.remove();
+  document.body.appendChild(ghost);
+  dragState.ghost = ghost;
+
+  btn.classList.add('drag-source');
+  document.body.classList.add('dragging-active');
+  // Intentionally no setPointerCapture here: capturing on a <button> inside an
+  // iframe can trigger pointercancel, which would end the drag immediately.
+  // Window-level pointermove/pointerup listeners track the cursor instead.
+  updateGhost(ev);
+}
+
+function updateGhost(ev) {
+  if (!dragState || !dragState.ghost) return;
+  const cx = ev.clientX;
+  const cy = ev.clientY;
+  dragState.ghost.style.transform =
+    `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1.05)`;
+}
+
+function findTileUnder(x, y) {
+  // Temporarily hide the ghost so elementFromPoint finds the tile underneath.
+  const ghost = dragState && dragState.ghost;
+  const prev = ghost ? ghost.style.display : null;
+  if (ghost) ghost.style.display = 'none';
+  const el = document.elementFromPoint(x, y);
+  if (ghost) ghost.style.display = prev || '';
+  if (!el) return null;
+  return el.closest('.app');
+}
+
+function onPointerMove(ev) {
+  if (!dragState) return;
+
+  if (!dragState.activated) {
+    const dx = ev.clientX - dragState.startX;
+    const dy = ev.clientY - dragState.startY;
+    if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) {
+      activateDrag(ev);
+    } else {
+      return;
+    }
+  }
+
+  updateGhost(ev);
+
+  const tile = findTileUnder(ev.clientX, ev.clientY);
+  if (!tile || tile === dragState.btn) {
+    if (dragState.lastTarget) {
+      clearDropIndicators();
+      dragState.lastTarget = null;
+    }
+    return;
+  }
+
+  const rect = tile.getBoundingClientRect();
+  const before = (ev.clientX - rect.left) < rect.width / 2;
+  if (dragState.lastTarget !== tile || dragState.lastBefore !== before) {
+    clearDropIndicators();
+    tile.classList.add(before ? 'drop-before' : 'drop-after');
+    dragState.lastTarget = tile;
+    dragState.lastBefore = before;
+  }
+}
+
+function onPointerUp(ev) {
+  window.removeEventListener('pointermove', onPointerMove);
+  window.removeEventListener('pointerup', onPointerUp);
+  window.removeEventListener('pointercancel', onPointerUp);
+
+  if (!dragState) return;
+  const state = dragState;
+  dragState = null;
+
+  if (!state.activated) {
+    // Not a drag — let the click handler run normally.
+    justDragged = false;
+    return;
+  }
+
+  // Finalize drag.
+  const tile = state.lastTarget;
+  const before = state.lastBefore;
+  clearDropIndicators();
+  state.btn.classList.remove('drag-source');
+  document.body.classList.remove('dragging-active');
+  if (state.ghost) state.ghost.remove();
+
+  if (tile && tile !== state.btn) {
+    const tgtFolder = tile.dataset.folder;
+    const srcFolder = state.app.folder;
+    reorderApps(srcFolder, tgtFolder, before);
+  }
+
+  // Clear the "just dragged" flag after the click event fires so it gets suppressed.
+  setTimeout(() => { justDragged = false; }, 0);
+}
+
+async function reorderApps(src, tgt, before) {
+  // Mutate `fullOrder` — which contains EVERY app name (including SELF)
+  // — so the payload we hand to setOrder() satisfies its "every app exactly
+  // once" requirement.
+  const srcIdx = fullOrder.indexOf(src);
+  if (srcIdx === -1) return;
+  fullOrder.splice(srcIdx, 1);
+
+  let tgtIdx = fullOrder.indexOf(tgt);
+  if (tgtIdx === -1) tgtIdx = fullOrder.length;
+  const insertAt = before ? tgtIdx : tgtIdx + 1;
+  fullOrder.splice(insertAt, 0, src);
+
+  render();
+
+  try {
+    const updated = await appsApi.setOrder(fullOrder.slice());
+    if (Array.isArray(updated)) applyAppsFromApi(updated);
+  } catch (err) {
+    console.error('apps.setOrder failed:', err);
+    // Re-fetch authoritative state so the UI doesn't stay stuck on a reorder
+    // the backend rejected.
+    try {
+      const list = await appsApi.list();
+      applyAppsFromApi(list);
+    } catch (_) { /* ignore */ }
+  }
+}
+
+/* ===== Wire up ===== */
+document.getElementById('archiveToggle').addEventListener('click', () => {
+  showArchived = !showArchived;
+  render();
+});
+
+/* ===== Mobile chat dock ===== */
+function wireChatDock() {
+  const form = document.getElementById('chatDock');
+  const input = document.getElementById('chatDockInput');
+  const send = document.getElementById('chatDockSend');
+  if (!form || !input || !send) return;
+
+  const refresh = () => { send.disabled = input.value.trim().length === 0; };
+  input.addEventListener('input', refresh);
+  refresh();
+
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    send.disabled = true;
+    try {
+      if (window.lilo && window.lilo.os && window.lilo.os.chat &&
+          typeof window.lilo.os.chat.create === 'function') {
+        await window.lilo.os.chat.create(text, { send: true });
+        input.value = '';
+        input.blur();
+      } else {
+        console.warn('window.lilo.os.chat.create unavailable');
+      }
+    } catch (err) {
+      console.error('chat.create failed:', err);
+    } finally {
+      refresh();
+    }
+  });
+}
+
+loadApps();
+wireChatDock();
+</script>
+</body>
+</html>

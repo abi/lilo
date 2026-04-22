@@ -1,0 +1,16 @@
+{
+  "name": "lilo",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.5.2",
+  "scripts": {
+    "dev": "pnpm --filter frontend dev & pnpm --filter backend dev & pnpm --filter frontend typecheck & pnpm --filter backend typecheck & wait",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:backend": "pnpm --filter backend dev",
+    "dev:template": "LILO_WORKSPACE_DIR=workspace-template pnpm run dev",
+    "setup:railway": "./scripts/setup-railway.sh",
+    "build": "pnpm -r --filter frontend --filter backend build",
+    "lint": "oxlint .",
+    "format": "oxfmt --write ."
+  }
+}

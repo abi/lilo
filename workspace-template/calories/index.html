@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calories</title>
+<link rel="icon" href="/workspace/calories/icon.png">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --surface: #fbf9f6;
+  --surface-container-low: #f1eeea;
+  --surface-container: #e9e6e2;
+  --surface-container-high: #dfdcd8;
+  --surface-container-highest: #d2cfcb;
+  --surface-bright: #cac7c3;
+  --primary: #2e5bff;
+  --primary-container: #2e5bff;
+  --on-primary-container: #ffffff;
+  --secondary-container: #343d96;
+  --tertiary: #0e8fa3;
+  --on-surface: #1a1c20;
+  --on-surface-variant: #44464f;
+  --outline: #74767e;
+  --outline-variant: rgba(116,118,126,0.18);
+  --protein: #c13a2e;
+  --carbs: #b8892b;
+  --fat: #2e5bff;
+  --flame: #e47f1a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #10141a;
+    --surface-container-low: #181c22;
+    --surface-container: #1c2026;
+    --surface-container-high: #262a30;
+    --surface-container-highest: #31353c;
+    --surface-bright: #353940;
+    --primary: #7da1ff;
+    --primary-container: #2e5bff;
+    --on-primary-container: #efefff;
+    --secondary-container: #343d96;
+    --tertiary: #44d8f1;
+    --on-surface: #dfe2eb;
+    --on-surface-variant: #c4c5d9;
+    --outline: #8e9099;
+    --outline-variant: rgba(142,144,153,0.15);
+    --protein: #ff6f5f;
+    --carbs: #e6b754;
+    --fat: #7da1ff;
+    --flame: #f7a44a;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+svg { display: inline-block; vertical-align: middle; width: 16px; height: 16px; flex-shrink: 0; }
+
+html, body {
+  font-family: 'Manrope', system-ui, sans-serif;
+  background: var(--surface);
+  color: var(--on-surface);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input { font-family: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: none; }
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 24px 120px;
+}
+
+h1, h2, h3, .display {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* ─── Top bar ─── */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--primary-container), var(--secondary-container));
+  color: #fff;
+}
+.brand-mark svg { width: 16px; height: 16px; }
+.app-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--on-surface);
+}
+.app-title .sub {
+  display: block;
+  font-family: 'Manrope', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tertiary);
+  font-weight: 500;
+  margin-top: 1px;
+}
+.goal-btn {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+  padding: 8px 12px;
+  background: var(--surface-container);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s ease-in-out, color 0.15s;
+}
+.goal-btn svg { width: 14px; height: 14px; }
+.goal-btn:hover { background: var(--surface-bright); color: var(--on-surface); }
+
+/* ─── Date nav ─── */
+.date-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.date-nav button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  color: var(--on-surface-variant);
+  background: var(--surface-container-low);
+  transition: background 0.15s ease-in-out;
+}
+.date-nav button:hover { background: var(--surface-bright); }
+.date-nav button:disabled { opacity: 0.3; pointer-events: none; }
+.date-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.date-sub {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tertiary);
+  margin-top: 2px;
+}
+
+/* ─── Summary card ─── */
+.summary {
+  background: var(--surface-container-low);
+  padding: 28px 24px 24px;
+  margin-bottom: 24px;
+  position: relative;
+}
+.summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.kcal-block { display: flex; align-items: baseline; gap: 12px; }
+.kcal-icon {
+  align-self: center;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-container);
+  color: var(--flame);
+}
+.kcal-icon svg { width: 20px; height: 20px; }
+.kcal-main {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 56px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.kcal-unit {
+  font-size: 12px;
+  color: var(--on-surface-variant);
+  margin-left: -4px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.kcal-meta {
+  text-align: right;
+  font-size: 10px;
+  color: var(--on-surface-variant);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.kcal-meta .big {
+  display: block;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--on-surface);
+  letter-spacing: -0.01em;
+  text-transform: none;
+  margin-top: 2px;
+}
+.kcal-meta.over .big { color: var(--protein); }
+
+/* Progress bar */
+.progress {
+  height: 8px;
+  background: var(--surface-container-high);
+  margin-bottom: 28px;
+  overflow: hidden;
+  position: relative;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-container), var(--secondary-container));
+  transition: width 0.3s ease-in-out;
+}
+.progress.over .progress-fill {
+  background: linear-gradient(90deg, var(--protein), #8a1e15);
+}
+.progress-ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+}
+.progress-ticks span {
+  flex: 1;
+  border-right: 1px solid var(--surface);
+}
+.progress-ticks span:last-child { border-right: none; }
+
+/* Macros */
+.macros {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  background: var(--surface-container);
+}
+.macro {
+  padding: 14px 14px 14px;
+  background: var(--surface-container-low);
+}
+.macro-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.macro-head svg { width: 12px; height: 12px; }
+.macro-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+  font-weight: 600;
+}
+.macro.protein .macro-head svg { color: var(--protein); }
+.macro.carbs   .macro-head svg { color: var(--carbs); }
+.macro.fat     .macro-head svg { color: var(--fat); }
+.macro-val {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+.macro-val .unit {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--on-surface-variant);
+  text-transform: uppercase;
+  margin-left: 2px;
+}
+.macro-val .goal {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--on-surface-variant);
+  margin-left: 4px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.macro-bar {
+  height: 3px;
+  background: var(--surface-container-high);
+  overflow: hidden;
+}
+.macro-bar-fill { height: 100%; transition: width 0.3s ease-in-out; }
+.macro.protein .macro-bar-fill { background: var(--protein); }
+.macro.carbs   .macro-bar-fill { background: var(--carbs); }
+.macro.fat     .macro-bar-fill { background: var(--fat); }
+
+/* ─── Entries ─── */
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 0 2px;
+}
+.section-title {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tertiary);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title svg { width: 12px; height: 12px; }
+.section-count {
+  font-size: 10px;
+  color: var(--on-surface-variant);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.entries {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 32px;
+}
+.entry {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 16px 12px 12px;
+  background: var(--surface-container-low);
+  transition: background 0.15s ease-in-out;
+}
+.entry:hover { background: var(--surface-bright); }
+.entry-thumb {
+  width: 52px;
+  height: 52px;
+  background: var(--surface-container-high);
+  background-size: cover;
+  background-position: center;
+  cursor: zoom-in;
+}
+.entry-thumb.empty {
+  display: grid;
+  place-items: center;
+  color: var(--on-surface-variant);
+  cursor: default;
+  background: var(--surface-container-high);
+}
+.entry-thumb.empty svg { width: 20px; height: 20px; opacity: 0.6; }
+.entry-body { min-width: 0; }
+.entry-name {
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+.entry-meta {
+  font-size: 11px;
+  color: var(--on-surface-variant);
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.entry-meta svg { width: 11px; height: 11px; opacity: 0.7; }
+.entry-meta .dot {
+  display: inline-block;
+  width: 3px; height: 3px;
+  background: currentColor;
+  opacity: 0.4;
+  border-radius: 50%;
+  margin: 0 4px;
+}
+.entry-meta .macro-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 500;
+}
+.entry-meta .macro-chip.p { color: var(--protein); }
+.entry-meta .macro-chip.c { color: var(--carbs); }
+.entry-meta .macro-chip.f { color: var(--fat); }
+.entry-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.entry-kcal {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.entry-kcal .unit {
+  font-family: 'Manrope', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--on-surface-variant);
+  text-transform: uppercase;
+  margin-left: 2px;
+}
+.entry-del {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--on-surface-variant);
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  background: transparent;
+}
+.entry-del svg { width: 14px; height: 14px; }
+.entry:hover .entry-del { opacity: 0.6; }
+.entry-del:hover { opacity: 1; color: var(--protein); background: var(--surface-container); }
+
+.empty-state {
+  text-align: center;
+  padding: 56px 16px;
+  color: var(--on-surface-variant);
+  font-size: 13px;
+  background: var(--surface-container-low);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.empty-state svg {
+  width: 32px;
+  height: 32px;
+  color: var(--surface-bright);
+}
+.empty-state .title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+  color: var(--on-surface);
+  font-weight: 500;
+}
+.empty-state .sub {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Add bar (fixed bottom) ─── */
+.addbar {
+  position: fixed;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 50;
+}
+.addbar-inner {
+  display: flex;
+  gap: 6px;
+  background: rgba(28,32,38,0.0);
+  background: var(--surface-container);
+  backdrop-filter: blur(12px);
+  padding: 6px;
+  pointer-events: auto;
+  box-shadow: 0 24px 48px -12px rgba(0,53,190,0.18);
+}
+.addbar button {
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: background 0.15s ease-in-out, transform 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.addbar button svg { width: 16px; height: 16px; }
+.btn-photo {
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+}
+.btn-photo:hover { background: var(--surface-bright); }
+.btn-manual {
+  background: linear-gradient(45deg, var(--primary-container), var(--secondary-container));
+  color: var(--on-primary-container);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.btn-manual:hover { transform: translateY(-1px); }
+.btn-manual svg { color: #fff; }
+
+/* ─── Modal ─── */
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,14,20,0.5);
+  backdrop-filter: blur(12px);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  padding: 24px;
+}
+.modal {
+  background: var(--surface-container);
+  width: 100%;
+  max-width: 440px;
+  padding: 32px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal h2 {
+  font-size: 20px;
+  font-weight: 500;
+  margin-bottom: 24px;
+}
+.field { margin-bottom: 16px; }
+.field label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+  margin-bottom: 6px;
+}
+.field input,
+.field textarea {
+  width: 100%;
+  background: var(--surface-container-low);
+  border: 1px solid var(--outline-variant);
+  padding: 12px 14px;
+  font-size: 15px;
+  font-family: inherit;
+  color: inherit;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+.field input:focus,
+.field textarea:focus { border-color: var(--primary); }
+
+.hint {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+  margin-top: -4px;
+  margin-bottom: 4px;
+}
+
+.desc-preview {
+  background: var(--surface-container-low);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--on-surface-variant);
+  line-height: 1.5;
+  font-style: italic;
+}
+.field-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+}
+.btn-cancel {
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--on-surface-variant);
+  transition: background 0.15s;
+}
+.btn-cancel:hover { background: var(--surface-container-high); }
+.btn-save {
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  background: linear-gradient(45deg, var(--primary-container), var(--secondary-container));
+  color: var(--on-primary-container);
+}
+.btn-save:disabled { opacity: 0.4; pointer-events: none; }
+
+/* Photo preview in modal */
+.photo-preview {
+  width: 100%;
+  aspect-ratio: 4/3;
+  background: var(--surface-container-low) center/cover no-repeat;
+  margin-bottom: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--on-surface-variant);
+  font-size: 13px;
+  position: relative;
+  overflow: hidden;
+}
+.photo-preview.has-image { color: transparent; }
+.photo-preview.has-image.analyzing-scan::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 40%;
+  top: -40%;
+  background: linear-gradient(180deg, transparent, rgba(46,91,255,0.35), transparent);
+  animation: scan 1.6s linear infinite;
+}
+@keyframes scan {
+  to { top: 100%; }
+}
+.analyzing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--tertiary);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 0 12px;
+  font-weight: 600;
+}
+.analyzing svg {
+  width: 14px; height: 14px;
+  animation: spin 1.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+.analyzing .dots span {
+  display: inline-block;
+  animation: pulse 1.2s infinite;
+}
+.analyzing .dots span:nth-child(2) { animation-delay: 0.15s; }
+.analyzing .dots span:nth-child(3) { animation-delay: 0.3s; }
+
+.err {
+  background: rgba(193,58,46,0.1);
+  color: var(--protein);
+  padding: 10px 12px;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+/* Lightbox */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.88);
+  display: grid;
+  place-items: center;
+  z-index: 200;
+  padding: 24px;
+  cursor: zoom-out;
+}
+.lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Icons */
+.ic {
+  width: 16px; height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 480px) {
+  .app { padding: 24px 16px 120px; }
+  .kcal-main { font-size: 44px; }
+  .addbar button { padding: 12px 14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- SVG icon sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2s4 4 4 8a4 4 0 0 1-8 0c0-1 .3-2 1-3-1 1-3 3-3 6a6 6 0 0 0 12 0c0-5-6-11-6-11z"/>
+    </symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+    </symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 18 9 12 15 6"/>
+    </symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="9 18 15 12 9 6"/>
+    </symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 7h4l2-3h6l2 3h4v12H3z"/>
+      <circle cx="12" cy="13" r="4"/>
+    </symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/>
+    </symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/>
+      <polyline points="12 7 12 12 15 14"/>
+    </symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="3 6 5 6 21 6"/>
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+    </symbol>
+    <symbol id="i-utensils" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 2v8a3 3 0 0 0 3 3v9"/>
+      <path d="M10 2v9M7 2v9"/>
+      <path d="M20 2c-1.5 0-3 1-3 4v6h2v10"/>
+    </symbol>
+    <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/>
+      <polyline points="21 15 16 10 5 21"/>
+    </symbol>
+    <symbol id="i-plate" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/>
+      <circle cx="12" cy="12" r="5"/>
+    </symbol>
+    <symbol id="i-drumstick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 2a5 5 0 0 1 5 5c0 3-2 4-3 6s-1 3-3 3-3-1-4-1-2 1-3 0-1-2 0-3-1-2-1-4 0-6 4-6h5z"/>
+      <path d="M7 15l-4 4"/>
+      <path d="M5 17l2 2"/>
+    </symbol>
+    <symbol id="i-wheat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22V8"/>
+      <path d="M12 8c-2 0-4-2-4-4 2 0 4 2 4 4z"/>
+      <path d="M12 8c2 0 4-2 4-4-2 0-4 2-4 4z"/>
+      <path d="M12 13c-2 0-4-2-4-4 2 0 4 2 4 4z"/>
+      <path d="M12 13c2 0 4-2 4-4-2 0-4 2-4 4z"/>
+      <path d="M12 18c-2 0-4-2-4-4 2 0 4 2 4 4z"/>
+      <path d="M12 18c2 0 4-2 4-4-2 0-4 2-4 4z"/>
+    </symbol>
+    <symbol id="i-droplet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2s7 8 7 13a7 7 0 0 1-14 0c0-5 7-13 7-13z"/>
+    </symbol>
+    <symbol id="i-loader" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/>
+    </symbol>
+    <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6"/>
+      <line x1="8" y1="12" x2="21" y2="12"/>
+      <line x1="8" y1="18" x2="21" y2="18"/>
+      <circle cx="4" cy="6" r="1"/>
+      <circle cx="4" cy="12" r="1"/>
+      <circle cx="4" cy="18" r="1"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark"><svg><use href="#i-plate"/></svg></div>
+      <div class="app-title">Calories<span class="sub">Daily nutrition log</span></div>
+    </div>
+    <button class="goal-btn" id="goalBtn">
+      <svg><use href="#i-gear"/></svg>
+      Goals
+    </button>
+  </div>
+
+  <!-- Date nav -->
+  <div class="date-nav">
+    <button id="prevDay" aria-label="Previous day">
+      <svg class="ic"><use href="#i-chevron-left"/></svg>
+    </button>
+    <div style="text-align:center;">
+      <div class="date-label" id="dateLabel">Today</div>
+      <div class="date-sub" id="dateSub">—</div>
+    </div>
+    <button id="nextDay" aria-label="Next day">
+      <svg class="ic"><use href="#i-chevron-right"/></svg>
+    </button>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary">
+    <div class="summary-row">
+      <div class="kcal-block">
+        <div class="kcal-icon"><svg><use href="#i-flame"/></svg></div>
+        <div>
+          <span class="kcal-main" id="kcalMain">0</span>
+          <span class="kcal-unit">kcal</span>
+        </div>
+      </div>
+      <div class="kcal-meta" id="kcalMeta">
+        Remaining
+        <span class="big" id="kcalRem">1800</span>
+      </div>
+    </div>
+    <div class="progress" id="progress">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      <div class="progress-ticks"><span></span><span></span><span></span><span></span></div>
+    </div>
+    <div class="macros">
+      <div class="macro protein">
+        <div class="macro-head">
+          <svg><use href="#i-drumstick"/></svg>
+          <div class="macro-label">Protein</div>
+        </div>
+        <div class="macro-val"><span id="pVal">0</span><span class="unit">g</span><span class="goal">/ <span id="pGoal">140</span></span></div>
+        <div class="macro-bar"><div class="macro-bar-fill" id="pBar" style="width:0%"></div></div>
+      </div>
+      <div class="macro carbs">
+        <div class="macro-head">
+          <svg><use href="#i-wheat"/></svg>
+          <div class="macro-label">Carbs</div>
+        </div>
+        <div class="macro-val"><span id="cVal">0</span><span class="unit">g</span><span class="goal">/ <span id="cGoal">220</span></span></div>
+        <div class="macro-bar"><div class="macro-bar-fill" id="cBar" style="width:0%"></div></div>
+      </div>
+      <div class="macro fat">
+        <div class="macro-head">
+          <svg><use href="#i-droplet"/></svg>
+          <div class="macro-label">Fat</div>
+        </div>
+        <div class="macro-val"><span id="fVal">0</span><span class="unit">g</span><span class="goal">/ <span id="fGoal">60</span></span></div>
+        <div class="macro-bar"><div class="macro-bar-fill" id="fBar" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entries -->
+  <div class="section-head">
+    <div class="section-title"><svg><use href="#i-list"/></svg>Meals</div>
+    <div class="section-count" id="entryCount"></div>
+  </div>
+  <div class="entries" id="entries"></div>
+</div>
+
+<!-- Add bar -->
+<div class="addbar">
+  <div class="addbar-inner">
+    <button class="btn-photo" id="photoBtn">
+      <svg><use href="#i-camera"/></svg>
+      Photo
+    </button>
+    <button class="btn-manual" id="describeBtn">
+      <svg><use href="#i-sparkles"/></svg>
+      Describe
+    </button>
+  </div>
+</div>
+
+<input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+
+<!-- Modal host -->
+<div id="modalHost"></div>
+<div id="lightboxHost"></div>
+
+<script>
+// ─── State ─────────────────────────────────────────────
+const DATA_PATH = 'data/data.json';
+let state = {
+  dailyGoal: 1800,
+  macroGoals: { protein: 140, carbs: 220, fat: 60 },
+  entries: {} // { 'YYYY-MM-DD': [ {id, name, kcal, p, c, f, photo?, time} ] }
+};
+let currentDate = todayKey();
+let agentSession = null;
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function shiftDay(key, delta) {
+  const [y,m,d] = key.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  dt.setDate(dt.getDate() + delta);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+function keyIsToday(k) { return k === todayKey(); }
+function keyIsFuture(k) { return k > todayKey(); }
+function formatDateLabel(key) {
+  const [y,m,d] = key.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((dt - today) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === -1) return 'Yesterday';
+  return dt.toLocaleDateString('en-US', { weekday: 'long' });
+}
+function formatDateSub(key) {
+  const [y,m,d] = key.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
+}
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+
+// ─── Persistence ──────────────────────────────────────
+async function load() {
+  try {
+    const txt = await window.lilo.fs.read(DATA_PATH);
+    const j = JSON.parse(txt);
+    state.dailyGoal = j.dailyGoal ?? 1800;
+    state.macroGoals = j.macroGoals ?? state.macroGoals;
+    state.entries = j.entries ?? {};
+  } catch (e) {
+    await save();
+  }
+}
+async function save() {
+  await window.lilo.fs.write(DATA_PATH, JSON.stringify(state, null, 2));
+}
+
+// ─── Render ───────────────────────────────────────────
+function totalsForDay(key) {
+  const arr = state.entries[key] || [];
+  return arr.reduce((a, e) => ({
+    kcal: a.kcal + (+e.kcal || 0),
+    p: a.p + (+e.p || 0),
+    c: a.c + (+e.c || 0),
+    f: a.f + (+e.f || 0),
+  }), {kcal:0, p:0, c:0, f:0});
+}
+
+function render() {
+  // Date nav
+  document.getElementById('dateLabel').textContent = formatDateLabel(currentDate);
+  document.getElementById('dateSub').textContent = formatDateSub(currentDate);
+  document.getElementById('nextDay').disabled = keyIsToday(currentDate);
+
+  // Summary
+  const t = totalsForDay(currentDate);
+  const goal = state.dailyGoal;
+  const remaining = goal - t.kcal;
+  document.getElementById('kcalMain').textContent = Math.round(t.kcal);
+  const meta = document.getElementById('kcalMeta');
+  if (remaining < 0) {
+    meta.classList.add('over');
+    meta.innerHTML = 'Over by<span class="big" id="kcalRem">' + Math.abs(Math.round(remaining)) + '</span>';
+  } else {
+    meta.classList.remove('over');
+    meta.innerHTML = 'Remaining<span class="big" id="kcalRem">' + Math.round(remaining) + '</span>';
+  }
+  const pct = goal > 0 ? Math.min(100, (t.kcal / goal) * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progress').classList.toggle('over', t.kcal > goal);
+
+  // Macros
+  const mg = state.macroGoals;
+  document.getElementById('pVal').textContent = Math.round(t.p);
+  document.getElementById('cVal').textContent = Math.round(t.c);
+  document.getElementById('fVal').textContent = Math.round(t.f);
+  document.getElementById('pGoal').textContent = mg.protein;
+  document.getElementById('cGoal').textContent = mg.carbs;
+  document.getElementById('fGoal').textContent = mg.fat;
+  document.getElementById('pBar').style.width = mg.protein > 0 ? Math.min(100, (t.p / mg.protein) * 100) + '%' : '0%';
+  document.getElementById('cBar').style.width = mg.carbs > 0 ? Math.min(100, (t.c / mg.carbs) * 100) + '%' : '0%';
+  document.getElementById('fBar').style.width = mg.fat > 0 ? Math.min(100, (t.f / mg.fat) * 100) + '%' : '0%';
+
+  // Entries
+  const arr = (state.entries[currentDate] || []).slice().sort((a,b) => (a.time||0) - (b.time||0));
+  document.getElementById('entryCount').textContent = arr.length
+    ? `${arr.length} ${arr.length === 1 ? 'entry' : 'entries'}` : '';
+  const host = document.getElementById('entries');
+  if (!arr.length) {
+    host.innerHTML = `
+      <div class="empty-state">
+        <svg><use href="#i-utensils"/></svg>
+        <div class="title">No meals logged</div>
+        <div class="sub">Tap ‘Photo’ or ‘Describe’ to add one.</div>
+      </div>`;
+    return;
+  }
+  host.innerHTML = '';
+  arr.forEach(e => {
+    const row = document.createElement('div');
+    row.className = 'entry';
+    const thumbHtml = e.photo
+      ? `<div class="entry-thumb" style="background-image:url('${e.photo}?t=${e.time||0}')" data-photo="${e.photo}"></div>`
+      : `<div class="entry-thumb empty"><svg><use href="#i-utensils"/></svg></div>`;
+    const chips = [];
+    if (e.p) chips.push(`<span class="macro-chip p"><svg><use href="#i-drumstick"/></svg>${Math.round(e.p)}g</span>`);
+    if (e.c) chips.push(`<span class="macro-chip c"><svg><use href="#i-wheat"/></svg>${Math.round(e.c)}g</span>`);
+    if (e.f) chips.push(`<span class="macro-chip f"><svg><use href="#i-droplet"/></svg>${Math.round(e.f)}g</span>`);
+    const timeBit = `<svg><use href="#i-clock"/></svg>${formatTime(e.time || Date.now())}`;
+    const metaInner = [timeBit, ...chips].join('<span class="dot"></span>');
+    row.innerHTML = `
+      ${thumbHtml}
+      <div class="entry-body">
+        <div class="entry-name">${escapeHtml(e.name || 'Meal')}</div>
+        <div class="entry-meta">${metaInner}</div>
+      </div>
+      <div class="entry-right">
+        <div class="entry-kcal">${Math.round(e.kcal || 0)}<span class="unit">kcal</span></div>
+        <button class="entry-del" data-del="${e.id}" aria-label="Delete meal">
+          <svg><use href="#i-trash"/></svg>
+        </button>
+      </div>
+    `;
+    host.appendChild(row);
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ─── Entries ops ──────────────────────────────────────
+async function addEntry(e) {
+  if (!state.entries[currentDate]) state.entries[currentDate] = [];
+  state.entries[currentDate].push(e);
+  await save();
+  render();
+}
+async function deleteEntry(id) {
+  const arr = state.entries[currentDate] || [];
+  const idx = arr.findIndex(e => e.id === id);
+  if (idx < 0) return;
+  const [removed] = arr.splice(idx, 1);
+  if (removed.photo) {
+    try { await window.lilo.fs.delete(removed.photo.replace(/^\//, '')); } catch {}
+  }
+  if (!arr.length) delete state.entries[currentDate];
+  await save();
+  render();
+}
+
+// ─── Modal helpers ────────────────────────────────────
+function closeModal() { document.getElementById('modalHost').innerHTML = ''; }
+
+function showReviewModal(prefill = {}) {
+  const host = document.getElementById('modalHost');
+  host.innerHTML = `
+    <div class="modal-bg" id="mbg">
+      <div class="modal" onclick="event.stopPropagation()">
+        <h2 style="display:flex;align-items:center;gap:10px;"><svg style="width:18px;height:18px;color:var(--tertiary)"><use href="#i-utensils"/></svg>${prefill.id ? 'Edit meal' : 'Review meal'}</h2>
+        ${prefill.photo ? `<div class="photo-preview has-image" style="background-image:url('${prefill.photo}')"></div>` : ''}
+        <div class="field">
+          <label>Name</label>
+          <input id="fName" value="${escapeHtml(prefill.name || '')}" placeholder="e.g. Chicken salad">
+        </div>
+        <div class="field">
+          <label>Calories</label>
+          <input id="fKcal" type="number" inputmode="numeric" value="${prefill.kcal ?? ''}" placeholder="0">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Protein (g)</label>
+            <input id="fP" type="number" inputmode="numeric" value="${prefill.p ?? ''}" placeholder="0">
+          </div>
+          <div class="field">
+            <label>Carbs (g)</label>
+            <input id="fC" type="number" inputmode="numeric" value="${prefill.c ?? ''}" placeholder="0">
+          </div>
+          <div class="field">
+            <label>Fat (g)</label>
+            <input id="fF" type="number" inputmode="numeric" value="${prefill.f ?? ''}" placeholder="0">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" id="mCancel">Cancel</button>
+          <button class="btn-save" id="mSave">${prefill.id ? 'Save' : 'Add'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('mbg').addEventListener('click', closeModal);
+  document.getElementById('mCancel').addEventListener('click', closeModal);
+  // Focus kcal so user can quickly adjust agent's estimate; or name if empty
+  const focusEl = prefill.name ? document.getElementById('fKcal') : document.getElementById('fName');
+  focusEl.focus();
+  focusEl.select && focusEl.select();
+  document.getElementById('mSave').addEventListener('click', async () => {
+    const entry = {
+      id: prefill.id || uid(),
+      name: document.getElementById('fName').value.trim() || 'Meal',
+      kcal: +document.getElementById('fKcal').value || 0,
+      p: +document.getElementById('fP').value || 0,
+      c: +document.getElementById('fC').value || 0,
+      f: +document.getElementById('fF').value || 0,
+      photo: prefill.photo || null,
+      time: prefill.time || Date.now(),
+    };
+    closeModal();
+    await addEntry(entry);
+  });
+}
+
+function showGoalsModal() {
+  const host = document.getElementById('modalHost');
+  const g = state.macroGoals;
+  host.innerHTML = `
+    <div class="modal-bg" id="mbg">
+      <div class="modal" onclick="event.stopPropagation()">
+        <h2 style="display:flex;align-items:center;gap:10px;"><svg style="width:18px;height:18px;color:var(--tertiary)"><use href="#i-gear"/></svg>Daily goals</h2>
+        <div class="field">
+          <label>Calories</label>
+          <input id="gKcal" type="number" inputmode="numeric" value="${state.dailyGoal}">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Protein (g)</label>
+            <input id="gP" type="number" inputmode="numeric" value="${g.protein}">
+          </div>
+          <div class="field">
+            <label>Carbs (g)</label>
+            <input id="gC" type="number" inputmode="numeric" value="${g.carbs}">
+          </div>
+          <div class="field">
+            <label>Fat (g)</label>
+            <input id="gF" type="number" inputmode="numeric" value="${g.fat}">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" id="mCancel">Cancel</button>
+          <button class="btn-save" id="mSave">Save</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('mbg').addEventListener('click', closeModal);
+  document.getElementById('mCancel').addEventListener('click', closeModal);
+  document.getElementById('mSave').addEventListener('click', async () => {
+    state.dailyGoal = +document.getElementById('gKcal').value || 1800;
+    state.macroGoals = {
+      protein: +document.getElementById('gP').value || 0,
+      carbs: +document.getElementById('gC').value || 0,
+      fat: +document.getElementById('gF').value || 0,
+    };
+    await save();
+    closeModal();
+    render();
+  });
+}
+
+// ─── Photo upload + AI analysis ───────────────────────
+async function ensureSession() {
+  if (agentSession) return agentSession;
+  const s = await window.lilo.agent.createSession({
+    title: 'Calories food analysis',
+    systemPrompt: 'You estimate nutrition from food images. Always respond with a single JSON object only, no markdown, no prose, matching: {"name": string, "kcal": number, "protein": number, "carbs": number, "fat": number}. Values are integers in grams (macros) and kilocalories. Use reasonable restaurant/home-portion estimates.',
+  });
+  agentSession = s.sessionId;
+  return agentSession;
+}
+
+async function fileToUint8Array(file) {
+  const buf = await file.arrayBuffer();
+  return new Uint8Array(buf);
+}
+
+async function savePhoto(bytes, ext) {
+  const name = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext || 'jpg'}`;
+  const rel = `data/photos/${name}`;
+  await window.lilo.fs.write(rel, bytes);
+  return `/workspace/calories/${rel}`;
+}
+
+async function runAgentAnalysis(message) {
+  const sid = await ensureSession();
+  const run = await window.lilo.agent.prompt(sid, { message });
+  let buf = '';
+  run.on('text_delta', (d) => { buf += d.delta || ''; });
+  const { finalText } = await run.finished;
+  const text = finalText || buf;
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('Agent did not return JSON');
+  const obj = JSON.parse(m[0]);
+  return {
+    name: obj.name || 'Meal',
+    kcal: Math.round(+obj.kcal || 0),
+    p: Math.round(+obj.protein || 0),
+    c: Math.round(+obj.carbs || 0),
+    f: Math.round(+obj.fat || 0),
+  };
+}
+
+async function analyzePhoto(photoPath) {
+  return runAgentAnalysis(`Analyze the food in this image and return JSON only.
+
+Image: ${photoPath}
+
+Read the image from the workspace path above using your tools, identify the food, and output exactly one JSON object with: name, kcal, protein, carbs, fat. No other text.`);
+}
+
+async function analyzeText(description) {
+  return runAgentAnalysis(`Estimate nutrition for this meal description and return JSON only.
+
+Description: """${description}"""
+
+Output exactly one JSON object with: name (short meal label, Title Case), kcal (integer), protein (grams, integer), carbs (grams, integer), fat (grams, integer). No other text. Use reasonable standard-portion estimates. If quantities are given, respect them.`);
+}
+
+function showAnalyzingModal({ photoPath = null, description = null, onCancel }) {
+  const host = document.getElementById('modalHost');
+  const preview = photoPath
+    ? `<div class="photo-preview has-image analyzing-scan" style="background-image:url('${photoPath}')"></div>`
+    : `<div class="desc-preview">${escapeHtml(description || '')}</div>`;
+  host.innerHTML = `
+    <div class="modal-bg" id="mbg">
+      <div class="modal" onclick="event.stopPropagation()">
+        <h2 style="display:flex;align-items:center;gap:10px;"><svg style="width:18px;height:18px;color:var(--tertiary)"><use href="#i-sparkles"/></svg> Analyzing</h2>
+        ${preview}
+        <div class="analyzing" id="aStatus"><svg><use href="#i-loader"/></svg> Asking the agent<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
+        <div id="aErr"></div>
+        <div class="modal-actions">
+          <button class="btn-cancel" id="mCancel">Cancel</button>
+          <button class="btn-save" id="mManual" style="background:var(--surface-container-high); color:var(--on-surface);">Skip & enter manually</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('mCancel').addEventListener('click', () => {
+    if (onCancel) onCancel();
+    closeModal();
+  });
+  document.getElementById('mManual').addEventListener('click', () => {
+    closeModal();
+    showReviewModal({
+      photo: photoPath || null,
+      name: description || '',
+      time: Date.now(),
+    });
+  });
+}
+
+function showAnalysisError(message, retryFn) {
+  const errEl = document.getElementById('aErr');
+  const st = document.getElementById('aStatus');
+  if (st) st.style.display = 'none';
+  if (errEl) {
+    errEl.innerHTML = `<div class="err">${escapeHtml(message)}. Try again or enter manually.</div>`;
+  }
+}
+
+async function startPhotoFlow(photoPath) {
+  showAnalyzingModal({
+    photoPath,
+    onCancel: async () => {
+      try { await window.lilo.fs.delete(photoPath.replace(/^\/workspace\/calories\//, '')); } catch {}
+    },
+  });
+  try {
+    const res = await analyzePhoto(photoPath);
+    closeModal();
+    showReviewModal({ ...res, photo: photoPath, time: Date.now() });
+  } catch (err) {
+    showAnalysisError(err.message || 'Analysis failed');
+  }
+}
+
+async function startTextFlow(description) {
+  showAnalyzingModal({ description });
+  try {
+    const res = await analyzeText(description);
+    closeModal();
+    showReviewModal({ ...res, time: Date.now() });
+  } catch (err) {
+    showAnalysisError(err.message || 'Analysis failed');
+  }
+}
+
+function showDescribeModal() {
+  const host = document.getElementById('modalHost');
+  host.innerHTML = `
+    <div class="modal-bg" id="mbg">
+      <div class="modal" onclick="event.stopPropagation()">
+        <h2 style="display:flex;align-items:center;gap:10px;"><svg style="width:18px;height:18px;color:var(--tertiary)"><use href="#i-sparkles"/></svg>Describe your meal</h2>
+        <div class="field">
+          <label>What did you eat?</label>
+          <textarea id="dInput" rows="3" placeholder="e.g. 2 scrambled eggs with toast and butter, and a large coffee with milk"></textarea>
+        </div>
+        <div class="hint">The agent will estimate calories and macros. You'll review before saving.</div>
+        <div class="modal-actions">
+          <button class="btn-cancel" id="mCancel">Cancel</button>
+          <button class="btn-save" id="mAnalyze">Analyze</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('mbg').addEventListener('click', (e) => {
+    if (e.target.id === 'mbg') closeModal();
+  });
+  document.getElementById('mCancel').addEventListener('click', closeModal);
+  const input = document.getElementById('dInput');
+  input.focus();
+  const submit = () => {
+    const text = input.value.trim();
+    if (!text) return;
+    closeModal();
+    startTextFlow(text);
+  };
+  document.getElementById('mAnalyze').addEventListener('click', submit);
+  input.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') submit();
+  });
+}
+
+// ─── Event wiring ─────────────────────────────────────
+document.getElementById('prevDay').addEventListener('click', () => {
+  currentDate = shiftDay(currentDate, -1);
+  render();
+});
+document.getElementById('nextDay').addEventListener('click', () => {
+  if (keyIsToday(currentDate)) return;
+  currentDate = shiftDay(currentDate, 1);
+  render();
+});
+document.getElementById('goalBtn').addEventListener('click', showGoalsModal);
+document.getElementById('describeBtn').addEventListener('click', showDescribeModal);
+document.getElementById('photoBtn').addEventListener('click', () => {
+  document.getElementById('photoInput').click();
+});
+document.getElementById('photoInput').addEventListener('change', async (ev) => {
+  const file = ev.target.files?.[0];
+  ev.target.value = '';
+  if (!file) return;
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const bytes = await fileToUint8Array(file);
+  const photoPath = await savePhoto(bytes, ext);
+  startPhotoFlow(photoPath);
+});
+
+// Entry clicks (delete + thumb zoom)
+document.getElementById('entries').addEventListener('click', (ev) => {
+  const del = ev.target.closest('[data-del]');
+  if (del) {
+    if (confirm('Delete this meal?')) deleteEntry(del.dataset.del);
+    return;
+  }
+  const thumb = ev.target.closest('[data-photo]');
+  if (thumb) {
+    const host = document.getElementById('lightboxHost');
+    host.innerHTML = `<div class="lightbox"><img src="${thumb.dataset.photo}"></div>`;
+    host.querySelector('.lightbox').addEventListener('click', () => host.innerHTML = '');
+  }
+});
+
+// Escape closes modals
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeModal();
+    document.getElementById('lightboxHost').innerHTML = '';
+  }
+});
+
+// ─── Boot ─────────────────────────────────────────────
+(async () => {
+  await load();
+  render();
+})();
+</script>
+</body>
+</html>

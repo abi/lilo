@@ -1,0 +1,9 @@
+node_modules
+.git
+.env
+.env.local
+frontend/dist
+backend/dist
+mobile-ios
+workspace
+.lilo

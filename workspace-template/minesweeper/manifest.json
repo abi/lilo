@@ -1,0 +1,7 @@
+{
+  "id": "minesweeper",
+  "name": "Minesweeper",
+  "description": "Classic Minesweeper with three difficulty levels, retro-styled dark UI, LED counters, and flag support.",
+  "icon": "icon.png",
+  "entry": "index.html"
+}

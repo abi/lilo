@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Simple Todo</title>
+<link rel="icon" href="/workspace/simple-todo/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700&display=swap" />
+<style>
+  :root {
+    --surface: #fbf9f6;
+    --surface-container-low: #f1eeea;
+    --surface-container: #e9e6e2;
+    --surface-container-high: #dfdcd8;
+    --surface-container-highest: #d2cfcb;
+    --surface-bright: #cac7c3;
+    --primary: #2e5bff;
+    --primary-container: #2e5bff;
+    --on-primary-container: #ffffff;
+    --secondary-container: #343d96;
+    --tertiary: #0e8fa3;
+    --on-surface: #1a1c20;
+    --on-surface-variant: #44464f;
+    --outline: #74767e;
+    --outline-variant: rgba(116, 118, 126, 0.18);
+    --shadow-cobalt: rgba(0, 53, 190, 0.08);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: #10141a;
+      --surface-container-low: #181c22;
+      --surface-container: #1c2026;
+      --surface-container-high: #262a30;
+      --surface-container-highest: #31353c;
+      --surface-bright: #353940;
+      --primary: #7da1ff;
+      --primary-container: #2e5bff;
+      --on-primary-container: #efefff;
+      --secondary-container: #343d96;
+      --tertiary: #44d8f1;
+      --on-surface: #dfe2eb;
+      --on-surface-variant: #c4c5d9;
+      --outline: #8e9099;
+      --outline-variant: rgba(142, 144, 153, 0.15);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--surface);
+    color: var(--on-surface);
+    font-family: 'Manrope', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1 {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-weight: 500;
+    font-size: 28px;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  .app {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 48px 24px 128px;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+
+  .label {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--tertiary);
+  }
+
+  /* ========== INPUT ========== */
+  .input-wrap {
+    background: var(--surface-container-low);
+    padding: 4px;
+    margin-bottom: 24px;
+    display: flex;
+    transition: background 150ms ease-in-out;
+  }
+  .input-wrap:focus-within {
+    background: var(--surface-container);
+  }
+  #newTask {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: 14px 16px;
+    font: inherit;
+    color: var(--on-surface);
+  }
+  #newTask::placeholder {
+    color: var(--outline);
+  }
+  .add-btn {
+    border: none;
+    padding: 0 24px;
+    font: inherit;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--on-primary-container);
+    background: linear-gradient(45deg, var(--primary-container), var(--secondary-container));
+    cursor: pointer;
+    transition: opacity 150ms ease-in-out;
+  }
+  .add-btn:hover { opacity: 0.9; }
+  .add-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  /* ========== FILTERS ========== */
+  .filters {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  .filter-btn {
+    border: none;
+    background: transparent;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--on-surface-variant);
+    cursor: pointer;
+    transition: background 150ms ease-in-out, color 150ms ease-in-out;
+  }
+  .filter-btn:hover {
+    background: var(--surface-container-low);
+  }
+  .filter-btn.active {
+    background: var(--surface-container);
+    color: var(--on-surface);
+  }
+  .filter-btn .count {
+    font-size: 11px;
+    color: var(--tertiary);
+    margin-left: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ========== LIST ========== */
+  .list {
+    display: flex;
+    flex-direction: column;
+  }
+  .empty {
+    padding: 48px 16px;
+    text-align: center;
+    color: var(--on-surface-variant);
+    font-size: 14px;
+  }
+  .empty .label {
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  .task {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    background: transparent;
+    transition: background 0ms;
+  }
+  .task:hover {
+    background: var(--surface-bright);
+  }
+
+  .checkbox {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--outline);
+    background: transparent;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: border-color 150ms ease-in-out, background 150ms ease-in-out;
+  }
+  .checkbox:hover { border-color: var(--primary); }
+  .checkbox.done {
+    background: linear-gradient(45deg, var(--primary-container), var(--secondary-container));
+    border-color: transparent;
+  }
+  .checkbox.done::after {
+    content: '';
+    width: 10px;
+    height: 6px;
+    border-left: 2px solid var(--on-primary-container);
+    border-bottom: 2px solid var(--on-primary-container);
+    transform: rotate(-45deg) translate(1px, -1px);
+  }
+
+  .content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .text {
+    min-width: 0;
+    padding: 2px 0;
+    color: var(--on-surface);
+    cursor: text;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .task.done .text {
+    color: var(--on-surface-variant);
+    text-decoration: line-through;
+    text-decoration-color: var(--outline);
+  }
+
+  .memory-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+    min-width: 0;
+  }
+
+  .memory-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    background: var(--surface-container-low);
+    color: var(--tertiary);
+    padding: 4px 10px 4px 8px;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 150ms ease-in-out, color 150ms ease-in-out;
+  }
+  .memory-toggle:hover {
+    background: var(--surface-container);
+    color: var(--primary);
+  }
+  .memory-toggle .dot {
+    width: 6px;
+    height: 6px;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+  .memory-toggle .caret {
+    font-size: 9px;
+    opacity: 0.8;
+    transition: transform 150ms ease-in-out;
+  }
+  .memory-toggle.open {
+    background: var(--surface-container);
+    color: var(--primary);
+  }
+  .memory-toggle.open .caret { transform: rotate(180deg); }
+
+  .memory-note {
+    min-width: 0;
+    max-width: 100%;
+    background: var(--surface-container-low);
+    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--on-surface);
+    white-space: pre-wrap;
+    word-break: break-word;
+    box-shadow: inset 2px 0 0 var(--tertiary);
+  }
+  .memory-note .source {
+    display: block;
+    margin-top: 6px;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+  .task.done .memory-toggle,
+  .task.done .memory-note {
+    opacity: 0.8;
+  }
+
+  .text-edit {
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: var(--surface-container-low);
+    padding: 2px 8px;
+    font: inherit;
+    color: var(--on-surface);
+  }
+
+  .completed-at {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    letter-spacing: 0.08em;
+    color: var(--tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .row-btn {
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: var(--outline);
+    width: 24px;
+    height: 24px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 150ms ease-in-out, color 150ms ease-in-out;
+    padding: 0;
+    display: grid;
+    place-items: center;
+  }
+  .task:hover .row-btn,
+  .row-btn:focus-visible { opacity: 1; }
+  .row-btn:hover { color: var(--on-surface); }
+
+  .delete-btn { font-size: 18px; }
+
+  .research-btn {
+    flex-shrink: 0;
+    border: none;
+    background: var(--surface-container-low);
+    color: var(--on-surface-variant);
+    height: 28px;
+    padding: 0 10px;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    opacity: 0;
+    transition: background 150ms ease-in-out, color 150ms ease-in-out, opacity 150ms ease-in-out;
+  }
+  .task:hover .research-btn,
+  .research-btn:focus-visible,
+  .research-btn.linked {
+    opacity: 1;
+  }
+  .research-btn:hover {
+    background: var(--surface-container);
+    color: var(--on-surface);
+  }
+  .research-btn.linked {
+    background: var(--surface-container);
+    color: var(--tertiary);
+  }
+  .research-btn.linked:hover {
+    background: var(--surface-container-high);
+    color: var(--primary);
+  }
+
+  /* ========== FOOTER ========== */
+  footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 24px;
+    padding: 0 16px;
+  }
+  .count-text {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+  .clear-btn {
+    border: none;
+    background: transparent;
+    color: var(--on-surface-variant);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    padding: 6px 10px;
+    transition: background 150ms ease-in-out, color 150ms ease-in-out;
+  }
+  .clear-btn:hover {
+    background: var(--surface-container-low);
+    color: var(--on-surface);
+  }
+  .clear-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .clear-btn:disabled:hover { background: transparent; }
+
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>TODO</h1>
+  </header>
+
+  <div class="input-wrap">
+    <input id="newTask" type="text" placeholder="Add a task and press Enter…" autocomplete="off" />
+    <button class="add-btn" id="addBtn" disabled>Add</button>
+  </div>
+
+  <div class="filters" id="filters">
+    <button class="filter-btn active" data-filter="all">All <span class="count" id="countAll">0</span></button>
+    <button class="filter-btn" data-filter="completed">Completed <span class="count" id="countCompleted">0</span></button>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <footer>
+    <span class="count-text" id="remaining">0 remaining</span>
+    <button class="clear-btn" id="clearBtn" disabled>Archive completed</button>
+  </footer>
+</div>
+
+<script>
+  const fs = window.lilo?.fs;
+  const DATA_PATH = 'data/todos.json';
+
+  /** @type {{id:number, text:string, done:boolean, archived?:boolean, createdAt:string, completedAt:string|null, chatId?:string|null, chatLinkedAt?:string|null, memoryNote?:string|null, memorySource?:string|null, memoryAttachedAt?:string|null}[]} */
+  let todos = [];
+  let filter = 'all'; // 'all' | 'completed'
+  /** Cached app-agent session ids */
+  let classifierSessionId = null;
+  let memoryNoteSessionId = null;
+  let globalMemoryCache = null;
+  /** Ephemeral UI state: which todo memory notes are expanded (not persisted). */
+  const expandedMemoryNotes = new Set();
+
+  // ----- Persistence -----
+  async function load() {
+    if (!fs) return;
+    try {
+      const raw = await fs.read(DATA_PATH);
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) todos = parsed;
+    } catch (e) {
+      // file missing or invalid → start fresh
+      todos = [];
+      await save();
+    }
+  }
+
+  let saveTimer = null;
+  function save() {
+    if (!fs) return Promise.resolve();
+    clearTimeout(saveTimer);
+    return new Promise((resolve) => {
+      saveTimer = setTimeout(async () => {
+        try {
+          await fs.write(DATA_PATH, JSON.stringify(todos, null, 2));
+        } catch (e) {
+          console.error('save failed', e);
+        }
+        resolve();
+      }, 150);
+    });
+  }
+
+  // ----- Helpers -----
+  function newId() {
+    return Date.now() + Math.floor(Math.random() * 1000);
+  }
+
+  function relTime(iso) {
+    if (!iso) return '';
+    const then = new Date(iso).getTime();
+    const now = Date.now();
+    const diff = Math.max(0, now - then);
+    const s = Math.floor(diff / 1000);
+    const m = Math.floor(s / 60);
+    const h = Math.floor(m / 60);
+    const d = Math.floor(h / 24);
+    if (s < 60) return 'just now';
+    if (m < 60) return m + 'm ago';
+    if (h < 24) return h + 'h ago';
+    if (d === 1) return 'yesterday';
+    if (d < 7) return d + 'd ago';
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  async function loadGlobalMemory() {
+    if (globalMemoryCache) return globalMemoryCache;
+    if (!fs) return [];
+
+    const index = await fs.read('/memory/INDEX.md');
+    const lines = index.split(/\r?\n/);
+    const entries = [];
+    let inGlobalTable = false;
+
+    for (const line of lines) {
+      if (line.startsWith('## Global Memory')) {
+        inGlobalTable = true;
+        continue;
+      }
+      if (inGlobalTable && line.startsWith('## App-Specific Memory')) break;
+      if (!inGlobalTable) continue;
+
+      const match = line.match(/^\|\s*\[([^\]]+)\]\(([^)]+)\)\s*\|\s*([^|]+?)\s*\|\s*$/);
+      if (!match) continue;
+      const [, name, href, topics] = match;
+      const cleanHref = href.replace(/^\.\//, '');
+      const path = cleanHref.startsWith('memory/') ? '/' + cleanHref : '/memory/' + cleanHref;
+      entries.push({ name, path, topics: topics.trim() });
+    }
+
+    const files = [];
+    for (const entry of entries) {
+      try {
+        const content = await fs.read(entry.path);
+        files.push({ ...entry, content });
+      } catch (err) {
+        console.warn('memory read failed', entry.path, err);
+      }
+    }
+
+    globalMemoryCache = files;
+    return files;
+  }
+
+  const MEMORY_NOTE_SYSTEM_PROMPT = [
+    'You create a single short helper note from memory for a todo item.',
+    'Use ONLY the provided memory files.',
+    'Return ONLY valid JSON with this exact shape: {"note":string|null,"source":string|null}.',
+    'If nothing is directly helpful, return {"note":null,"source":null}.',
+    'A good note is concrete, factual, and useful right now, like an address, date, phone number, policy, saved preference, or key reminder.',
+    'Keep the note under 140 characters.',
+    'Do not mention file paths in the note unless the memory is too broad to state a concrete fact.',
+    'Do not invent facts. No markdown. No explanation outside JSON.'
+  ].join(' ');
+
+  async function getMemoryNoteSession() {
+    if (memoryNoteSessionId) return memoryNoteSessionId;
+    const session = await window.lilo.agent.createSession({
+      title: 'Todo memory note helper',
+      systemPrompt: MEMORY_NOTE_SYSTEM_PROMPT,
+    });
+    memoryNoteSessionId = session.sessionId;
+    return memoryNoteSessionId;
+  }
+
+  function parseMemoryNoteResult(text) {
+    const raw = String(text || '').trim();
+    if (!raw) return { note: null, source: null };
+
+    const normalized = raw.startsWith('```')
+      ? raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+      : raw;
+
+    try {
+      const parsed = JSON.parse(normalized);
+      const note = typeof parsed?.note === 'string' ? parsed.note.trim() : '';
+      const source = typeof parsed?.source === 'string' ? parsed.source.trim() : '';
+      return {
+        note: note || null,
+        source: source || null,
+      };
+    } catch (err) {
+      console.warn('memory note parse failed', err, normalized);
+      return { note: null, source: null };
+    }
+  }
+
+  async function generateMemoryNote(text) {
+    if (!window.lilo?.agent || !fs) return { note: null, source: null };
+
+    const memoryFiles = await loadGlobalMemory();
+    if (!memoryFiles.length) return { note: null, source: null };
+
+    const sessionId = await getMemoryNoteSession();
+    const memoryBlock = memoryFiles.map(file => {
+      return [
+        'FILE: ' + file.path,
+        'TOPICS: ' + file.topics,
+        file.content.trim(),
+      ].join('\n');
+    }).join('\n\n---\n\n');
+
+    const run = await window.lilo.agent.prompt(sessionId, {
+      message: [
+        'Todo: ' + JSON.stringify(text),
+        '',
+        'Memory files:',
+        memoryBlock,
+      ].join('\n')
+    });
+
+    const result = await run.finished;
+    return parseMemoryNoteResult(result?.finalText || '');
+  }
+
+  async function maybeAttachMemoryNote(todoId) {
+    const t = todos.find(x => x.id === todoId);
+    if (!t) return;
+    const originalText = t.text;
+
+    let match = { note: null, source: null };
+    try {
+      match = await generateMemoryNote(originalText);
+    } catch (err) {
+      console.warn('memory note generation failed', err);
+    }
+
+    const still = todos.find(x => x.id === todoId);
+    if (!still || still.text !== originalText) return;
+
+    still.memoryNote = match.note || null;
+    still.memorySource = match.source || null;
+    still.memoryAttachedAt = match.note ? new Date().toISOString() : null;
+    save();
+    render();
+  }
+
+  // ----- Actions -----
+  function addTask(text) {
+    text = text.trim();
+    if (!text) return;
+    const todo = {
+      id: newId(),
+      text,
+      done: false,
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+      memoryNote: null,
+      memorySource: null,
+      memoryAttachedAt: null,
+    };
+    todos.unshift(todo);
+    save();
+    render();
+    if (window.lilo?.agent && fs) {
+      maybeAttachMemoryNote(todo.id).catch(err => console.warn('memory note failed', err));
+    }
+    // Fire-and-forget background research pipeline. Silent on any failure.
+    if (window.lilo?.agent && window.lilo?.os?.chat) {
+      maybeAutoResearch(todo.id).catch(err => console.warn('auto-research failed', err));
+    }
+  }
+
+  function toggleTask(id) {
+    const t = todos.find(x => x.id === id);
+    if (!t) return;
+    t.done = !t.done;
+    t.completedAt = t.done ? new Date().toISOString() : null;
+    // Unchecking a task should also un-archive it so it shows up again on All.
+    if (!t.done) t.archived = false;
+    save();
+    render();
+  }
+
+  function deleteTask(id) {
+    todos = todos.filter(x => x.id !== id);
+    expandedMemoryNotes.delete(id);
+    save();
+    render();
+  }
+
+  function updateText(id, text) {
+    const t = todos.find(x => x.id === id);
+    if (!t) return;
+    const trimmed = text.trim();
+    if (!trimmed) {
+      deleteTask(id);
+      return;
+    }
+    t.text = trimmed;
+    t.memoryNote = null;
+    t.memorySource = null;
+    t.memoryAttachedAt = null;
+    save();
+    render();
+    if (window.lilo?.agent && fs) {
+      maybeAttachMemoryNote(t.id).catch(err => console.warn('memory note failed', err));
+    }
+  }
+
+  function archiveCompleted() {
+    let changed = false;
+    for (const t of todos) {
+      if (t.done && !t.archived) {
+        t.archived = true;
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    save();
+    render();
+  }
+
+  // ----- Render -----
+  const $list = document.getElementById('list');
+  const $remaining = document.getElementById('remaining');
+  const $clearBtn = document.getElementById('clearBtn');
+  const $countAll = document.getElementById('countAll');
+  const $countCompleted = document.getElementById('countCompleted');
+  const $filters = document.getElementById('filters');
+
+  function render() {
+    const visibleAllCount = todos.filter(t => !t.archived).length;
+    const activeCount = todos.filter(t => !t.done).length;
+    const doneCount = todos.filter(t => t.done && !t.archived).length;
+    const archivableCount = todos.filter(t => t.done && !t.archived).length;
+
+    $countAll.textContent = visibleAllCount;
+    $countCompleted.textContent = doneCount;
+
+    $remaining.textContent = activeCount === 1 ? '1 remaining' : activeCount + ' remaining';
+
+    $clearBtn.disabled = archivableCount === 0;
+
+    for (const btn of $filters.querySelectorAll('.filter-btn')) {
+      btn.classList.toggle('active', btn.dataset.filter === filter);
+    }
+
+    const visible = todos.filter(t => {
+      if (filter === 'completed') return t.done && !t.archived;
+      return !t.archived; // 'all'
+    });
+
+    $list.innerHTML = '';
+
+    if (visible.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      const lbl = document.createElement('span');
+      lbl.className = 'label';
+      lbl.textContent = filter === 'completed' ? 'Logbook' : 'All';
+      empty.appendChild(lbl);
+      const msg = document.createElement('span');
+      if (filter === 'completed') msg.textContent = 'No completed tasks yet.';
+      else msg.textContent = 'No tasks yet.';
+      empty.appendChild(msg);
+      $list.appendChild(empty);
+      return;
+    }
+
+    for (const t of visible) {
+      $list.appendChild(renderTask(t));
+    }
+  }
+
+  function renderTask(t) {
+    const row = document.createElement('div');
+    row.className = 'task' + (t.done ? ' done' : '');
+    row.dataset.id = String(t.id);
+
+    const cb = document.createElement('button');
+    cb.className = 'checkbox' + (t.done ? ' done' : '');
+    cb.setAttribute('aria-label', t.done ? 'Mark as not done' : 'Mark as done');
+    cb.addEventListener('click', () => toggleTask(t.id));
+    row.appendChild(cb);
+
+    const content = document.createElement('div');
+    content.className = 'content';
+
+    const text = document.createElement('div');
+    text.className = 'text';
+    text.textContent = t.text;
+    text.title = 'Click to edit';
+    text.addEventListener('click', () => beginEdit(row, t));
+    content.appendChild(text);
+
+    if (t.memoryNote) {
+      const memWrap = document.createElement('div');
+      memWrap.className = 'memory-wrap';
+
+      const isOpen = expandedMemoryNotes.has(t.id);
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'memory-toggle' + (isOpen ? ' open' : '');
+      toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      toggle.setAttribute(
+        'aria-label',
+        (isOpen ? 'Hide' : 'Show') + ' memory note for this task'
+      );
+      toggle.innerHTML =
+        '<span class="dot" aria-hidden="true"></span>' +
+        '<span>Memory note</span>' +
+        '<span class="caret" aria-hidden="true">▾</span>';
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (expandedMemoryNotes.has(t.id)) expandedMemoryNotes.delete(t.id);
+        else expandedMemoryNotes.add(t.id);
+        render();
+      });
+      memWrap.appendChild(toggle);
+
+      if (isOpen) {
+        const note = document.createElement('div');
+        note.className = 'memory-note';
+        let html = escapeHtml(t.memoryNote);
+        if (t.memorySource) {
+          const cleanSource = String(t.memorySource).replace(/^\/*/, '');
+          html += '<span class="source">From ' + escapeHtml(cleanSource) + '</span>';
+        }
+        note.innerHTML = html;
+        memWrap.appendChild(note);
+      }
+
+      content.appendChild(memWrap);
+    }
+
+    row.appendChild(content);
+
+    if (t.done && t.completedAt) {
+      const ts = document.createElement('span');
+      ts.className = 'completed-at';
+      ts.textContent = relTime(t.completedAt);
+      row.appendChild(ts);
+    }
+
+    if (window.lilo?.os?.chat) {
+      const chat = document.createElement('button');
+      chat.className = 'research-btn' + (t.chatId ? ' linked' : '');
+      chat.textContent = t.chatId ? 'View research' : 'Research';
+      chat.setAttribute('aria-label', t.chatId ? 'View linked research' : 'Research this todo in a chat');
+      chat.title = t.chatId
+        ? 'View research' + (t.chatLinkedAt ? ' · ' + relTime(t.chatLinkedAt) : '') + ' (right-click to unlink)'
+        : 'Research in a chat';
+      chat.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openOrLinkChat(t.id);
+      });
+      chat.addEventListener('contextmenu', (e) => {
+        if (!t.chatId) return;
+        e.preventDefault();
+        unlinkChat(t.id);
+      });
+      row.appendChild(chat);
+    }
+
+    const del = document.createElement('button');
+    del.className = 'row-btn delete-btn';
+    del.textContent = '×';
+    del.setAttribute('aria-label', 'Delete task');
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteTask(t.id);
+    });
+    row.appendChild(del);
+
+    return row;
+  }
+
+  function buildSeedPrompt(todo) {
+    const text = typeof todo === 'string' ? todo : todo?.text || '';
+    let prompt = 'Help me research this todo:\n\n"' + text + '"';
+    if (todo && typeof todo === 'object' && todo.memoryNote) {
+      prompt += '\n\nHelpful note from memory:\n' + todo.memoryNote;
+    }
+    prompt += '\n\nGive me a quick overview, key considerations, and what I should do next.';
+    return prompt;
+  }
+
+  async function openOrLinkChat(todoId) {
+    const t = todos.find(x => x.id === todoId);
+    if (!t || !window.lilo?.os?.chat) return;
+
+    // Existing link → try to reopen
+    if (t.chatId) {
+      try {
+        await window.lilo.os.chat.open(t.chatId);
+        return;
+      } catch (err) {
+        console.warn('linked chat could not be opened, creating a new one', err);
+        t.chatId = null;
+        t.chatLinkedAt = null;
+      }
+    }
+
+    // Create a new chat with the prompt drafted (not sent)
+    try {
+      const result = await window.lilo.os.chat.create(buildSeedPrompt(t));
+      const chatId = result && result.chatId;
+      if (chatId) {
+        t.chatId = chatId;
+        t.chatLinkedAt = new Date().toISOString();
+        save();
+        render();
+      }
+    } catch (err) {
+      console.error('chat.create failed', err);
+    }
+  }
+
+  function unlinkChat(todoId) {
+    const t = todos.find(x => x.id === todoId);
+    if (!t || !t.chatId) return;
+    t.chatId = null;
+    t.chatLinkedAt = null;
+    save();
+    render();
+  }
+
+  // ----- Auto-research classifier -----
+  const CLASSIFIER_SYSTEM_PROMPT = [
+    'You are a strict classifier that decides whether a todo should trigger background AI research.',
+    'Default to NO. Only reply YES when the todo clearly cannot be done without first gathering outside information the user likely does not already have.',
+    'Reply with EXACTLY one token: YES or NO. No punctuation, no explanation.',
+    'Reply YES only if the todo explicitly asks to research, learn, compare, decide between options, or figure something out, AND the user almost certainly needs new information to proceed.',
+    'Strong YES signals: "research X", "figure out X", "compare X vs Y", "decide between", "look into", "understand", "learn about", non-trivial medical/legal/financial decisions with unknowns.',
+    'Reply NO for: errands, chores, admin, appointments, reminders, messages, calls, purchases of known items, anything concrete and actionable, and any todo where a short memory note is enough.',
+    'If unsure, reply NO.'
+  ].join(' ');
+
+  async function getClassifierSession() {
+    if (classifierSessionId) return classifierSessionId;
+    const session = await window.lilo.agent.createSession({
+      title: 'Todo research classifier',
+      systemPrompt: CLASSIFIER_SYSTEM_PROMPT,
+    });
+    classifierSessionId = session.sessionId;
+    return classifierSessionId;
+  }
+
+  async function classifyTodo(text) {
+    const sessionId = await getClassifierSession();
+    const run = await window.lilo.agent.prompt(sessionId, {
+      message: 'Todo: "' + text + '"'
+    });
+    const result = await run.finished;
+    const answer = String(result?.finalText || '').trim().toUpperCase();
+    // Be strict — only treat a clean YES as research-worthy.
+    return answer.startsWith('YES');
+  }
+
+  async function maybeAutoResearch(todoId) {
+    const t = todos.find(x => x.id === todoId);
+    if (!t) return;
+
+    let worthResearching = false;
+    try {
+      worthResearching = await classifyTodo(t.text);
+    } catch (err) {
+      console.warn('classifier failed', err);
+    }
+
+    // Todo may have been deleted while we were classifying.
+    const still = todos.find(x => x.id === todoId);
+    if (!still || !worthResearching || still.chatId) return;
+
+    try {
+      const res = await window.lilo.os.chat.create(buildSeedPrompt(still), {
+        send: true,
+        focus: false,
+      });
+      const chatId = res && res.chatId;
+      if (chatId) {
+        still.chatId = chatId;
+        still.chatLinkedAt = new Date().toISOString();
+        save();
+        render();
+      }
+    } catch (err) {
+      console.warn('auto chat.create failed', err);
+    }
+  }
+
+  function beginEdit(row, t) {
+    // replace .text with an input
+    const existing = row.querySelector('.text');
+    if (!existing) return;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'text-edit';
+    input.value = t.text;
+    existing.replaceWith(input);
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+
+    let committed = false;
+    const commit = () => {
+      if (committed) return;
+      committed = true;
+      updateText(t.id, input.value);
+    };
+    const cancel = () => {
+      if (committed) return;
+      committed = true;
+      render();
+    };
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    });
+    input.addEventListener('blur', commit);
+  }
+
+  // ----- Wire up -----
+  const $newTask = document.getElementById('newTask');
+  const $addBtn = document.getElementById('addBtn');
+
+  function submitNew() {
+    addTask($newTask.value);
+    $newTask.value = '';
+    $addBtn.disabled = true;
+    $newTask.focus();
+  }
+
+  $newTask.addEventListener('input', () => {
+    $addBtn.disabled = $newTask.value.trim().length === 0;
+  });
+  $newTask.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submitNew(); }
+  });
+  $addBtn.addEventListener('click', submitNew);
+
+  $filters.addEventListener('click', (e) => {
+    const btn = e.target.closest('.filter-btn');
+    if (!btn) return;
+    filter = btn.dataset.filter;
+    render();
+  });
+
+  $clearBtn.addEventListener('click', archiveCompleted);
+
+  // ----- Init -----
+  (async () => {
+    await load();
+    render();
+  })();
+</script>
+</body>
+</html>

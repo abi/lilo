@@ -1,0 +1,7 @@
+{
+  "id": "todo",
+  "name": "TODO",
+  "description": "Minimal todo list: add, check off, edit, delete, filter by All/Active/Completed, clear completed.",
+  "icon": "icon.png",
+  "entry": "index.html"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "calculator",
+  "name": "Calculator",
+  "description": "Sleek calculator with standard arithmetic operations and a modern UI.",
+  "icon": "icon.png",
+  "entry": "index.html"
+}

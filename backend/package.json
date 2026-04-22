@@ -1,0 +1,27 @@
+{
+  "name": "backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --watch --noEmit",
+    "build": "tsc -p tsconfig.json && mkdir -p dist/shared/prompts && cp src/shared/prompts/DESIGN-SYSTEM.md dist/shared/prompts/DESIGN-SYSTEM.md",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@mariozechner/pi-ai": "^0.67.5",
+    "@mariozechner/pi-coding-agent": "^0.67.5",
+    "@sentry/node": "^10.48.0",
+    "hono": "^4.6.10",
+    "marked": "^17.0.4",
+    "playwright-core": "^1.54.2",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.8.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,16 @@
+import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { askUserQuestionTool } from "./askUserQuestionTool.js";
+import { browserAutomateTool } from "./browserbaseTools.js";
+import { webScrapeTool, webSearchTool } from "./firecrawlTools.js";
+import { generateImagesTool, removeBackgroundTool } from "./imageTools.js";
+import { openAppTool } from "./openAppTool.js";
+
+export const CUSTOM_TOOLS: ToolDefinition[] = [
+  askUserQuestionTool,
+  openAppTool,
+  browserAutomateTool,
+  webSearchTool,
+  webScrapeTool,
+  generateImagesTool,
+  removeBackgroundTool,
+];

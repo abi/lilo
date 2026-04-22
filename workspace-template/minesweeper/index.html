@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Minesweeper</title>
+<link rel="icon" href="/workspace/minesweeper/icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --surface: #fbf9f6;
+    --surface-container-low: #f1eeea;
+    --surface-container: #e9e6e2;
+    --surface-container-high: #dfdcd8;
+    --surface-container-highest: #d2cfcb;
+    --surface-bright: #cac7c3;
+    --primary: #2e5bff;
+    --primary-container: #2e5bff;
+    --on-primary-container: #ffffff;
+    --secondary-container: #343d96;
+    --tertiary: #0e8fa3;
+    --on-surface: #1a1c20;
+    --on-surface-variant: #44464f;
+    --outline: #74767e;
+    --outline-variant: rgba(116,118,126,0.18);
+
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: #10141a;
+      --surface-container-low: #181c22;
+      --surface-container: #1c2026;
+      --surface-container-high: #262a30;
+      --surface-container-highest: #31353c;
+      --surface-bright: #353940;
+      --primary: #7da1ff;
+      --primary-container: #2e5bff;
+      --on-primary-container: #efefff;
+      --secondary-container: #343d96;
+      --tertiary: #44d8f1;
+      --on-surface: #dfe2eb;
+      --on-surface-variant: #c4c5d9;
+      --outline: #8e9099;
+      --outline-variant: rgba(142,144,153,0.15);
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    background: var(--surface);
+    color: var(--on-surface);
+    font-family: 'Manrope', system-ui, sans-serif;
+    display: flex;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* ── Full-height layout ── */
+  .game-container {
+    width: 100%;
+    max-width: 600px;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-sm) var(--space-md);
+    gap: 0;
+  }
+
+  /* ── Top bar: title + difficulty ── */
+  .top-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-xs) 0 var(--space-sm);
+    flex-shrink: 0;
+  }
+
+  .header-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tertiary);
+    white-space: nowrap;
+  }
+
+  .difficulty-bar {
+    display: flex;
+    gap: 0;
+    margin-left: auto;
+  }
+
+  .diff-btn {
+    font-family: 'Manrope', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border: none;
+    background: var(--surface-container);
+    color: var(--on-surface-variant);
+    cursor: pointer;
+    transition: background 0ms, color 150ms ease-in-out;
+    letter-spacing: 0.3px;
+  }
+
+  .diff-btn:hover {
+    background: var(--surface-bright);
+  }
+
+  .diff-btn.active {
+    background: linear-gradient(45deg, var(--primary-container), var(--secondary-container));
+    color: var(--on-primary-container);
+  }
+
+  /* ── Status strip: mines / face / timer ── */
+  .status-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--surface-container-low);
+    flex-shrink: 0;
+    position: relative;
+  }
+
+
+
+  .led-group {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .led-display {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--on-surface);
+    letter-spacing: 2px;
+  }
+
+  .led-label {
+    font-family: 'Manrope', sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--tertiary);
+  }
+
+  .face-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+    border: none;
+    background: var(--surface-container);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0ms;
+  }
+
+  .face-btn:hover { background: var(--surface-bright); }
+  .face-btn:active { background: var(--surface-container-highest); transform: scale(0.93); }
+
+  /* ── Board — the hero ── */
+  .board-area {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-sm) 0;
+  }
+
+  .board {
+    display: grid;
+    gap: 1px;
+    background: var(--surface-container);
+    touch-action: manipulation;
+  }
+
+  .cell {
+    width: var(--cell-size, 32px);
+    height: var(--cell-size, 32px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: calc(var(--cell-size, 32px) * 0.42);
+    cursor: pointer;
+    transition: background 0ms;
+    position: relative;
+    border: none;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .cell.hidden {
+    background: var(--surface-container-high);
+  }
+
+  .cell.hidden:hover {
+    background: var(--surface-bright);
+  }
+
+  .cell.hidden:active {
+    background: var(--surface-container-highest);
+    transform: scale(0.93);
+  }
+
+  .cell.revealed {
+    background: var(--surface-container-low);
+    cursor: default;
+  }
+
+  .cell.revealed.mine-hit {
+    background: rgba(220,50,50,0.18);
+    animation: mineFlash 0.35s ease-out;
+  }
+
+  @keyframes mineFlash {
+    0% { background: rgba(220,50,50,0.45); }
+    100% { background: rgba(220,50,50,0.18); }
+  }
+
+  .cell.flagged::after {
+    content: '⚑';
+    color: var(--primary);
+    font-size: calc(var(--cell-size, 32px) * 0.5);
+    animation: flagPop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes flagPop {
+    0% { transform: scale(0); }
+    100% { transform: scale(1); }
+  }
+
+  .n1 { color: var(--primary); }
+  .n2 { color: #2a9d5c; }
+  .n3 { color: #d93636; }
+  .n4 { color: var(--secondary-container); }
+  .n5 { color: #c0600a; }
+  .n6 { color: var(--tertiary); }
+  .n7 { color: var(--on-surface); }
+  .n8 { color: var(--outline); }
+
+  .mine-icon { font-size: calc(var(--cell-size, 32px) * 0.5); }
+
+  /* ── Bottom bar: instructions + scores toggle ── */
+  .bottom-bar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-sm) 0 var(--space-xs);
+  }
+
+  .instructions {
+    font-size: 11px;
+    color: var(--on-surface-variant);
+    line-height: 1;
+  }
+
+  .instructions kbd {
+    background: var(--surface-container);
+    padding: 1px 6px;
+    font-size: 10px;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 600;
+    color: var(--on-surface);
+  }
+
+  .scores-toggle {
+    font-family: 'Manrope', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--space-xs) var(--space-sm);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: opacity 150ms ease-in-out;
+    white-space: nowrap;
+  }
+
+  .scores-toggle:hover { opacity: 0.7; }
+
+  .scores-toggle .arrow {
+    display: inline-block;
+    font-size: 9px;
+    transition: transform 150ms ease-in-out;
+  }
+
+  .scores-toggle.open .arrow {
+    transform: rotate(180deg);
+  }
+
+  /* ── High Scores Panel (collapsible) ── */
+  .highscores-panel {
+    flex-shrink: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 200ms ease-in-out;
+  }
+
+  .highscores-panel.open {
+    max-height: 300px;
+  }
+
+  .highscores-inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    padding-bottom: var(--space-sm);
+  }
+
+  .highscores-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+  }
+
+  .highscores-tabs {
+    display: flex;
+    flex: 1;
+    gap: 0;
+  }
+
+  .highscores-clear {
+    font-family: 'Manrope', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--on-surface-variant);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--space-xs) var(--space-sm);
+    transition: color 150ms ease-in-out;
+  }
+
+  .highscores-clear:hover { color: #d93636; }
+
+  .hs-tab {
+    flex: 1;
+    font-family: 'Manrope', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 0;
+    background: var(--surface-container);
+    border: none;
+    color: var(--on-surface-variant);
+    cursor: pointer;
+    transition: background 0ms, color 150ms ease-in-out;
+    text-align: center;
+  }
+
+  .hs-tab:hover { background: var(--surface-bright); }
+
+  .hs-tab.active {
+    background: var(--surface-container-high);
+    color: var(--on-surface);
+  }
+
+  .hs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--surface-container);
+  }
+
+  .hs-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: 8px var(--space-md);
+    background: var(--surface-container-low);
+    font-size: 12px;
+    animation: rowSlide 0.2s ease-in-out both;
+    transition: background 0ms;
+  }
+
+  .hs-row:hover { background: var(--surface-bright); }
+
+  .hs-row:nth-child(1) { animation-delay: 0s; }
+  .hs-row:nth-child(2) { animation-delay: 0.04s; }
+  .hs-row:nth-child(3) { animation-delay: 0.08s; }
+  .hs-row:nth-child(4) { animation-delay: 0.12s; }
+  .hs-row:nth-child(5) { animation-delay: 0.16s; }
+
+  @keyframes rowSlide {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hs-rank {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--outline);
+    min-width: 24px;
+  }
+
+  .hs-row:nth-child(1) .hs-rank { color: #c0960a; }
+  .hs-row:nth-child(2) .hs-rank { color: var(--outline); }
+  .hs-row:nth-child(3) .hs-rank { color: #a07040; }
+
+  .hs-time {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--tertiary);
+    min-width: 48px;
+  }
+
+  .hs-date {
+    color: var(--on-surface-variant);
+    font-size: 11px;
+    margin-left: auto;
+  }
+
+  .hs-empty {
+    text-align: center;
+    padding: var(--space-md);
+    color: var(--on-surface-variant);
+    font-size: 12px;
+    background: var(--surface-container-low);
+  }
+
+  .hs-new { background: var(--surface-container); }
+
+  /* ── Game Over Overlay ── */
+  .game-over-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    animation: fadeIn 0.2s ease-in-out forwards;
+    backdrop-filter: blur(12px);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .game-over-overlay { background: rgba(0,0,0,0.5); }
+  }
+
+  @keyframes fadeIn { to { opacity: 1; } }
+
+  .game-over-card {
+    background: var(--surface-container-low);
+    padding: var(--space-xl) 48px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-md);
+    box-shadow: 0 8px 24px rgba(0,53,190,0.08);
+    animation: cardSlide 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+  }
+
+
+
+  @keyframes cardSlide {
+    0% { transform: translateY(16px) scale(0.96); opacity: 0; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+
+  .game-over-card h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--on-surface);
+  }
+
+  .game-over-card .stats {
+    font-size: 13px;
+    color: var(--on-surface-variant);
+  }
+
+  .play-again-btn {
+    font-family: 'Manrope', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px var(--space-xl);
+    border: none;
+    background: linear-gradient(45deg, var(--primary-container), var(--secondary-container));
+    color: var(--on-primary-container);
+    cursor: pointer;
+    transition: opacity 150ms ease-in-out;
+    position: relative;
+  }
+
+
+
+  .play-again-btn:hover { opacity: 0.9; }
+  .play-again-btn:active { opacity: 0.8; }
+</style>
+</head>
+<body>
+
+<div class="game-container">
+  <!-- Top bar -->
+  <div class="top-bar">
+    <span class="header-title">Minesweeper</span>
+    <div class="difficulty-bar">
+      <button class="diff-btn active" data-diff="beginner">Easy</button>
+      <button class="diff-btn" data-diff="intermediate">Medium</button>
+      <button class="diff-btn" data-diff="expert">Hard</button>
+    </div>
+  </div>
+
+  <!-- Status strip -->
+  <div class="status-strip">
+    <div class="led-group">
+      <div class="led-display" id="mine-counter">010</div>
+      <div class="led-label">mines</div>
+    </div>
+    <button class="face-btn" id="face-btn">😀</button>
+    <div class="led-group">
+      <div class="led-display" id="timer">000</div>
+      <div class="led-label">time</div>
+    </div>
+  </div>
+
+  <!-- Board — fills remaining space -->
+  <div class="board-area">
+    <div class="board" id="board"></div>
+  </div>
+
+  <!-- Bottom bar -->
+  <div class="bottom-bar">
+    <div class="instructions">
+      <kbd>Click</kbd> reveal · <kbd>Right-click</kbd> flag
+    </div>
+    <button class="scores-toggle" id="scores-toggle">
+      Scores <span class="arrow">▼</span>
+    </button>
+  </div>
+
+  <!-- Collapsible high scores -->
+  <div class="highscores-panel" id="highscores-panel">
+    <div class="highscores-inner">
+      <div class="highscores-header">
+        <div class="highscores-tabs">
+          <button class="hs-tab active" data-hs="beginner">Easy</button>
+          <button class="hs-tab" data-hs="intermediate">Medium</button>
+          <button class="hs-tab" data-hs="expert">Hard</button>
+        </div>
+        <button class="highscores-clear" id="clear-scores">Clear</button>
+      </div>
+      <div class="hs-list" id="hs-list"></div>
+    </div>
+  </div>
+</div>
+
+<div id="overlay"></div>
+
+<script>
+const SCORES_PATH = '/workspace/minesweeper/data/highscores.json';
+const MAX_SCORES = 5;
+
+let allScores = { beginner: [], intermediate: [], expert: [] };
+let hsTab = 'beginner';
+
+async function loadScores() {
+  try {
+    const res = await fetch(SCORES_PATH);
+    if (res.ok) allScores = await res.json();
+  } catch (e) {}
+}
+
+async function saveScores() {
+  try {
+    await fetch(SCORES_PATH, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(allScores)
+    });
+  } catch (e) {}
+}
+
+function addScore(diff, seconds) {
+  const entry = { time: seconds, date: new Date().toISOString().split('T')[0] };
+  const list = allScores[diff] || [];
+  list.push(entry);
+  list.sort((a, b) => a.time - b.time);
+  allScores[diff] = list.slice(0, MAX_SCORES);
+  saveScores();
+  return allScores[diff].findIndex(e => e === entry);
+}
+
+function renderScores(highlightIndex) {
+  const listEl = document.getElementById('hs-list');
+  const scores = allScores[hsTab] || [];
+  if (scores.length === 0) {
+    listEl.innerHTML = '<div class="hs-empty">No scores yet — win a game!</div>';
+    return;
+  }
+  listEl.innerHTML = scores.map((s, i) => {
+    const isNew = (hsTab === difficulty && i === highlightIndex);
+    return '<div class="hs-row' + (isNew ? ' hs-new' : '') + '">' +
+      '<span class="hs-rank">#' + (i + 1) + '</span>' +
+      '<span class="hs-time">' + s.time + 's</span>' +
+      '<span class="hs-date">' + s.date + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+// Scores toggle
+const scoresToggle = document.getElementById('scores-toggle');
+const scoresPanel = document.getElementById('highscores-panel');
+scoresToggle.addEventListener('click', () => {
+  scoresToggle.classList.toggle('open');
+  scoresPanel.classList.toggle('open');
+});
+
+document.querySelectorAll('.hs-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.hs-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    hsTab = tab.dataset.hs;
+    renderScores(-1);
+  });
+});
+
+document.getElementById('clear-scores').addEventListener('click', () => {
+  allScores[hsTab] = [];
+  saveScores();
+  renderScores(-1);
+});
+
+const CONFIGS = {
+  beginner:     { rows: 9,  cols: 9,  mines: 10 },
+  intermediate: { rows: 16, cols: 16, mines: 40 },
+  expert:       { rows: 16, cols: 30, mines: 99 },
+};
+
+let difficulty = 'beginner';
+let rows, cols, totalMines;
+let board, revealed, flagged, gameOver, gameWon, firstClick, startTime, timerInterval;
+let flagCount;
+
+const boardEl = document.getElementById('board');
+const mineCounterEl = document.getElementById('mine-counter');
+const timerEl = document.getElementById('timer');
+const faceBtn = document.getElementById('face-btn');
+const overlayEl = document.getElementById('overlay');
+
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    difficulty = btn.dataset.diff;
+    initGame();
+  });
+});
+
+faceBtn.addEventListener('click', initGame);
+
+function initGame() {
+  const cfg = CONFIGS[difficulty];
+  rows = cfg.rows;
+  cols = cfg.cols;
+  totalMines = cfg.mines;
+
+  board = Array.from({ length: rows }, () => Array(cols).fill(0));
+  revealed = Array.from({ length: rows }, () => Array(cols).fill(false));
+  flagged = Array.from({ length: rows }, () => Array(cols).fill(false));
+  gameOver = false;
+  gameWon = false;
+  firstClick = true;
+  flagCount = 0;
+
+  clearInterval(timerInterval);
+  startTime = null;
+  timerEl.textContent = '000';
+  updateMineCounter();
+  faceBtn.textContent = '😀';
+  overlayEl.innerHTML = '';
+
+  // Close scores panel so board gets maximum space
+  scoresToggle.classList.remove('open');
+  scoresPanel.classList.remove('open');
+
+  hsTab = difficulty;
+  document.querySelectorAll('.hs-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.hs === difficulty);
+  });
+  renderScores(-1);
+
+  // Clear board first so layout settles
+  boardEl.innerHTML = '';
+  boardEl.style.gridTemplateColumns = '';
+  boardEl.style.gridTemplateRows = '';
+
+  // Defer measuring until after layout
+  requestAnimationFrame(() => { buildBoard(); });
+}
+
+function buildBoard() {
+  // Measure available space for the board
+  const boardArea = document.querySelector('.board-area');
+  const availW = boardArea.clientWidth;
+  const availH = boardArea.clientHeight;
+
+  // Calculate cell size to fill the available area
+  const cellFromWidth = Math.floor((availW - (cols + 1)) / cols);
+  const cellFromHeight = Math.floor((availH - (rows + 1)) / rows);
+  const cellSize = Math.max(18, Math.min(48, cellFromWidth, cellFromHeight));
+
+  boardEl.style.setProperty('--cell-size', cellSize + 'px');
+  boardEl.style.gridTemplateColumns = 'repeat(' + cols + ', var(--cell-size))';
+  boardEl.style.gridTemplateRows = 'repeat(' + rows + ', var(--cell-size))';
+
+  boardEl.innerHTML = '';
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell hidden';
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+
+      cell.addEventListener('click', () => handleClick(r, c));
+      cell.addEventListener('contextmenu', (e) => { e.preventDefault(); handleFlag(r, c); });
+
+      let longPressTimer = null;
+      let longPressFired = false;
+
+      cell.addEventListener('touchstart', (e) => {
+        longPressFired = false;
+        longPressTimer = setTimeout(() => {
+          longPressFired = true;
+          handleFlag(r, c);
+        }, 400);
+      }, { passive: true });
+
+      cell.addEventListener('touchend', (e) => {
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        if (longPressFired) e.preventDefault();
+      });
+
+      cell.addEventListener('touchmove', () => {
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+      });
+
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+function placeMines(safeR, safeC) {
+  const safe = new Set();
+  for (let dr = -1; dr <= 1; dr++)
+    for (let dc = -1; dc <= 1; dc++)
+      safe.add((safeR + dr) + ',' + (safeC + dc));
+
+  let placed = 0;
+  while (placed < totalMines) {
+    const r = Math.floor(Math.random() * rows);
+    const c = Math.floor(Math.random() * cols);
+    if (board[r][c] !== -1 && !safe.has(r + ',' + c)) { board[r][c] = -1; placed++; }
+  }
+
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++) {
+      if (board[r][c] === -1) continue;
+      let count = 0;
+      for (let dr = -1; dr <= 1; dr++)
+        for (let dc = -1; dc <= 1; dc++) {
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && board[nr][nc] === -1) count++;
+        }
+      board[r][c] = count;
+    }
+}
+
+function handleClick(r, c) {
+  if (gameOver || flagged[r][c] || revealed[r][c]) return;
+  if (firstClick) {
+    firstClick = false;
+    placeMines(r, c);
+    startTime = Date.now();
+    timerInterval = setInterval(updateTimer, 1000);
+  }
+  if (board[r][c] === -1) {
+    gameOver = true;
+    faceBtn.textContent = '💀';
+    clearInterval(timerInterval);
+    revealAll(r, c);
+    setTimeout(() => showOverlay(false), 600);
+    return;
+  }
+  flood(r, c);
+  checkWin();
+}
+
+function handleFlag(r, c) {
+  if (gameOver || revealed[r][c]) return;
+  if (flagged[r][c]) { flagged[r][c] = false; flagCount--; getCell(r, c).classList.remove('flagged'); }
+  else { flagged[r][c] = true; flagCount++; getCell(r, c).classList.add('flagged'); }
+  updateMineCounter();
+}
+
+function flood(r, c) {
+  if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+  if (revealed[r][c] || flagged[r][c]) return;
+  revealed[r][c] = true;
+  const cell = getCell(r, c);
+  cell.classList.remove('hidden');
+  cell.classList.add('revealed');
+  const val = board[r][c];
+  if (val > 0) { cell.textContent = val; cell.classList.add('n' + val); }
+  else if (val === 0) {
+    for (let dr = -1; dr <= 1; dr++)
+      for (let dc = -1; dc <= 1; dc++)
+        flood(r + dr, c + dc);
+  }
+}
+
+function revealAll(hitR, hitC) {
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++) {
+      const cell = getCell(r, c);
+      if (board[r][c] === -1) {
+        cell.classList.remove('hidden');
+        cell.classList.add('revealed');
+        if (r === hitR && c === hitC) cell.classList.add('mine-hit');
+        cell.innerHTML = '<span class="mine-icon">💣</span>';
+      } else if (flagged[r][c] && !revealed[r][c]) {
+        cell.classList.remove('flagged', 'hidden');
+        cell.classList.add('revealed');
+        cell.textContent = '✕';
+        cell.style.color = '#d93636';
+      }
+    }
+}
+
+function checkWin() {
+  let unrevealedSafe = 0;
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      if (!revealed[r][c] && board[r][c] !== -1) unrevealedSafe++;
+  if (unrevealedSafe === 0) {
+    gameOver = true;
+    gameWon = true;
+    clearInterval(timerInterval);
+    faceBtn.textContent = '😎';
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        if (board[r][c] === -1 && !flagged[r][c]) {
+          flagged[r][c] = true; flagCount++;
+          getCell(r, c).classList.add('flagged');
+        }
+    updateMineCounter();
+    const elapsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
+    const rank = addScore(difficulty, elapsed);
+    hsTab = difficulty;
+    document.querySelectorAll('.hs-tab').forEach(t => t.classList.toggle('active', t.dataset.hs === difficulty));
+    renderScores(rank);
+    // Auto-open scores on win
+    scoresToggle.classList.add('open');
+    scoresPanel.classList.add('open');
+    setTimeout(() => showOverlay(true), 400);
+  }
+}
+
+function showOverlay(won) {
+  const elapsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
+  overlayEl.innerHTML =
+    '<div class="game-over-overlay" onclick="if(event.target===this){overlayEl.innerHTML=\'\'}">' +
+      '<div class="game-over-card">' +
+        '<h2>' + (won ? '🎉 You Win!' : '💥 Game Over') + '</h2>' +
+        '<div class="stats">Time: ' + elapsed + 's · ' + CONFIGS[difficulty].mines + ' mines</div>' +
+        '<button class="play-again-btn" onclick="overlayEl.innerHTML=\'\';initGame()">Play Again</button>' +
+      '</div>' +
+    '</div>';
+}
+
+function getCell(r, c) { return boardEl.children[r * cols + c]; }
+
+function updateMineCounter() {
+  const remaining = totalMines - flagCount;
+  mineCounterEl.textContent = String(Math.max(0, remaining)).padStart(3, '0');
+}
+
+function updateTimer() {
+  if (!startTime) return;
+  const elapsed = Math.min(999, Math.floor((Date.now() - startTime) / 1000));
+  timerEl.textContent = String(elapsed).padStart(3, '0');
+}
+
+// Handle resize
+window.addEventListener('resize', () => { if (!gameOver) initGame(); });
+
+loadScores().then(() => { initGame(); });
+</script>
+</body>
+</html>

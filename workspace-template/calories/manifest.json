@@ -1,0 +1,7 @@
+{
+  "id": "calories",
+  "name": "Calories",
+  "description": "Calorie and macro tracker. Log meals via photo (agent-analyzed) or manually, track against daily goals, browse by date.",
+  "icon": "icon.png",
+  "entry": "index.html"
+}

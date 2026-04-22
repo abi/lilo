@@ -1,0 +1,7 @@
+{
+  "id": "wordpad",
+  "name": "Wordpad",
+  "description": "Rich text editor with document management, formatting toolbar, find & replace, drag & drop images, and auto-save.",
+  "icon": "icon.png",
+  "entry": "index.html"
+}
