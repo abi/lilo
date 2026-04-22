@@ -96,7 +96,17 @@ const twilioFetch = async (
   });
 };
 
-const sendWhatsAppReply = async (to: string, body: string): Promise<void> => {
+const TWILIO_RETRYABLE_STATUS_CODES = new Set([408, 409, 429, 500, 502, 503, 504]);
+
+const sleep = async (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const sendWhatsAppReply = async (
+  to: string,
+  body: string,
+): Promise<{ sid: string | null; status: string | null }> => {
   const accountSid = getRequiredEnv("TWILIO_ACCOUNT_SID");
   const authToken = getRequiredEnv("TWILIO_AUTH_TOKEN");
   const from = normalizeWhatsAppAddress(getRequiredEnv("TWILIO_WHATSAPP_FROM_NUMBER"));
@@ -107,41 +117,112 @@ const sendWhatsAppReply = async (to: string, body: string): Promise<void> => {
     Body: body,
   });
 
-  const response = await twilioFetch(
-    accountSid,
-    authToken,
-    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: params.toString(),
-    },
-  );
+  let lastError: unknown = null;
 
-  if (!response.ok) {
-    const responseText = await response.text();
-    const error = new Error(`Twilio WhatsApp send failed with status ${response.status}`);
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await twilioFetch(
+        accountSid,
+        authToken,
+        `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: params.toString(),
+        },
+      );
 
-    captureBackendException(error, {
-      tags: {
-        area: "whatsapp",
-        provider: "twilio",
-        operation: "send_reply",
-        to: normalizeWhatsAppAddress(to),
-        from,
-        status_code: response.status,
-      },
-      extras: {
-        responseBody: responseText,
-      },
-      level: "error",
-      fingerprint: ["whatsapp", "twilio", "send_reply", String(response.status)],
-    });
+      const responseText = await response.text();
+      let responseJson: Record<string, unknown> | null = null;
+      if (responseText.trim().length > 0) {
+        try {
+          responseJson = JSON.parse(responseText) as Record<string, unknown>;
+        } catch {
+          responseJson = null;
+        }
+      }
 
-    console.error(`[whatsapp] Twilio send error ${response.status}: ${responseText}`);
+      if (response.ok) {
+        return {
+          sid: typeof responseJson?.sid === "string" ? responseJson.sid : null,
+          status: typeof responseJson?.status === "string" ? responseJson.status : null,
+        };
+      }
+
+      const error = new Error(`Twilio WhatsApp send failed with status ${response.status}`);
+      lastError = error;
+      const isRetryable = TWILIO_RETRYABLE_STATUS_CODES.has(response.status) && attempt < 3;
+
+      console.error(
+        `[whatsapp] Twilio send failed attempt=${attempt} status=${response.status} retryable=${isRetryable} body=${responseText}`,
+      );
+
+      if (!isRetryable) {
+        captureBackendException(error, {
+          tags: {
+            area: "whatsapp",
+            provider: "twilio",
+            operation: "send_reply",
+            to: normalizeWhatsAppAddress(to),
+            from,
+            status_code: response.status,
+            attempt,
+          },
+          extras: {
+            responseBody: responseText,
+            responseJson,
+            messageLength: body.length,
+          },
+          level: "error",
+          fingerprint: ["whatsapp", "twilio", "send_reply", String(response.status)],
+        });
+        throw error;
+      }
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.startsWith("Twilio WhatsApp send failed with status ")
+      ) {
+        throw error;
+      }
+
+      lastError = error;
+      const isNetworkFailure = !(error instanceof Error && /status \d+/.test(error.message));
+
+      console.error(
+        `[whatsapp] Twilio send threw attempt=${attempt} retryable=${attempt < 3} error=${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+
+      if (attempt >= 3 || !isNetworkFailure) {
+        captureBackendException(error, {
+          tags: {
+            area: "whatsapp",
+            provider: "twilio",
+            operation: "send_reply",
+            to: normalizeWhatsAppAddress(to),
+            from,
+            attempt,
+          },
+          extras: {
+            messageLength: body.length,
+          },
+          level: "error",
+          fingerprint: ["whatsapp", "twilio", "send_reply", "thrown"],
+        });
+        throw error;
+      }
+    }
+
+    await sleep(500 * attempt);
   }
+
+  throw (lastError instanceof Error
+    ? lastError
+    : new Error("Twilio WhatsApp send failed for an unknown reason"));
 };
 
 const parseNumMedia = (value: FormDataEntryValue | undefined): number => {
@@ -287,6 +368,9 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
         const now = new Date();
         const timezone = await getWhatsAppThreadTimezone();
         const images = await loadInboundImages(form);
+        console.log(
+          `[whatsapp] inbound from=${from} bodyLength=${body.length} imageCount=${images.length} timezone=${timezone}`,
+        );
 
         let chatId = await resolveDailyWhatsAppChatId(from, now, timezone);
         if (!chatId || !(await chatService.hasChat(chatId))) {
@@ -305,6 +389,7 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
             attachments: [],
             context: {},
           });
+          console.log(`[whatsapp] steer accepted chat=${chatId} from=${from}`);
           return;
         }
 
@@ -337,12 +422,45 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
           },
         );
 
+        console.log(
+          `[whatsapp] prompt finished chat=${chatId} from=${from} completionReason=${
+            completionReason ?? "unknown"
+          } responseLength=${responseText.trim().length}`,
+        );
+
         if (completionReason === "completed" && responseText.trim().length > 0) {
-          await sendWhatsAppReply(from, responseText.trim());
-          console.log(`[whatsapp] replied chat=${chatId} to=${from} mode=prompt`);
-        } else {
+          const sendResult = await sendWhatsAppReply(from, responseText.trim());
           console.log(
-            `[whatsapp] skipped reply chat=${chatId} to=${from} mode=prompt completionReason=${completionReason ?? "unknown"}`,
+            `[whatsapp] replied chat=${chatId} to=${from} mode=prompt sid=${
+              sendResult.sid ?? "unknown"
+            } status=${sendResult.status ?? "unknown"}`,
+          );
+        } else {
+          const reason = completionReason ?? "unknown";
+          const severity = completionReason === "aborted" ? "warning" : "error";
+          const skipError = new Error(
+            `WhatsApp reply skipped for chat=${chatId} because completionReason=${reason} responseLength=${responseText.trim().length}`,
+          );
+          captureBackendException(skipError, {
+            tags: {
+              area: "whatsapp",
+              provider: "twilio",
+              operation: "skip_reply",
+              from,
+              completion_reason: reason,
+            },
+            extras: {
+              chatId,
+              responseText,
+              responseLength: responseText.trim().length,
+              imageCount: images.length,
+              bodyLength: body.length,
+            },
+            level: severity,
+            fingerprint: ["whatsapp", "skip_reply", reason],
+          });
+          console.error(
+            `[whatsapp] skipped reply chat=${chatId} to=${from} mode=prompt completionReason=${reason} responseLength=${responseText.trim().length}`,
           );
         }
       } catch (error) {
