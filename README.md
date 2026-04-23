@@ -1,3 +1,5 @@
+<img src="./frontend/public/favicon.svg" alt="Lilo" width="96" />
+
 # Lilo
 
 **Your personal OS. True personal computing.**
