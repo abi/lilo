@@ -18,7 +18,7 @@ https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Deployment](#deployment)
 
-
+</div>
 
 ---
 
