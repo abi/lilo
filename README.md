@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./frontend/public/readme-logo.png" alt="Lilo" />
+<img src="./frontend/public/readme-logo.png" alt="Lilo" width="300px" />
 
 **Your personal OS. True personal computing.**
 
