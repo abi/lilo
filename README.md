@@ -5,7 +5,7 @@
 <br/><br/>
 
 
-**Lilo is an agentic personal OS — your apps, your files, your agent, in one workspace.**
+**Lilo is an agentic personal OS — your apps, your memories, your files, your agent, in one workspace.**
 
 Ask your agent to build apps, customize your OS, remember things, and tackle your TODOs using everything in your workspace.
 
