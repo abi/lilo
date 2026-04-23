@@ -2,7 +2,7 @@
 
 <img src="./frontend/public/readme-logo.png" alt="Lilo" width="300px" />
 
-<br/><br/>
+<br/>
 
 
 **Lilo is an agentic personal OS — your apps, your memories, your files, your agent, in one workspace.**
