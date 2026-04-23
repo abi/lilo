@@ -1,21 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
-const isLocalhost =
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1";
-
 const getFaviconHref = (name: "idle" | "working" | "done"): string => {
-  const suffix = isLocalhost ? "-local" : "";
-
-  if (name === "working") {
-    return `/favicon-working${suffix}.svg`;
-  }
-
-  if (name === "done") {
-    return `/favicon${suffix}.svg`;
-  }
-
-  return `/favicon${suffix}.svg`;
+  if (name === "working") return "/favicon-working.svg";
+  if (name === "done") return "/favicon-done.svg";
+  return "/favicon.svg";
 };
 
 const setFavicon = (href: string) => {

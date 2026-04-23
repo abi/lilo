@@ -10,7 +10,7 @@ https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
 
 
 
-[Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Deployment](#deployment)
+[Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Deployment](#deployment) · [Discord](https://discord.gg/RAKmnS2G)
 
 ---
 
@@ -274,6 +274,9 @@ pnpm run format         # oxfmt across the repo
 
 This is an open source project. Issues and PRs welcome — keep components small
 and one-file-per-concern (see [AGENTS.md](./AGENTS.md)).
+
+Join us on **[Discord](https://discord.gg/RAKmnS2G)** to ask questions, share
+workspace apps you've built, or follow development.
 
 ## License
 
