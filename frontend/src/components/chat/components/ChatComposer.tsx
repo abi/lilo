@@ -4,7 +4,12 @@ import type {
   KeyboardEventHandler,
   RefObject,
 } from "react";
-import type { ChatElementSelection, ChatQueuedMessage } from "../../../store/chatStore";
+import type {
+  ChatElementSelection,
+  ChatModelId,
+  ChatModelProvider,
+  ChatQueuedMessage,
+} from "../../../store/chatStore";
 import { FileAttachmentChip } from "./FileAttachmentChip";
 import { ChatModelSelect } from "./ChatModelSelect";
 import { QueuedMessagesPanel } from "./QueuedMessagesPanel";
@@ -18,8 +23,8 @@ interface ChatComposerProps {
   isQueuePaused: boolean;
   selectedFiles: File[];
   isBusy: boolean;
-  modelProvider: "openai" | "anthropic";
-  modelId: "gpt-5.4" | "claude-opus-4-7";
+  modelProvider: ChatModelProvider;
+  modelId: ChatModelId;
   activeQueuedEditId: string | null;
   showScrollToBottom: boolean;
   inputRef: RefObject<HTMLTextAreaElement>;
@@ -47,8 +52,8 @@ interface ChatComposerProps {
   onUpdateModel: (
     chatId: string,
     modelSelection: {
-      modelProvider: "openai" | "anthropic";
-      modelId: "gpt-5.4" | "claude-opus-4-7";
+      modelProvider: ChatModelProvider;
+      modelId: ChatModelId;
     },
   ) => Promise<void>;
   onPreviewSelectedElement?: (src: string) => void;

@@ -110,8 +110,16 @@ At least one is required to actually use Lilo.
 
 | Variable            | Enables         |
 | ------------------- | --------------- |
-| `OPENAI_API_KEY`    | GPT 5.4         |
+| `OPENAI_API_KEY`    | GPT 5.4, GPT 5.4 Mini |
 | `ANTHROPIC_API_KEY` | Claude Opus 4.7 |
+
+Limit the chat dropdown/API to specific models with a comma-separated allowlist:
+
+```bash
+LILO_CHAT_MODEL_ALLOWLIST=gpt-5.4-mini
+```
+
+Supported model ids: `claude-opus-4-7`, `gpt-5.4`, `gpt-5.4-mini`.
 
 
 ### Agent tools (optional)

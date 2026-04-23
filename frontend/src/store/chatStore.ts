@@ -5,6 +5,8 @@ export type {
   ChatElementSelection,
   ChatQueuedMessage,
   ChatMessage,
+  ChatModelId,
+  ChatModelProvider,
   ChatMessageRole,
   ChatSessionState,
   ChatStoreState,

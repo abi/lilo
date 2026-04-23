@@ -4,6 +4,7 @@ import {
 } from "./chat.service.js";
 import { uploadedChatFileFromFile } from "./chat.request.js";
 import {
+  getAllowedChatModelOptions,
   isSupportedChatModelSelection,
 } from "../../shared/pi/runtime.js";
 
@@ -34,6 +35,10 @@ export const registerChatRoutes = (
       body !== null ? body : undefined,
     );
     return c.json({ chat }, 201);
+  });
+
+  app.get("/chats/models", (c) => {
+    return c.json({ models: getAllowedChatModelOptions() });
   });
 
   app.get("/chats/:chatId", async (c) => {

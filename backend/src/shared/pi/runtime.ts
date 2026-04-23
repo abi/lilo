@@ -1,7 +1,7 @@
 import { getModel } from "@mariozechner/pi-ai";
 
 export type ChatModelProvider = "openai" | "anthropic";
-export type ChatModelId = "gpt-5.4" | "claude-opus-4-7";
+export type ChatModelId = "gpt-5.4" | "gpt-5.4-mini" | "claude-opus-4-7";
 
 export interface ChatModelSelection {
   provider: ChatModelProvider;
@@ -11,6 +11,7 @@ export interface ChatModelSelection {
 export const CHAT_MODEL_OPTIONS: ChatModelSelection[] = [
   { provider: "anthropic", modelId: "claude-opus-4-7" },
   { provider: "openai", modelId: "gpt-5.4" },
+  { provider: "openai", modelId: "gpt-5.4-mini" },
 ];
 
 const PROMPT_TIMEOUT_MS = 600000;
@@ -20,6 +21,40 @@ export const getPromptTimeoutMs = (): number => PROMPT_TIMEOUT_MS;
 
 export const getPromptFirstEventTimeoutMs = (): number =>
   PROMPT_FIRST_EVENT_TIMEOUT_MS;
+
+const getChatModelAllowlist = (): Set<string> | null => {
+  const raw = process.env.LILO_CHAT_MODEL_ALLOWLIST?.trim();
+  if (!raw) {
+    return null;
+  }
+
+  const values = raw
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  return values.length > 0 ? new Set(values) : null;
+};
+
+export const getAllowedChatModelOptions = (): ChatModelSelection[] => {
+  const allowlist = getChatModelAllowlist();
+  if (!allowlist) {
+    return CHAT_MODEL_OPTIONS;
+  }
+
+  const allowedOptions = CHAT_MODEL_OPTIONS.filter((option) => {
+    const providerModelId = `${option.provider}/${option.modelId}`;
+    return allowlist.has(option.modelId) || allowlist.has(providerModelId);
+  });
+
+  if (allowedOptions.length === 0) {
+    throw new Error(
+      `LILO_CHAT_MODEL_ALLOWLIST does not include any supported models. Supported models: ${CHAT_MODEL_OPTIONS.map((option) => option.modelId).join(", ")}`,
+    );
+  }
+
+  return allowedOptions;
+};
 
 export const isSupportedChatModelSelection = (
   value: unknown,
@@ -31,13 +66,13 @@ export const isSupportedChatModelSelection = (
   const provider = "provider" in value ? value.provider : undefined;
   const modelId = "modelId" in value ? value.modelId : undefined;
 
-  return CHAT_MODEL_OPTIONS.some(
+  return getAllowedChatModelOptions().some(
     (option) => option.provider === provider && option.modelId === modelId,
   );
 };
 
 export const getDefaultChatModelSelection = (): ChatModelSelection => {
-  return CHAT_MODEL_OPTIONS[0];
+  return getAllowedChatModelOptions()[0];
 };
 
 export const resolvePiModel = (

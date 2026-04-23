@@ -1,14 +1,23 @@
+import { useEffect, useMemo, useState } from "react";
+import { API_BASE_URL, fetchJson } from "../../../store/chat/api";
+import type { ChatModelId, ChatModelProvider } from "../../../store/chatStore";
+
 type ChatModelOption = {
   label: string;
-  provider: "openai" | "anthropic";
-  modelId: "gpt-5.4" | "claude-opus-4-7";
+  provider: ChatModelProvider;
+  modelId: ChatModelId;
 };
 
-const CHAT_MODEL_OPTIONS: ChatModelOption[] = [
+const ALL_CHAT_MODEL_OPTIONS: ChatModelOption[] = [
   {
     label: "GPT 5.4",
     provider: "openai",
     modelId: "gpt-5.4",
+  },
+  {
+    label: "GPT 5.4 Mini",
+    provider: "openai",
+    modelId: "gpt-5.4-mini",
   },
   {
     label: "Opus 4.7",
@@ -16,6 +25,20 @@ const CHAT_MODEL_OPTIONS: ChatModelOption[] = [
     modelId: "claude-opus-4-7",
   },
 ];
+
+const toChatModelOption = (
+  model: Pick<ChatModelOption, "provider" | "modelId">,
+): ChatModelOption => {
+  return (
+    ALL_CHAT_MODEL_OPTIONS.find(
+      (option) => option.provider === model.provider && option.modelId === model.modelId,
+    ) ?? {
+      label: model.modelId,
+      provider: model.provider,
+      modelId: model.modelId,
+    }
+  );
+};
 
 interface ChatModelSelectProps {
   modelProvider: ChatModelOption["provider"];
@@ -32,10 +55,45 @@ export function ChatModelSelect({
   disabled = false,
   onChange,
 }: ChatModelSelectProps) {
+  const [allowedOptions, setAllowedOptions] = useState<ChatModelOption[] | null>(null);
   const selectedValue = `${modelProvider}:${modelId}`;
-  const selected = CHAT_MODEL_OPTIONS.find(
-    (option) => option.provider === modelProvider && option.modelId === modelId,
-  );
+  const selected = toChatModelOption({ provider: modelProvider, modelId });
+  const options = useMemo(() => {
+    const loaded = allowedOptions ?? [selected];
+    if (
+      loaded.some(
+        (option) => option.provider === selected.provider && option.modelId === selected.modelId,
+      )
+    ) {
+      return loaded;
+    }
+
+    return [selected, ...loaded];
+  }, [allowedOptions, selected]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAllowedModels = async () => {
+      try {
+        const payload = await fetchJson<{
+          models: Array<Pick<ChatModelOption, "provider" | "modelId">>;
+        }>(`${API_BASE_URL}/chats/models`);
+        const nextOptions = payload.models.map(toChatModelOption);
+        if (!cancelled && nextOptions.length > 0) {
+          setAllowedOptions(nextOptions);
+        }
+      } catch (error) {
+        console.warn("[chat] Failed to load allowed chat models", error);
+      }
+    };
+
+    void loadAllowedModels();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <label
@@ -64,7 +122,7 @@ export function ChatModelSelect({
         disabled={disabled}
         className="absolute inset-0 cursor-pointer appearance-none bg-transparent text-transparent outline-none disabled:cursor-not-allowed"
         onChange={(event) => {
-          const next = CHAT_MODEL_OPTIONS.find(
+          const next = options.find(
             (option) => `${option.provider}:${option.modelId}` === event.target.value,
           );
           if (!next) {
@@ -77,7 +135,7 @@ export function ChatModelSelect({
           });
         }}
       >
-        {CHAT_MODEL_OPTIONS.map((option) => (
+        {options.map((option) => (
           <option
             key={`${option.provider}:${option.modelId}`}
             value={`${option.provider}:${option.modelId}`}

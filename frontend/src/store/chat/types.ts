@@ -40,6 +40,9 @@ export interface ChatContextInput {
   selectedElements?: ChatElementSelection[];
 }
 
+export type ChatModelProvider = "openai" | "anthropic";
+export type ChatModelId = "gpt-5.4" | "gpt-5.4-mini" | "claude-opus-4-7";
+
 export interface ChatMessage {
   id: string;
   role: ChatMessageRole;
@@ -69,8 +72,8 @@ export interface ChatSummary {
   status: "idle" | "streaming" | "error";
   activeRunId: string | null;
   activeRunLastSeq: number | null;
-  modelProvider: "openai" | "anthropic";
-  modelId: "gpt-5.4" | "claude-opus-4-7";
+  modelProvider: ChatModelProvider;
+  modelId: ChatModelId;
 }
 
 export type ConnectionState = "idle" | "connecting" | "streaming" | "error";
