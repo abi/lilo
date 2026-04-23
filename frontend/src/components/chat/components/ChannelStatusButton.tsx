@@ -254,6 +254,7 @@ export function ChannelStatusButton() {
 function ChannelCard({ channel }: { channel: ChannelStatus }) {
   const styles = stateStyles[channel.state];
   const [showDetails, setShowDetails] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
   const primaryDetail = getPrimaryChannelDetail(channel);
   const securityDetail = getSecurityChannelDetail(channel);
   const secondaryDetails = primaryDetail
@@ -314,7 +315,27 @@ function ChannelCard({ channel }: { channel: ChannelStatus }) {
       ) : null}
 
       {secondaryDetails.length > 0 ? (
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowSetup((value) => !value)}
+            className="flex items-center gap-1.5 rounded-md px-1 py-1 text-xs font-medium text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+            aria-expanded={showSetup}
+          >
+            <svg
+              className={`h-3.5 w-3.5 transition ${showSetup ? "rotate-90" : ""}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+            Setup
+          </button>
           <button
             type="button"
             onClick={() => setShowDetails((value) => !value)}
@@ -335,26 +356,53 @@ function ChannelCard({ channel }: { channel: ChannelStatus }) {
             </svg>
             {showDetails ? "Less details" : "More details"}
           </button>
-
-          {showDetails ? (
-            <dl className="mt-2 space-y-2">
-              {secondaryDetails.map((detail) => (
-                <div key={`${channel.id}-${detail.label}`} className="grid grid-cols-[7rem,minmax(0,1fr)] gap-2">
-                  <dt className="text-xs text-neutral-500 dark:text-neutral-400">{detail.label}</dt>
-                  <dd
-                    className={`min-w-0 break-words text-xs ${
-                      detail.value === "Missing"
-                        ? "font-medium text-red-600 dark:text-red-400"
-                        : "text-neutral-800 dark:text-neutral-200"
-                    }`}
-                  >
-                    {formatDetailValue(detail)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          ) : null}
         </div>
+      ) : (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => setShowSetup((value) => !value)}
+            className="flex items-center gap-1.5 rounded-md px-1 py-1 text-xs font-medium text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+            aria-expanded={showSetup}
+          >
+            <svg
+              className={`h-3.5 w-3.5 transition ${showSetup ? "rotate-90" : ""}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+            Setup
+          </button>
+        </div>
+      )}
+
+      {showSetup ? (
+        <ChannelSetupInstructions channelId={channel.id} />
+      ) : null}
+
+      {showDetails && secondaryDetails.length > 0 ? (
+        <dl className="mt-2 space-y-2">
+          {secondaryDetails.map((detail) => (
+            <div key={`${channel.id}-${detail.label}`} className="grid grid-cols-[7rem,minmax(0,1fr)] gap-2">
+              <dt className="text-xs text-neutral-500 dark:text-neutral-400">{detail.label}</dt>
+              <dd
+                className={`min-w-0 break-words text-xs ${
+                  detail.value === "Missing"
+                    ? "font-medium text-red-600 dark:text-red-400"
+                    : "text-neutral-800 dark:text-neutral-200"
+                }`}
+              >
+                {formatDetailValue(detail)}
+              </dd>
+            </div>
+          ))}
+        </dl>
       ) : null}
 
       {channel.missing.length > 0 ? (
@@ -376,6 +424,74 @@ function getPrimaryChannelDetail(channel: ChannelStatus): ChannelDetail | null {
   }
 
   return null;
+}
+
+function ChannelSetupInstructions({ channelId }: { channelId: ChannelStatus["id"] }) {
+  const steps = getSetupSteps(channelId);
+
+  return (
+    <div className="mt-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-800">
+      <p className="mb-2 text-[10px] font-semibold uppercase text-neutral-500 dark:text-neutral-400">
+        Setup
+      </p>
+      <ol className="space-y-2">
+        {steps.map((step, index) => (
+          <li key={step} className="flex gap-2 text-xs leading-relaxed text-neutral-700 dark:text-neutral-200">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-neutral-500 ring-1 ring-neutral-200 dark:bg-neutral-900 dark:text-neutral-400 dark:ring-neutral-700">
+              {index + 1}
+            </span>
+            <span className="min-w-0 break-words">{step}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function getSetupSteps(channelId: ChannelStatus["id"]): string[] {
+  if (channelId === "email") {
+    return [
+      "In Resend, create an API key with permission to send email and read received emails. Set RESEND_API_KEY to that key.",
+      "In Resend, open Emails, then the Receiving tab. Use the Resend-managed receiving address, or enable receiving on your own domain by adding the required DNS records.",
+      "Choose the exact address people will email, such as hi@your-resend-domain.resend.app. Set LILO_EMAIL_TO to that address.",
+      "Set LILO_EMAIL_FROM to the sender identity replies should come from, such as Lilo <lilo@yourdomain.com>. This address/domain must be allowed by Resend for sending.",
+      "In Resend, open Webhooks, add a webhook, set the endpoint URL to " + getWebhookUrl("/api/inbound-email") + ", and select the email.received event.",
+      "After creating the Resend webhook, copy its signing secret and set RESEND_WEBHOOK_SECRET to that value.",
+      "Set EMAIL_ALLOWED_EMAILS to the exact email addresses allowed to talk to the agent, separated by commas.",
+      "Redeploy the backend. Then send an email to LILO_EMAIL_TO from one of the allowed addresses and confirm Lilo replies in the same thread.",
+    ];
+  }
+
+  if (channelId === "telegram") {
+    return [
+      "In Telegram, open BotFather and send /newbot. Choose the bot name and username, then copy the token BotFather gives you.",
+      "Set TELEGRAM_BOT_TOKEN to the BotFather token and redeploy the backend.",
+      "Configure the Telegram webhook to " + getWebhookUrl("/api/inbound-telegram") + ". You can do this by opening https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=" + getWebhookUrl("/api/inbound-telegram") + " with your real token, or by making the same request with curl.",
+      "Open your bot in Telegram and press Start or send a message. Lilo should create a persistent chat for that Telegram conversation.",
+      "If messages do not arrive, call getWebhookInfo for the bot token and check Telegram's last_error_message.",
+    ];
+  }
+
+  return [
+    "In Twilio, open the project that owns your WhatsApp sender. Copy the Account SID and Auth Token, then set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.",
+    "For local testing, use Twilio's WhatsApp Sandbox and join it from your phone. For production, use an approved WhatsApp-enabled sender or a Messaging Service with a WhatsApp sender attached.",
+    "Set TWILIO_WHATSAPP_FROM_NUMBER to the agent sender in whatsapp:+15555550123 format. For the sandbox, use the sandbox WhatsApp number shown by Twilio.",
+    "Set WHATSAPP_ALLOWED_FROM to the one user number allowed to message this agent, also in whatsapp:+15555550123 format.",
+    "In Twilio, find the inbound message webhook field for the WhatsApp Sandbox, the WhatsApp-enabled sender, or the Messaging Service Integration settings. Set When a message comes in to " + getWebhookUrl("/api/inbound-whatsapp") + " and use HTTP POST.",
+    "Save the Twilio sender settings and redeploy the backend so the env vars are live.",
+    "Send a WhatsApp message from WHATSAPP_ALLOWED_FROM to TWILIO_WHATSAPP_FROM_NUMBER. Lilo should create or resume that contact's persistent chat and reply through Twilio.",
+    "If Twilio shows delivery errors, check the Twilio message logs and confirm the webhook URL is public HTTPS, points to /api/inbound-whatsapp, and returns a 2xx response.",
+  ];
+}
+
+function getWebhookUrl(path: string): string {
+  const configuredBaseUrl = API_BASE_URL.trim();
+  const baseUrl =
+    configuredBaseUrl.startsWith("http://") || configuredBaseUrl.startsWith("https://")
+      ? configuredBaseUrl
+      : window.location.origin;
+
+  return `${baseUrl.replace(/\/$/, "")}${path}`;
 }
 
 function getSecurityChannelDetail(channel: ChannelStatus): ChannelDetail | null {
