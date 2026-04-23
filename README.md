@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./frontend/public/readme-logo.png" alt="Lilo" />
+<img src="./frontend/public/readme-logo.png" alt="Lilo" width="300px" />
 
 Lilo is an agentic personal OS — your files, your apps, your agent, in one workspace.
 
