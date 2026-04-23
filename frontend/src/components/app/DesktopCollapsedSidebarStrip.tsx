@@ -2,7 +2,6 @@ import { useCallback, useState } from "react";
 import { CloudSyncButton } from "../CloudSyncButton";
 import { WorkspaceSettingsButton } from "../workspace/WorkspaceSettingsButton";
 import type { WorkspaceAppLink } from "../workspace/types";
-import { LiloLogo } from "./LiloLogo";
 
 interface DesktopCollapsedSidebarStripProps {
   workspaceApps: WorkspaceAppLink[];
@@ -222,7 +221,12 @@ export function DesktopCollapsedSidebarStrip({
         }`}
         title={desktopApp ? "Open Desktop" : "Lilo"}
       >
-        <LiloLogo className="h-9 w-9 shrink-0" />
+        <img
+          src="/favicon.svg"
+          alt=""
+          aria-hidden
+          className="h-9 w-9 shrink-0 object-contain"
+        />
         <span className="font-heading text-xs font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
           Lilo
         </span>
