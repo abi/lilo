@@ -1,6 +1,6 @@
-<img src="./frontend/public/favicon.svg" alt="Lilo" width="96" />
-
 # Lilo
+
+<img src="./frontend/public/favicon.svg" alt="Lilo" width="96" />
 
 **Your personal OS. True personal computing.**
 
