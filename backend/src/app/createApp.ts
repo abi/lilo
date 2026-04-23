@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { registerAppAgentRoutes } from "../modules/app-agent/appAgent.routes.js";
 import { PiAppAgentService } from "../modules/app-agent/appAgent.service.js";
+import { registerChannelStatusRoutes } from "../modules/channels/channelStatus.routes.js";
 import { registerChatRoutes } from "../modules/chat/chat.routes.js";
 import { PiSdkChatService } from "../modules/chat/chat.service.js";
 import { registerEmailRoutes } from "../modules/email/email.routes.js";
@@ -150,6 +151,7 @@ export const createApp = ({
     app.use("/chats/*", requireAuthorizedRequest);
   }
 
+  registerChannelStatusRoutes(app);
   registerWorkspaceRoutes(app);
   registerAppAgentRoutes(app, appAgentService);
   registerChatRoutes(app, chatService);
