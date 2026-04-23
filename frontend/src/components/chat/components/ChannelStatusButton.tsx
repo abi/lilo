@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import { API_BASE_URL, fetchJson } from "../../../store/chat/api";
 
@@ -22,6 +23,13 @@ interface ChannelStatus {
 
 interface ChannelStatusResponse {
   channels: ChannelStatus[];
+}
+
+interface PopoverPosition {
+  left: number;
+  top: number;
+  width: number;
+  maxHeight: number;
 }
 
 const stateStyles: Record<ChannelState, { label: string; dot: string; badge: string }> = {
@@ -53,15 +61,42 @@ export function ChannelStatusButton() {
   const [channels, setChannels] = useState<ChannelStatus[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
+    const updatePosition = () => {
+      const trigger = triggerRef.current;
+      if (!trigger) {
+        return;
+      }
+
+      const rect = trigger.getBoundingClientRect();
+      const width = Math.min(448, window.innerWidth - 32);
+      const left = Math.min(Math.max(16, rect.right - width), window.innerWidth - width - 16);
+      const top = rect.bottom + 8;
+
+      setPopoverPosition({
+        left,
+        top,
+        width,
+        maxHeight: Math.max(240, window.innerHeight - top - 16),
+      });
+    };
+
+    updatePosition();
+
     const onPointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        !triggerRef.current?.contains(target) &&
+        !popoverRef.current?.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
@@ -72,9 +107,13 @@ export function ChannelStatusButton() {
       }
     };
 
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
     window.addEventListener("mousedown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
     return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("mousedown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
     };
@@ -116,8 +155,9 @@ export function ChannelStatusButton() {
   }, [channels, isOpen]);
 
   return (
-    <div ref={containerRef} className="relative">
+    <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setIsOpen((value) => !value)}
         title="Channel configuration"
@@ -142,8 +182,17 @@ export function ChannelStatusButton() {
         </svg>
       </button>
 
-      {isOpen ? (
-        <div className="absolute right-0 top-full z-30 mt-2 w-[min(28rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xl ring-1 ring-black/5 dark:border-neutral-700 dark:bg-neutral-900 dark:ring-white/5">
+      {isOpen && popoverPosition ? createPortal(
+        <div
+          ref={popoverRef}
+          className="fixed z-[120] overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xl ring-1 ring-black/5 dark:border-neutral-700 dark:bg-neutral-900 dark:ring-white/5"
+          style={{
+            left: popoverPosition.left,
+            top: popoverPosition.top,
+            width: popoverPosition.width,
+            maxHeight: popoverPosition.maxHeight,
+          }}
+        >
           <div className="flex items-center justify-between gap-3 border-b border-neutral-200 px-3 py-3 dark:border-neutral-700">
             <div className="min-w-0">
               <h3 className="font-heading text-sm font-semibold text-neutral-900 dark:text-neutral-100">
@@ -178,7 +227,7 @@ export function ChannelStatusButton() {
             </button>
           </div>
 
-          <div className="max-h-[70vh] overflow-y-auto p-2">
+          <div className="overflow-y-auto p-2" style={{ maxHeight: popoverPosition.maxHeight - 53 }}>
             {loading ? (
               <p className="px-2 py-6 text-center text-sm text-neutral-500 dark:text-neutral-400">
                 Checking channels...
@@ -195,7 +244,8 @@ export function ChannelStatusButton() {
               <ChannelCard key={channel.id} channel={channel} />
             ))}
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
