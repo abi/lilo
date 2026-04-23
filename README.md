@@ -25,18 +25,18 @@ https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
 ## Features
 
 
-|                                   |                                                                                                                                                                                                                  |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **🧱 Apps on demand**             | Ships with a starter set (Desktop launcher, Todo, Calories, Calculator, Wordpad, Minesweeper) and you can ask the agent to build more. All apps have full agentic capabilities.                                  |
-| **💬 Talk to Lilo anywhere**      | Inbound message webhooks for **Email** (Resend), **WhatsApp** (Twilio), and **Telegram**. The agent replies in the same channel and keeps a persistent chat per contact.                                         |
-| **🎨 Rich tool suite**            | Image generation (Replicate), web search & scraping (Firecrawl), headless browser automation (Browserbase), filesystem ops, shell execution, network fetch — all callable by apps and the agent when configured. |
-| **🗂️ Full workspace**            | Store anything as files in the filesystem and preview markdown, code, images, and PDFs inline — accessible to both you and the agent.                                                                            |
-| **🧠 Memory**                     | Remembers details about you, your tasks, and your work.                                                                                                                                                          |
-| **📱 Mobile-ready**               | Optimized for phones. All apps render seamlessly on both.                                                                                                                                                        |
-| **🔐 Password-gated and private** | One env var locks down the entire web app and all backend APIs (REST + WebSocket). Webhooks stay accessible with their own provider-signed requests.                                                             |
-| **🧰 Model-agnostic**             | Pick between **GPT 5.4** (OpenAI) and **Claude Opus 4.7** (Anthropic) per chat. Switch mid-conversation.                                                                                                         |
-| **🔄 Git-backed cloud sync**      | Optionally sync your workspace to a git remote so the entire workspace (apps, data, and memories) is versioned and portable across devices.                                                                      |
-| **⌨️ Keyboard-first UX**          | `⌘K` / `Ctrl+K` command palette for instant app switching. Browser back/forward navigates between previously opened apps.                                                                                        |
+<table>
+<tr><td><b>🧱 Apps on demand</b></td><td>Ships with a starter set (Desktop launcher, Todo, Calories, Calculator, Wordpad, Minesweeper) and you can ask the agent to build more. All apps have full agentic capabilities.</td></tr>
+<tr><td><b>🗂️ Full workspace</b></td><td>Store anything as files in the filesystem and preview markdown, code, images, and PDFs inline — accessible to both you and the agent.</td></tr>
+<tr><td><b>💬 Talk to Lilo anywhere</b></td><td>Inbound message webhooks for <b>Email</b> (Resend), <b>WhatsApp</b> (Twilio), and <b>Telegram</b>. The agent replies in the same channel and keeps a persistent chat per contact.</td></tr>
+<tr><td><b>🧠 Memory</b></td><td>Remembers details about you, your tasks, and your work.</td></tr>
+<tr><td><b>🎨 Rich tool suite</b></td><td>Image generation (Replicate), web search & scraping (Firecrawl), headless browser automation (Browserbase), filesystem ops, shell execution, network fetch — all callable by apps and the agent when configured.</td></tr>
+<tr><td><b>📱 Mobile-ready</b></td><td>Optimized for phones. All apps render seamlessly on both.</td></tr>
+<tr><td><b>🔐 Password-gated and private</b></td><td>One env var locks down the entire web app and all backend APIs (REST + WebSocket). Webhooks stay accessible with their own provider-signed requests.</td></tr>
+<tr><td><b>🧰 Model-agnostic</b></td><td>Pick between <b>GPT 5.4</b> (OpenAI) and <b>Claude Opus 4.7</b> (Anthropic) per chat. Switch mid-conversation.</td></tr>
+<tr><td><b>🔄 Git-backed cloud sync</b></td><td>Optionally sync your workspace to a git remote so the entire workspace (apps, data, and memories) is versioned and portable across devices.</td></tr>
+<tr><td><b>⌨️ Keyboard-first UX</b></td><td><code>⌘K</code> / <code>Ctrl+K</code> command palette for instant app switching. Browser back/forward navigates between previously opened apps.</td></tr>
+</table>
 
 
 ---
