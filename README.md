@@ -1,6 +1,9 @@
+<div align="center">
+
+
 # Lilo
 
-<img src="./frontend/public/favicon.svg" alt="Lilo" width="96" />
+<img src="./frontend/public/readme-logo.png" alt="Lilo" />
 
 **Your personal OS. True personal computing.**
 
@@ -11,9 +14,9 @@
 
 https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
 
-
-
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Deployment](#deployment)
+
+</div>
 
 ---
 
