@@ -2,18 +2,20 @@
 
 <img src="./frontend/public/readme-logo.png" alt="Lilo" />
 
-**Your personal OS. True personal computing.**
+Lilo is an agentic personal OS — your files, your apps, your agent, in one workspace.
 
-**Edit every app so it fits perfectly into your life, and use it everywhere (desktop, mobile, email, WhatsApp, Telegram).**
+Ask your agent to build apps, customize your OS, remember what matters, and tackle your TODOs using everything in your workspace.
 
-[![Join the Lilo Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/RAKmnS2G)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
+Reach it from desktop, mobile, WhatsApp, Telegram, or email. Ships with a starter set of apps; reshape anything.
 
-https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
+[Join the Lilo Discord](https://discord.gg/RAKmnS2G)
+[License: MIT](./LICENSE)
+
+[https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5](https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5)
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Deployment](#deployment)
 
-</div>
+
 
 ---
 
@@ -111,10 +113,11 @@ All env vars are read from (in order of precedence):
 At least one is required to actually use Lilo.
 
 
-| Variable            | Enables         |
-| ------------------- | --------------- |
+| Variable            | Enables               |
+| ------------------- | --------------------- |
 | `OPENAI_API_KEY`    | GPT 5.4, GPT 5.4 Mini |
-| `ANTHROPIC_API_KEY` | Claude Opus 4.7 |
+| `ANTHROPIC_API_KEY` | Claude Opus 4.7       |
+
 
 Limit the chat dropdown/API to specific models with a comma-separated allowlist:
 
@@ -123,7 +126,6 @@ LILO_CHAT_MODEL_ALLOWLIST=gpt-5.4-mini
 ```
 
 Supported model ids: `claude-opus-4-7`, `gpt-5.4`, `gpt-5.4-mini`.
-
 
 ### Agent tools (optional)
 
@@ -185,7 +187,7 @@ in a sandboxed iframe, and can read/write its own files, open chats, and make
 HTTP calls through a built-in `window.lilo` API. Ask the agent *"build me a
 habit tracker"* and it scaffolds one — no build step.
 
-**→ [Full guide: docs/workspace-apps.md*](./docs/workspace-apps.md)* (directory
+**→ [Full guide: docs/workspace-apps.md](./docs/workspace-apps.md)** (directory
 layout, the `window.lilo` API surface, and the in-viewer element picker).
 
 ---
