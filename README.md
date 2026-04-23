@@ -1,8 +1,5 @@
 <div align="center">
 
-
-# Lilo
-
 <img src="./frontend/public/readme-logo.png" alt="Lilo" />
 
 **Your personal OS. True personal computing.**
