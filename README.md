@@ -147,16 +147,19 @@ tool — the agent keeps working without them.
 
 ### Git sync (optional)
 
-Point `PI_WORKSPACE_REPO` at a git repo to auto-clone it into
-`LILO_WORKSPACE_DIR` on first boot and keep your workspace (apps, data, and
-memories) versioned and portable across hosts. The frontend shows a manual
-"Sync" button for push/pull; hide it with `VITE_DISABLE_WORKSPACE_SYNC` when
-you aren't using this flow.
+Point `WORKSPACE_GIT_URL` at a git repo to make `LILO_WORKSPACE_DIR`
+git-backed on boot. If the workspace is not already a git repo, Lilo initializes
+one and sets `origin` to this URL; if it is already a repo, Lilo keeps `origin`
+in sync with this value. This keeps your workspace (apps, data, and memories)
+versioned and portable across hosts. The frontend shows a manual "Sync" button
+that runs pull/rebase and push; it expects workspace changes to be committed
+first. Hide it with `VITE_DISABLE_WORKSPACE_SYNC` when you aren't using this
+flow.
 
 
 | Variable                      | Scope    | Description                                                  |
 | ----------------------------- | -------- | ------------------------------------------------------------ |
-| `PI_WORKSPACE_REPO`           | backend  | Git remote to clone into `LILO_WORKSPACE_DIR` on first boot. |
+| `WORKSPACE_GIT_URL`           | backend  | Git remote to configure as `origin` for `LILO_WORKSPACE_DIR`. |
 | `VITE_DISABLE_WORKSPACE_SYNC` | frontend | Hide the Sync button in the UI (build-time Vite flag).       |
 
 

@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +12,75 @@ export const REPO_ROOT_DIR = resolve(BACKEND_DIR, "..");
 const WORKSPACE_TEMPLATE_DIR = resolve(REPO_ROOT_DIR, "workspace-template");
 
 loadBackendEnv();
+
+export const getWorkspaceGitUrl = (): string | null =>
+  process.env.WORKSPACE_GIT_URL?.trim() || null;
+
+export const getSafeWorkspaceGitUrl = (): string | null => {
+  const workspaceGitUrl = getWorkspaceGitUrl();
+  if (!workspaceGitUrl) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(workspaceGitUrl);
+    if (parsed.username) {
+      parsed.username = "****";
+    }
+    if (parsed.password) {
+      parsed.password = "****";
+    }
+    return parsed.toString();
+  } catch {
+    return workspaceGitUrl.replace(/\/\/[^/@]+@/, "//****@");
+  }
+};
+
+const runWorkspaceGit = (workspaceDir: string, args: string[]): string =>
+  execFileSync("git", args, {
+    cwd: workspaceDir,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+
+const isWorkspaceGitRepo = (workspaceDir: string): boolean => {
+  try {
+    return runWorkspaceGit(workspaceDir, ["rev-parse", "--is-inside-work-tree"]) === "true";
+  } catch {
+    return false;
+  }
+};
+
+const ensureWorkspaceGitRemote = (workspaceDir: string): void => {
+  const workspaceGitUrl = getWorkspaceGitUrl();
+  if (!workspaceGitUrl) {
+    return;
+  }
+
+  if (!isWorkspaceGitRepo(workspaceDir)) {
+    console.log("Initializing git repo for workspace...");
+    runWorkspaceGit(workspaceDir, ["init", "-b", "main"]);
+  }
+
+  const currentOrigin = (() => {
+    try {
+      return runWorkspaceGit(workspaceDir, ["remote", "get-url", "origin"]);
+    } catch {
+      return null;
+    }
+  })();
+
+  if (!currentOrigin) {
+    runWorkspaceGit(workspaceDir, ["remote", "add", "origin", workspaceGitUrl]);
+    console.log("Workspace git remote configured.");
+    return;
+  }
+
+  if (currentOrigin !== workspaceGitUrl) {
+    runWorkspaceGit(workspaceDir, ["remote", "set-url", "origin", workspaceGitUrl]);
+    console.log("Workspace git remote updated.");
+  }
+};
 
 /**
  * If the workspace directory is empty (no user content), copy the bundled
@@ -45,6 +115,7 @@ export const resolveWorkspaceRoot = (): string => {
   }
 
   bootstrapWorkspaceIfEmpty(workspaceDir);
+  ensureWorkspaceGitRemote(workspaceDir);
 
   return workspaceDir;
 };

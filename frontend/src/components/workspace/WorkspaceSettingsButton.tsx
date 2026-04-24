@@ -7,6 +7,7 @@ type ThemeOption = "light" | "dark" | "system";
 
 interface WorkspaceSettingsButtonProps {
   workspaceTimeZone: string;
+  workspaceGitRemoteUrl?: string;
   onTimeZoneChange: (timeZone: string) => void;
   theme: ThemeOption;
   onSelectTheme: (theme: ThemeOption) => void;
@@ -138,6 +139,7 @@ function ThemeIcon({ theme, className }: { theme: "light" | "dark" | "system"; c
 
 export function WorkspaceSettingsButton({
   workspaceTimeZone,
+  workspaceGitRemoteUrl,
   onTimeZoneChange,
   theme,
   onSelectTheme,
@@ -317,6 +319,20 @@ export function WorkspaceSettingsButton({
                           </button>
                         );
                       })}
+                    </div>
+                  </section>
+
+                  <section className="border-b border-neutral-200 px-4 py-4 dark:border-neutral-700">
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+                      Workspace Git
+                    </p>
+                    <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+                        Remote URL
+                      </p>
+                      <p className="mt-1 break-all font-mono text-xs text-neutral-800 dark:text-neutral-100">
+                        {workspaceGitRemoteUrl || "Not configured"}
+                      </p>
                     </div>
                   </section>
 

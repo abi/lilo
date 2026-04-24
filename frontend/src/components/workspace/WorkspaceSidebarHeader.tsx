@@ -6,6 +6,7 @@ interface WorkspaceSidebarHeaderProps {
   mobile?: boolean;
   onRefresh: () => void;
   workspaceTimeZone: string;
+  workspaceGitRemoteUrl?: string;
   onTimeZoneChange: (timeZone: string) => void;
 }
 
@@ -28,6 +29,7 @@ export function WorkspaceSidebarHeader({
   mobile = false,
   onRefresh,
   workspaceTimeZone,
+  workspaceGitRemoteUrl,
   onTimeZoneChange,
 }: WorkspaceSidebarHeaderProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -168,6 +170,17 @@ export function WorkspaceSidebarHeader({
                   </div>
                 </div>
                 <div className="p-4">
+                  <div className="mb-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-950">
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400">
+                      Workspace Git
+                    </p>
+                    <p className="mt-2 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+                      Remote URL
+                    </p>
+                    <p className="mt-1 break-all font-mono text-xs text-neutral-800 dark:text-neutral-100">
+                      {workspaceGitRemoteUrl || "Not configured"}
+                    </p>
+                  </div>
                   <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-950">
                     <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400">
                       Search Timezones
