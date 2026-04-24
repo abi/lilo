@@ -11,6 +11,7 @@ interface WorkspaceSidebarProps {
   selectedViewerPath: string | null;
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
+  workspaceGitBrowserUrl?: string;
   mobile?: boolean;
   onSelectApp: (href: string) => void;
   onRefresh: () => void;
@@ -24,6 +25,7 @@ export function WorkspaceSidebar({
   selectedViewerPath,
   workspaceTimeZone,
   workspaceGitRemoteUrl,
+  workspaceGitBrowserUrl,
   mobile = false,
   onSelectApp,
   onRefresh,
@@ -54,6 +56,7 @@ export function WorkspaceSidebar({
         onRefresh={onRefresh}
         workspaceTimeZone={workspaceTimeZone}
         workspaceGitRemoteUrl={workspaceGitRemoteUrl}
+        workspaceGitBrowserUrl={workspaceGitBrowserUrl}
         onTimeZoneChange={onTimeZoneChange}
       />
 

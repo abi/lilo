@@ -410,6 +410,7 @@ function App() {
             theme={theme}
             workspaceTimeZone={workspace.workspacePreferences.timeZone}
             workspaceGitRemoteUrl={workspace.workspacePreferences.gitRemoteUrl}
+            workspaceGitBrowserUrl={workspace.workspacePreferences.gitBrowserUrl}
             onToggleSidebar={shell.sidebarOpen ? shell.hideSidebarPanel : shell.showSidebarPanel}
             onToggleArchived={shell.toggleArchivedInStrip}
             onSelectApp={handleOpenViewerApp}
@@ -460,6 +461,7 @@ function App() {
           selectedViewerPath={workspace.selectedViewerPath}
           workspaceTimeZone={workspace.workspacePreferences.timeZone}
           workspaceGitRemoteUrl={workspace.workspacePreferences.gitRemoteUrl}
+          workspaceGitBrowserUrl={workspace.workspacePreferences.gitBrowserUrl}
           syncError={workspace.silentSyncError}
           onSelectApp={handleOpenMobileWorkspaceApp}
           onRefreshWorkspace={() => void workspace.loadWorkspace()}

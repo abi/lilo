@@ -145,6 +145,7 @@ export function useWorkspaceCatalog({
       setWorkspacePreferences({
         timeZone: payload.preferences?.timeZone ?? DEFAULT_WORKSPACE_TIME_ZONE,
         gitRemoteUrl: payload.preferences?.gitRemoteUrl,
+        gitBrowserUrl: payload.preferences?.gitBrowserUrl,
       });
       setWorkspaceLoadError(null);
       setSelectedViewerPath((current) => {

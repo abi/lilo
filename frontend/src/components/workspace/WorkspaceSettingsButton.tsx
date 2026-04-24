@@ -8,6 +8,7 @@ type ThemeOption = "light" | "dark" | "system";
 interface WorkspaceSettingsButtonProps {
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
+  workspaceGitBrowserUrl?: string;
   onTimeZoneChange: (timeZone: string) => void;
   theme: ThemeOption;
   onSelectTheme: (theme: ThemeOption) => void;
@@ -140,6 +141,7 @@ function ThemeIcon({ theme, className }: { theme: "light" | "dark" | "system"; c
 export function WorkspaceSettingsButton({
   workspaceTimeZone,
   workspaceGitRemoteUrl,
+  workspaceGitBrowserUrl,
   onTimeZoneChange,
   theme,
   onSelectTheme,
@@ -327,9 +329,21 @@ export function WorkspaceSettingsButton({
                       Workspace Git
                     </p>
                     <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800">
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
-                        Remote URL
-                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+                          Remote URL
+                        </p>
+                        {workspaceGitBrowserUrl ? (
+                          <a
+                            href={workspaceGitBrowserUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[11px] font-semibold text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                          >
+                            Open repo
+                          </a>
+                        ) : null}
+                      </div>
                       <p className="mt-1 break-all font-mono text-xs text-neutral-800 dark:text-neutral-100">
                         {workspaceGitRemoteUrl || "Not configured"}
                       </p>

@@ -15,7 +15,11 @@ import { basename, extname, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import type { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { WORKSPACE_ROOT, getSafeWorkspaceGitUrl } from "../../shared/config/paths.js";
+import {
+  WORKSPACE_ROOT,
+  getSafeWorkspaceGitUrl,
+  getWorkspaceGitBrowserUrl,
+} from "../../shared/config/paths.js";
 import { streamSseEvents } from "../../shared/http/sse.js";
 import {
   getWorkspaceAppDefinition,
@@ -1762,6 +1766,7 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
 
     const sortedApps = sortAppsBySavedOrder(apps, prefs.appNames);
     const workspaceGitUrl = getSafeWorkspaceGitUrl();
+    const workspaceGitBrowserUrl = getWorkspaceGitBrowserUrl();
     return c.json({
       apps: sortedApps,
       files,
@@ -1769,6 +1774,7 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
       preferences: {
         timeZone: prefs.timeZone ?? DEFAULT_WORKSPACE_TIME_ZONE,
         ...(workspaceGitUrl ? { gitRemoteUrl: workspaceGitUrl } : {}),
+        ...(workspaceGitBrowserUrl ? { gitBrowserUrl: workspaceGitBrowserUrl } : {}),
       },
     });
   });

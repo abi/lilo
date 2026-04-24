@@ -8,6 +8,7 @@ interface MobileWorkspaceScreenProps {
   selectedViewerPath: string | null;
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
+  workspaceGitBrowserUrl?: string;
   syncError?: string | null;
   onSelectApp: (href: string) => void;
   onRefreshWorkspace: () => void;
@@ -24,6 +25,7 @@ export function MobileWorkspaceScreen({
   selectedViewerPath,
   workspaceTimeZone,
   workspaceGitRemoteUrl,
+  workspaceGitBrowserUrl,
   syncError,
   onSelectApp,
   onRefreshWorkspace,
@@ -56,6 +58,7 @@ export function MobileWorkspaceScreen({
         selectedViewerPath={selectedViewerPath}
         workspaceTimeZone={workspaceTimeZone}
         workspaceGitRemoteUrl={workspaceGitRemoteUrl}
+        workspaceGitBrowserUrl={workspaceGitBrowserUrl}
         onSelectApp={onSelectApp}
         onRefresh={onRefreshWorkspace}
         onTimeZoneChange={onSaveWorkspaceTimeZone}

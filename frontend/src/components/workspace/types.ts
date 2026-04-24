@@ -31,4 +31,5 @@ export type WorkspaceEntry = {
 export type WorkspacePreferences = {
   timeZone: string;
   gitRemoteUrl?: string;
+  gitBrowserUrl?: string;
 };

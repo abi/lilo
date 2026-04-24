@@ -11,6 +11,7 @@ interface DesktopCollapsedSidebarStripProps {
   theme: "light" | "dark" | "system";
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
+  workspaceGitBrowserUrl?: string;
   onToggleSidebar: () => void;
   onToggleArchived: () => void;
   onSelectApp: (href: string) => void;
@@ -154,6 +155,7 @@ export function DesktopCollapsedSidebarStrip({
   theme,
   workspaceTimeZone,
   workspaceGitRemoteUrl,
+  workspaceGitBrowserUrl,
   onToggleSidebar,
   onToggleArchived,
   onSelectApp,
@@ -353,6 +355,7 @@ export function DesktopCollapsedSidebarStrip({
         <WorkspaceSettingsButton
           workspaceTimeZone={workspaceTimeZone}
           workspaceGitRemoteUrl={workspaceGitRemoteUrl}
+          workspaceGitBrowserUrl={workspaceGitBrowserUrl}
           onTimeZoneChange={onSaveWorkspaceTimeZone}
           theme={theme}
           onSelectTheme={onSelectTheme}

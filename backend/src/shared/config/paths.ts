@@ -36,6 +36,27 @@ export const getSafeWorkspaceGitUrl = (): string | null => {
   }
 };
 
+export const getWorkspaceGitBrowserUrl = (): string | null => {
+  const workspaceGitUrl = getWorkspaceGitUrl();
+  if (!workspaceGitUrl) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(workspaceGitUrl);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      return null;
+    }
+
+    parsed.username = "";
+    parsed.password = "";
+    parsed.pathname = parsed.pathname.replace(/\.git$/, "");
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+};
+
 const runWorkspaceGit = (workspaceDir: string, args: string[]): string =>
   execFileSync("git", args, {
     cwd: workspaceDir,

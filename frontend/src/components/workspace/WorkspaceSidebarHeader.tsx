@@ -7,6 +7,7 @@ interface WorkspaceSidebarHeaderProps {
   onRefresh: () => void;
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
+  workspaceGitBrowserUrl?: string;
   onTimeZoneChange: (timeZone: string) => void;
 }
 
@@ -30,6 +31,7 @@ export function WorkspaceSidebarHeader({
   onRefresh,
   workspaceTimeZone,
   workspaceGitRemoteUrl,
+  workspaceGitBrowserUrl,
   onTimeZoneChange,
 }: WorkspaceSidebarHeaderProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -174,9 +176,21 @@ export function WorkspaceSidebarHeader({
                     <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400">
                       Workspace Git
                     </p>
-                    <p className="mt-2 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
-                      Remote URL
-                    </p>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+                        Remote URL
+                      </p>
+                      {workspaceGitBrowserUrl ? (
+                        <a
+                          href={workspaceGitBrowserUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] font-semibold text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                        >
+                          Open repo
+                        </a>
+                      ) : null}
+                    </div>
                     <p className="mt-1 break-all font-mono text-xs text-neutral-800 dark:text-neutral-100">
                       {workspaceGitRemoteUrl || "Not configured"}
                     </p>
