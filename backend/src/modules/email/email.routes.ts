@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Hono } from "hono";
 import { marked } from "marked";
 import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
+import { readCsvEnv, readEnv } from "../../shared/config/env.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
 
 /**
@@ -9,16 +10,16 @@ import { captureBackendException } from "../../shared/observability/sentry.js";
  *
  * Env vars:
  *   RESEND_API_KEY  — Resend API key (required)
- *   LILO_EMAIL_TO   — Exact inbound email address the bot should receive mail at (e.g. "hi@yourdomain.com")
- *   LILO_EMAIL_FROM — Outbound reply sender identity (e.g. "Lilo <lilo@yourdomain.com>")
+ *   LILO_EMAIL_AGENT_ADDRESS — Exact inbound email address the bot should receive mail at (e.g. "hi@yourdomain.com")
+ *   LILO_EMAIL_REPLY_FROM — Outbound reply sender identity (e.g. "Lilo <lilo@yourdomain.com>")
  *   RESEND_WEBHOOK_SECRET — Resend webhook signing secret (required)
- *   EMAIL_ALLOWED_EMAILS — Comma-separated exact sender/recipient email allowlist for inbound and outbound email processing (required)
+ *   LILO_EMAIL_ALLOWED_SENDERS — Comma-separated exact sender/recipient email allowlist for inbound and outbound email processing (required)
  *
  * Setup:
  *   1. Add a receiving domain in Resend (you get a *.resend.app address)
  *   2. Create a webhook pointing to https://your-lilo/api/inbound-email
  *      with the "email.received" event enabled
- *   3. Set RESEND_API_KEY, RESEND_WEBHOOK_SECRET, LILO_EMAIL_TO, and LILO_EMAIL_FROM env vars on your Lilo backend
+ *   3. Set RESEND_API_KEY, RESEND_WEBHOOK_SECRET, LILO_EMAIL_AGENT_ADDRESS, and LILO_EMAIL_REPLY_FROM env vars on your Lilo backend
  */
 
 const WEBHOOK_TOLERANCE_SECONDS = 5 * 60;
@@ -30,25 +31,21 @@ const getResendWebhookSecret = (): string | null =>
   process.env.RESEND_WEBHOOK_SECRET?.trim() || null;
 
 const getLiloEmailTo = (): string | null =>
-  process.env.LILO_EMAIL_TO?.trim() || null;
+  readEnv("LILO_EMAIL_AGENT_ADDRESS");
 
 const getLiloEmailFrom = (): string | null =>
-  process.env.LILO_EMAIL_FROM?.trim() || null;
+  readEnv("LILO_EMAIL_REPLY_FROM");
 
 const getAllowedEmails = (): string[] => {
-  const allowedEmails = parseCsvEnv(process.env.EMAIL_ALLOWED_EMAILS);
+  const allowedEmails = readCsvEnv("LILO_EMAIL_ALLOWED_SENDERS").map((entry) =>
+    entry.toLowerCase(),
+  );
   if (allowedEmails.length === 0) {
-    throw new Error("EMAIL_ALLOWED_EMAILS is not configured");
+    throw new Error("LILO_EMAIL_ALLOWED_SENDERS is not configured");
   }
 
   return allowedEmails;
 };
-
-const parseCsvEnv = (value: string | undefined): string[] =>
-  (value ?? "")
-    .split(",")
-    .map((entry) => entry.trim().toLowerCase())
-    .filter((entry) => entry.length > 0);
 
 const parseEmailAddress = (value: string): string | null => {
   const trimmed = value.trim();
@@ -187,7 +184,7 @@ const sendReply = async (
 ): Promise<void> => {
   const from = getLiloEmailFrom();
   if (!from) {
-    console.warn("[email] LILO_EMAIL_FROM not set, skipping reply");
+    console.warn("[email] LILO_EMAIL_REPLY_FROM not set, skipping reply");
     return;
   }
 
@@ -220,7 +217,7 @@ const sendReply = async (
 
   // Route replies back to the inbound mailbox so that when the recipient
   // replies to the bot's message, Resend's webhook picks it up again. If
-  // `LILO_EMAIL_TO` isn't set we fall back to the `from` identity.
+  // `LILO_EMAIL_AGENT_ADDRESS` isn't set we fall back to the `from` identity.
   const replyTo = getLiloEmailTo() ?? undefined;
 
   const response = await resendFetch("/emails", {

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadBackendEnv } from "./env.js";
+import { loadBackendEnv, readEnv } from "./env.js";
 
 const SHARED_CONFIG_DIR = dirname(fileURLToPath(import.meta.url));
 const BACKEND_DIR = resolve(SHARED_CONFIG_DIR, "../../..");
@@ -14,7 +14,7 @@ const WORKSPACE_TEMPLATE_DIR = resolve(REPO_ROOT_DIR, "workspace-template");
 loadBackendEnv();
 
 export const getWorkspaceGitUrl = (): string | null =>
-  process.env.WORKSPACE_GIT_URL?.trim() || null;
+  readEnv("LILO_WORKSPACE_GIT_URL");
 
 export const getSafeWorkspaceGitUrl = (): string | null => {
   const workspaceGitUrl = getWorkspaceGitUrl();

@@ -2,19 +2,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Hono } from "hono";
 import type { ImageContent } from "@mariozechner/pi-ai";
 import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
+import { readCsvEnv, readRequiredEnv } from "../../shared/config/env.js";
 import { WORKSPACE_ROOT } from "../../shared/config/paths.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
 import { readWorkspaceAppPrefs } from "../../shared/workspace/appPrefs.js";
 import { resolveDailyWhatsAppChatId, storeDailyWhatsAppChatId } from "./threadStore.js";
-
-const getRequiredEnv = (name: string): string => {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`${name} is not configured`);
-  }
-
-  return value;
-};
 
 const getWhatsAppThreadTimezone = async (): Promise<string> => {
   const workspacePrefs = await readWorkspaceAppPrefs(WORKSPACE_ROOT);
@@ -43,7 +35,7 @@ const secureCompare = (left: string, right: string): boolean => {
 };
 
 const validateTwilioSignature = (url: string, form: TwilioWebhookBody, signature: string): boolean => {
-  const authToken = getRequiredEnv("TWILIO_AUTH_TOKEN");
+  const authToken = readRequiredEnv("TWILIO_AUTH_TOKEN");
   const sortedEntries = Object.entries(form)
     .filter(([, value]) => typeof value === "string")
     .sort(([left], [right]) => left.localeCompare(right));
@@ -58,8 +50,17 @@ const validateTwilioSignature = (url: string, form: TwilioWebhookBody, signature
   return secureCompare(signature, expectedSignature);
 };
 
-const getAllowedWhatsAppFrom = (): string =>
-  normalizeWhatsAppAddress(getRequiredEnv("WHATSAPP_ALLOWED_FROM"));
+const getAllowedWhatsAppSenders = (): string[] => {
+  const allowedSenders = readCsvEnv("LILO_WHATSAPP_ALLOWED_SENDERS").map(
+    normalizeWhatsAppAddress,
+  );
+
+  if (allowedSenders.length === 0) {
+    throw new Error("LILO_WHATSAPP_ALLOWED_SENDERS is not configured");
+  }
+
+  return allowedSenders;
+};
 
 const twimlOk = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
 
@@ -107,9 +108,11 @@ const sendWhatsAppReply = async (
   to: string,
   body: string,
 ): Promise<{ sid: string | null; status: string | null }> => {
-  const accountSid = getRequiredEnv("TWILIO_ACCOUNT_SID");
-  const authToken = getRequiredEnv("TWILIO_AUTH_TOKEN");
-  const from = normalizeWhatsAppAddress(getRequiredEnv("TWILIO_WHATSAPP_FROM_NUMBER"));
+  const accountSid = readRequiredEnv("TWILIO_ACCOUNT_SID");
+  const authToken = readRequiredEnv("TWILIO_AUTH_TOKEN");
+  const from = normalizeWhatsAppAddress(
+    readRequiredEnv("LILO_WHATSAPP_AGENT_NUMBER"),
+  );
 
   const params = new URLSearchParams({
     To: normalizeWhatsAppAddress(to),
@@ -240,8 +243,8 @@ const buildInboundWhatsAppPrompt = (body: string): string =>
   `WhatsApp message from user: ${body || "(empty message)"}`;
 
 const loadInboundImages = async (form: TwilioWebhookBody): Promise<ImageContent[]> => {
-  const accountSid = getRequiredEnv("TWILIO_ACCOUNT_SID");
-  const authToken = getRequiredEnv("TWILIO_AUTH_TOKEN");
+  const accountSid = readRequiredEnv("TWILIO_ACCOUNT_SID");
+  const authToken = readRequiredEnv("TWILIO_AUTH_TOKEN");
   const numMedia = parseNumMedia(form.NumMedia);
   const images: ImageContent[] = [];
 
@@ -328,8 +331,8 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
     }
 
     try {
-      const allowedFrom = getAllowedWhatsAppFrom();
-      if (from !== allowedFrom) {
+      const allowedSenders = getAllowedWhatsAppSenders();
+      if (!allowedSenders.includes(from)) {
         captureBackendException(new Error("Inbound WhatsApp rejected by sender allowlist"), {
           tags: {
             area: "whatsapp",
@@ -338,7 +341,7 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
           },
           extras: {
             from,
-            allowedFrom,
+            allowedSenders,
           },
           level: "error",
           fingerprint: ["whatsapp", "twilio", "reject_inbound", "sender_allowlist"],

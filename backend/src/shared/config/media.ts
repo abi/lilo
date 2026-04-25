@@ -1,3 +1,5 @@
+import { readEnv } from "./env.js";
+
 export type ImageGenerationModel =
   | "flux-2-klein-4b"
   | "nano-banana"
@@ -6,7 +8,7 @@ export type ImageGenerationModel =
 const FALLBACK_IMAGE_MODEL: ImageGenerationModel = "nano-banana";
 
 export const getImageGenerationModel = (): ImageGenerationModel => {
-  const configured = process.env.LILO_DEFAULT_IMAGE_MODEL?.trim().toLowerCase();
+  const configured = readEnv("LILO_IMAGE_MODEL")?.toLowerCase();
 
   if (configured === "nano-banana-2") {
     return "nano-banana-2";

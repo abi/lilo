@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DISABLE_WORKSPACE_SYNC } from "../config/runtime";
+import { ENABLE_WORKSPACE_SYNC } from "../config/runtime";
 import { UnauthorizedError, authFetch } from "../lib/auth";
 import type {
   WorkspaceAppLink,
@@ -199,7 +199,7 @@ export function useWorkspaceCatalog({
   );
 
   const silentSync = useCallback(async () => {
-    if (DISABLE_WORKSPACE_SYNC) {
+    if (!ENABLE_WORKSPACE_SYNC) {
       setSilentSyncError(null);
       return;
     }

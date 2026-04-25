@@ -453,12 +453,12 @@ function getSetupSteps(channelId: ChannelStatus["id"]): string[] {
     return [
       "In Resend, create an API key with permission to send email and read received emails. Set RESEND_API_KEY to that key.",
       "In Resend, open Emails, then the Receiving tab. Use the Resend-managed receiving address, or enable receiving on your own domain by adding the required DNS records.",
-      "Choose the exact address people will email, such as hi@your-resend-domain.resend.app. Set LILO_EMAIL_TO to that address.",
-      "Set LILO_EMAIL_FROM to the sender identity replies should come from, such as Lilo <lilo@yourdomain.com>. This address/domain must be allowed by Resend for sending.",
+      "Choose the exact address people will email, such as hi@your-resend-domain.resend.app. Set LILO_EMAIL_AGENT_ADDRESS to that address.",
+      "Set LILO_EMAIL_REPLY_FROM to the sender identity replies should come from, such as Lilo <lilo@yourdomain.com>. This address/domain must be allowed by Resend for sending.",
       "In Resend, open Webhooks, add a webhook, set the endpoint URL to " + getWebhookUrl("/api/inbound-email") + ", and select the email.received event.",
       "After creating the Resend webhook, copy its signing secret and set RESEND_WEBHOOK_SECRET to that value.",
-      "Set EMAIL_ALLOWED_EMAILS to the exact email addresses allowed to talk to the agent, separated by commas.",
-      "Redeploy the backend. Then send an email to LILO_EMAIL_TO from one of the allowed addresses and confirm Lilo replies in the same thread.",
+      "Set LILO_EMAIL_ALLOWED_SENDERS to the exact email addresses allowed to talk to the agent, separated by commas.",
+      "Redeploy the backend. Then send an email to LILO_EMAIL_AGENT_ADDRESS from one of the allowed addresses and confirm Lilo replies in the same thread.",
     ];
   }
 
@@ -475,11 +475,11 @@ function getSetupSteps(channelId: ChannelStatus["id"]): string[] {
   return [
     "In Twilio, open the project that owns your WhatsApp sender. Copy the Account SID and Auth Token, then set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.",
     "For local testing, use Twilio's WhatsApp Sandbox and join it from your phone. For production, use an approved WhatsApp-enabled sender or a Messaging Service with a WhatsApp sender attached.",
-    "Set TWILIO_WHATSAPP_FROM_NUMBER to the agent sender in whatsapp:+15555550123 format. For the sandbox, use the sandbox WhatsApp number shown by Twilio.",
-    "Set WHATSAPP_ALLOWED_FROM to the one user number allowed to message this agent, also in whatsapp:+15555550123 format.",
+    "Set LILO_WHATSAPP_AGENT_NUMBER to the agent sender in whatsapp:+15555550123 format. For the sandbox, use the sandbox WhatsApp number shown by Twilio.",
+    "Set LILO_WHATSAPP_ALLOWED_SENDERS to the user numbers allowed to message this agent, in whatsapp:+15555550123 format.",
     "In Twilio, find the inbound message webhook field for the WhatsApp Sandbox, the WhatsApp-enabled sender, or the Messaging Service Integration settings. Set When a message comes in to " + getWebhookUrl("/api/inbound-whatsapp") + " and use HTTP POST.",
     "Save the Twilio sender settings and redeploy the backend so the env vars are live.",
-    "Send a WhatsApp message from WHATSAPP_ALLOWED_FROM to TWILIO_WHATSAPP_FROM_NUMBER. Lilo should create or resume that contact's persistent chat and reply through Twilio.",
+    "Send a WhatsApp message from LILO_WHATSAPP_ALLOWED_SENDERS to LILO_WHATSAPP_AGENT_NUMBER. Lilo should create or resume that contact's persistent chat and reply through Twilio.",
     "If Twilio shows delivery errors, check the Twilio message logs and confirm the webhook URL is public HTTPS, points to /api/inbound-whatsapp, and returns a 2xx response.",
   ];
 }
@@ -500,7 +500,7 @@ function getSecurityChannelDetail(channel: ChannelStatus): ChannelDetail | null 
   }
 
   if (channel.id === "whatsapp") {
-    return channel.details.find((detail) => detail.label === "Allowed sender") ?? null;
+    return channel.details.find((detail) => detail.label === "Allowed senders") ?? null;
   }
 
   return null;
@@ -535,7 +535,7 @@ function formatDetailValue(detail: ChannelDetail): string {
     return detail.value;
   }
 
-  if (detail.label === "Agent number" || detail.label === "Allowed sender") {
+  if (detail.label === "Agent number" || detail.label === "Allowed senders") {
     return formatPhoneValue(detail.value);
   }
 
@@ -591,7 +591,7 @@ function SecurityDetail({ detail }: { detail: ChannelDetail }) {
               key={value}
               className="rounded-md bg-white px-2 py-1 text-xs font-medium text-emerald-900 ring-1 ring-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-100 dark:ring-emerald-800"
             >
-              {detail.label === "Allowed sender" ? formatPhoneValue(value) : value}
+              {detail.label === "Allowed senders" ? formatPhoneValue(value) : value}
             </span>
           ))}
         </div>

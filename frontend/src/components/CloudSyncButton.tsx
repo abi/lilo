@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { API_BASE_URL, DISABLE_WORKSPACE_SYNC } from "../config/runtime";
+import { API_BASE_URL, ENABLE_WORKSPACE_SYNC } from "../config/runtime";
 import { authFetch } from "../lib/auth";
 
 type SyncState = "idle" | "syncing" | "done" | "error";
@@ -73,7 +73,7 @@ export function CloudSyncButton({
   toolbarChip = false,
   vertical = false,
 }: CloudSyncButtonProps) {
-  if (DISABLE_WORKSPACE_SYNC) {
+  if (!ENABLE_WORKSPACE_SYNC) {
     return null;
   }
 

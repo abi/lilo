@@ -13,6 +13,7 @@ export const ENABLE_LOGROCKET = parseBooleanEnv(import.meta.env.VITE_ENABLE_LOGR
 export const LOGROCKET_APP_ID = import.meta.env.VITE_LOGROCKET_APP_ID?.trim() || "";
 export const ENABLE_SENTRY = parseBooleanEnv(import.meta.env.VITE_ENABLE_SENTRY);
 export const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN?.trim() || "";
-export const DISABLE_WORKSPACE_SYNC = parseBooleanEnv(
-  import.meta.env.VITE_DISABLE_WORKSPACE_SYNC,
-);
+export const ENABLE_WORKSPACE_SYNC =
+  import.meta.env.VITE_ENABLE_WORKSPACE_SYNC !== undefined
+    ? parseBooleanEnv(import.meta.env.VITE_ENABLE_WORKSPACE_SYNC)
+    : true;

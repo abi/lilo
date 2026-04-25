@@ -17,3 +17,21 @@ export const loadBackendEnv = (): void => {
     }
   }
 };
+
+export const readEnv = (name: string): string | null =>
+  process.env[name]?.trim() || null;
+
+export const readRequiredEnv = (name: string): string => {
+  const value = readEnv(name);
+  if (!value) {
+    throw new Error(`${name} is not configured`);
+  }
+
+  return value;
+};
+
+export const readCsvEnv = (name: string): string[] =>
+  (readEnv(name) ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
