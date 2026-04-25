@@ -474,7 +474,9 @@ function getSetupSteps(channelId: ChannelStatus["id"]): string[] {
 
   return [
     "In Twilio, open the project that owns your WhatsApp sender. Copy the Account SID and Auth Token, then set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.",
-    "For local testing, use Twilio's WhatsApp Sandbox and join it from your phone. For production, use an approved WhatsApp-enabled sender or a Messaging Service with a WhatsApp sender attached.",
+    "For local testing, use Twilio's WhatsApp Sandbox and join it from your phone.",
+    "For production, create a new WhatsApp sender in Twilio. This usually requires a WhatsApp Business account, Meta Business verification, a display name, and an approved phone number before Twilio can send from it.",
+    "After Twilio approves the sender, use that approved WhatsApp-enabled sender directly or attach it to a Messaging Service.",
     "Set LILO_WHATSAPP_AGENT_NUMBER to the agent sender in whatsapp:+15555550123 format. For the sandbox, use the sandbox WhatsApp number shown by Twilio.",
     "Set LILO_WHATSAPP_ALLOWED_SENDERS to the user numbers allowed to message this agent, in whatsapp:+15555550123 format.",
     "In Twilio, find the inbound message webhook field for the WhatsApp Sandbox, the WhatsApp-enabled sender, or the Messaging Service Integration settings. Set When a message comes in to " + getWebhookUrl("/api/inbound-whatsapp") + " and use HTTP POST.",
