@@ -16,9 +16,16 @@ Reach it from desktop, mobile, WhatsApp, Telegram, or email. Ships with a starte
 
 https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
 
-[Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Deployment](#deployment)
+[Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Security](#security) · [Deployment](#deployment)
 
 </div>
+
+---
+
+> [!WARNING]
+> **Alpha software.** Expect breaking changes, rough setup, and bugs. Back
+> up your workspace via git sync, and read [Security](#security) before
+> running it on a public host.
 
 ---
 
@@ -136,31 +143,31 @@ Each one unlocks a corresponding agent tool. Missing keys just disable the
 tool — the agent keeps working without them.
 
 
-| Variable                   | Tool                                                                      |
-| -------------------------- | ------------------------------------------------------------------------- |
-| `REPLICATE_API_KEY`        | `generate_images`, `remove_background`                                    |
-| `LILO_DEFAULT_IMAGE_MODEL` | Image model — `nano-banana` (default), `nano-banana-2`, `flux-2-klein-4b` |
-| `FIRECRAWL_API_KEY`        | `web_search`, `web_scrape`                                                |
-| `BROWSERBASE_API_KEY`      | `browser_automate`                                                        |
-| `BROWSERBASE_PROJECT_ID`   | Optional project id; usually inferred                                     |
+| Variable                 | Tool                                                                      |
+| ------------------------ | ------------------------------------------------------------------------- |
+| `REPLICATE_API_KEY`      | `generate_images`, `remove_background`                                    |
+| `LILO_IMAGE_MODEL`       | Image model — `nano-banana` (default), `nano-banana-2`, `flux-2-klein-4b` |
+| `FIRECRAWL_API_KEY`      | `web_search`, `web_scrape`                                                |
+| `BROWSERBASE_API_KEY`    | `browser_automate`                                                        |
+| `BROWSERBASE_PROJECT_ID` | Optional project id; usually inferred                                     |
 
 
 ### Git sync (optional)
 
-Point `WORKSPACE_GIT_URL` at a git repo to make `LILO_WORKSPACE_DIR`
+Point `LILO_WORKSPACE_GIT_URL` at a git repo to make `LILO_WORKSPACE_DIR`
 git-backed on boot. If the workspace is not already a git repo, Lilo initializes
 one and sets `origin` to this URL; if it is already a repo, Lilo keeps `origin`
 in sync with this value. This keeps your workspace (apps, data, and memories)
 versioned and portable across hosts. The frontend shows a manual "Sync" button
 that runs pull/rebase and push; it expects workspace changes to be committed
-first. Hide it with `VITE_DISABLE_WORKSPACE_SYNC` when you aren't using this
+first. Hide it with `VITE_ENABLE_WORKSPACE_SYNC=false` when you aren't using this
 flow.
 
 
-| Variable                      | Scope    | Description                                                  |
-| ----------------------------- | -------- | ------------------------------------------------------------ |
-| `WORKSPACE_GIT_URL`           | backend  | Git remote to configure as `origin` for `LILO_WORKSPACE_DIR`. |
-| `VITE_DISABLE_WORKSPACE_SYNC` | frontend | Hide the Sync button in the UI (build-time Vite flag).       |
+| Variable                     | Scope    | Description                                                   |
+| ---------------------------- | -------- | ------------------------------------------------------------- |
+| `LILO_WORKSPACE_GIT_URL`     | backend  | Git remote to configure as `origin` for `LILO_WORKSPACE_DIR`. |
+| `VITE_ENABLE_WORKSPACE_SYNC` | frontend | Show the Sync button in the UI. Defaults to `true`.           |
 
 
 ### Frontend observability (optional)
@@ -208,9 +215,9 @@ leave its env vars unset and it's disabled.
 ```bash
 RESEND_API_KEY=re_...
 RESEND_WEBHOOK_SECRET=whsec_...
-LILO_EMAIL_TO=hi@yourdomain.com        # your bot's inbound address
-LILO_EMAIL_FROM="Lilo <lilo@yourdomain.com>"
-EMAIL_ALLOWED_EMAILS=you@yours.com,partner@theirs.com   # allowlist
+LILO_EMAIL_AGENT_ADDRESS=hi@yourdomain.com        # your bot's inbound address
+LILO_EMAIL_REPLY_FROM="Lilo <lilo@yourdomain.com>"
+LILO_EMAIL_ALLOWED_SENDERS=you@yours.com,partner@theirs.com   # allowlist
 ```
 
 1. Set up a receiving domain in Resend.
@@ -218,7 +225,7 @@ EMAIL_ALLOWED_EMAILS=you@yours.com,partner@theirs.com   # allowlist
   `email.received` event.
 3. Send Lilo an email; it replies in-thread.
 
-Replies set `Reply-To: LILO_EMAIL_TO`, so the recipient's reply round-trips
+Replies set `Reply-To: LILO_EMAIL_AGENT_ADDRESS`, so the recipient's reply round-trips
 back into the same inbox.
 
 ### WhatsApp (Twilio)
@@ -226,8 +233,8 @@ back into the same inbox.
 ```bash
 TWILIO_ACCOUNT_SID=AC...
 TWILIO_AUTH_TOKEN=...
-TWILIO_WHATSAPP_FROM_NUMBER=whatsapp:+15555550123
-WHATSAPP_ALLOWED_FROM=whatsapp:+15555550124
+LILO_WHATSAPP_AGENT_NUMBER=whatsapp:+15555550123
+LILO_WHATSAPP_ALLOWED_SENDERS=whatsapp:+15555550124
 ```
 
 Point a Twilio WhatsApp webhook at `https://your-lilo/api/inbound-whatsapp`.
@@ -242,6 +249,25 @@ Point your Telegram bot webhook at `https://your-lilo/api/inbound-telegram`.
 
 > Each contact gets their own persistent chat, so the agent remembers your
 > conversation across messages.
+
+---
+
+## Security
+
+Lilo is built for a **single, self-hosted user** — not multi-tenant SaaS.
+
+- **Set `LILO_AUTH_PASSWORD`** before exposing an instance to the internet.
+  It gates the web app, all REST/SSE/WebSocket endpoints, and workspace
+  apps. Without it, everything is open.
+- **The agent has shell, filesystem, and network access.** Prompt injection
+  is a real risk — anything it reads (web pages, emails, PDFs) can try to
+  hijack it. Keep messaging allowlists (`LILO_EMAIL_ALLOWED_SENDERS`,
+  `LILO_WHATSAPP_ALLOWED_SENDERS`, Telegram) tight, and keep credentials in env
+  vars, not the workspace.
+- **Webhooks** (`/api/inbound-*`) skip the password gate on purpose and use
+  provider-signed verification instead.
+- **Report issues privately** — email `abimanyuraja@gmail.com` or DM on
+  [Discord](https://discord.gg/RAKmnS2G). Please don't open public issues.
 
 ---
 
