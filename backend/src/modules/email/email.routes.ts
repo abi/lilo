@@ -1,6 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Hono } from "hono";
 import { marked } from "marked";
+import type { ImageContent } from "@mariozechner/pi-ai";
+import type { UploadedChatFile } from "../chat/chat.request.js";
 import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
 import { readCsvEnv, readEnv } from "../../shared/config/env.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
@@ -23,6 +25,8 @@ import { captureBackendException } from "../../shared/observability/sentry.js";
  */
 
 const WEBHOOK_TOLERANCE_SECONDS = 5 * 60;
+const MAX_EMAIL_ATTACHMENTS = 24;
+const MAX_EMAIL_ATTACHMENT_BYTES = 40 * 1024 * 1024;
 
 const getResendApiKey = (): string | null =>
   process.env.RESEND_API_KEY?.trim() || null;
@@ -161,10 +165,68 @@ const resendFetch = async (path: string, options?: RequestInit): Promise<Respons
   });
 };
 
+type ReceivedEmailContent = {
+  text: string;
+  html: string;
+  messageId: string | null;
+  references: string | null;
+};
+
+type ReceivedEmailAttachment = {
+  id: string;
+  filename: string;
+  size: number | null;
+  contentType: string;
+  downloadUrl: string;
+};
+
+const normalizeHeaderValue = (value: unknown): string | null => {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === "string").join(" ");
+  }
+
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+};
+
+const buildReplyHeaders = (
+  messageId: string | null,
+  references: string | null,
+): Record<string, string> | undefined => {
+  if (!messageId) {
+    return undefined;
+  }
+
+  const headers: Record<string, string> = {
+    "In-Reply-To": messageId,
+  };
+
+  const referenceValues = Array.from(
+    new Set(
+      [references, messageId]
+        .flatMap((value) => value?.trim().split(/\s+/) ?? [])
+        .filter((value) => value.length > 0),
+    ),
+  )
+    .join(" ")
+    .trim();
+
+  if (referenceValues.length > 0) {
+    headers.References = referenceValues;
+  }
+
+  return headers;
+};
+
+const isImageMimeType = (value: string): boolean =>
+  value.trim().toLowerCase().startsWith("image/");
+
+const getAttachmentName = (attachment: ReceivedEmailAttachment, index: number): string =>
+  attachment.filename.trim() || `email-attachment-${index + 1}`;
+
 /** Fetch the full email content (body + headers) from Resend's receiving API. */
 const fetchEmailContent = async (
   emailId: string,
-): Promise<{ text: string; html: string }> => {
+): Promise<ReceivedEmailContent> => {
   const response = await resendFetch(`/emails/receiving/${emailId}`);
   if (!response.ok) {
     throw new Error(
@@ -172,8 +234,123 @@ const fetchEmailContent = async (
     );
   }
 
-  const data = (await response.json()) as { text?: string; html?: string };
-  return { text: data.text ?? "", html: data.html ?? "" };
+  const data = (await response.json()) as {
+    text?: string | null;
+    html?: string | null;
+    headers?: Record<string, unknown>;
+    message_id?: string | null;
+  };
+  return {
+    text: data.text ?? "",
+    html: data.html ?? "",
+    messageId: data.message_id ?? null,
+    references: normalizeHeaderValue(data.headers?.references ?? data.headers?.References),
+  };
+};
+
+const fetchEmailAttachmentList = async (
+  emailId: string,
+): Promise<ReceivedEmailAttachment[]> => {
+  const response = await resendFetch(
+    `/emails/receiving/${encodeURIComponent(emailId)}/attachments?limit=${MAX_EMAIL_ATTACHMENTS}`,
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Resend attachment list API error ${response.status}: ${await response.text()}`,
+    );
+  }
+
+  const payload = (await response.json()) as {
+    data?: Array<{
+      id?: unknown;
+      filename?: unknown;
+      size?: unknown;
+      content_type?: unknown;
+      download_url?: unknown;
+    }>;
+  };
+
+  return (payload.data ?? [])
+    .map((attachment) => ({
+      id: typeof attachment.id === "string" ? attachment.id : "",
+      filename: typeof attachment.filename === "string" ? attachment.filename : "",
+      size: typeof attachment.size === "number" ? attachment.size : null,
+      contentType:
+        typeof attachment.content_type === "string"
+          ? attachment.content_type
+          : "application/octet-stream",
+      downloadUrl: typeof attachment.download_url === "string" ? attachment.download_url : "",
+    }))
+    .filter((attachment) => attachment.id && attachment.downloadUrl);
+};
+
+const loadEmailAttachments = async (emailId: string): Promise<UploadedChatFile[]> => {
+  const attachments = await fetchEmailAttachmentList(emailId);
+  const uploads: UploadedChatFile[] = [];
+
+  for (const [index, attachment] of attachments.entries()) {
+    try {
+      if (attachment.size !== null && attachment.size > MAX_EMAIL_ATTACHMENT_BYTES) {
+        console.warn("[email] skipping oversized attachment", {
+          emailId,
+          attachmentId: attachment.id,
+          filename: attachment.filename,
+          size: attachment.size,
+          maxSize: MAX_EMAIL_ATTACHMENT_BYTES,
+        });
+        continue;
+      }
+
+      const response = await fetch(attachment.downloadUrl);
+      if (!response.ok) {
+        console.warn("[email] failed to download attachment", {
+          emailId,
+          attachmentId: attachment.id,
+          filename: attachment.filename,
+          status: response.status,
+        });
+        continue;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      if (arrayBuffer.byteLength > MAX_EMAIL_ATTACHMENT_BYTES) {
+        console.warn("[email] skipping oversized downloaded attachment", {
+          emailId,
+          attachmentId: attachment.id,
+          filename: attachment.filename,
+          size: arrayBuffer.byteLength,
+          maxSize: MAX_EMAIL_ATTACHMENT_BYTES,
+        });
+        continue;
+      }
+
+      const data = Buffer.from(arrayBuffer).toString("base64");
+      const image: ImageContent | undefined = isImageMimeType(attachment.contentType)
+        ? {
+            type: "image",
+            mimeType: attachment.contentType,
+            data,
+          }
+        : undefined;
+
+      uploads.push({
+        originalName: getAttachmentName(attachment, index),
+        mimeType: attachment.contentType,
+        size: arrayBuffer.byteLength,
+        bytes: new Uint8Array(arrayBuffer),
+        image,
+      });
+    } catch (error) {
+      console.warn("[email] failed to process attachment", {
+        emailId,
+        attachmentId: attachment.id,
+        filename: attachment.filename,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return uploads;
 };
 
 /** Send a reply via Resend's send API. */
@@ -181,6 +358,7 @@ const sendReply = async (
   to: string,
   subject: string,
   body: string,
+  options: { messageId?: string | null; references?: string | null } = {},
 ): Promise<void> => {
   const from = getLiloEmailFrom();
   if (!from) {
@@ -211,7 +389,7 @@ const sendReply = async (
     return;
   }
 
-  const replySubject = subject.startsWith("Re:") ? subject : `Re: ${subject}`;
+  const replySubject = /^re:/i.test(subject) ? subject : `Re: ${subject}`;
 
   const html = await marked(body);
 
@@ -219,6 +397,10 @@ const sendReply = async (
   // replies to the bot's message, Resend's webhook picks it up again. If
   // `LILO_EMAIL_AGENT_ADDRESS` isn't set we fall back to the `from` identity.
   const replyTo = getLiloEmailTo() ?? undefined;
+  const replyHeaders = buildReplyHeaders(
+    options.messageId ?? null,
+    options.references ?? null,
+  );
 
   const response = await resendFetch("/emails", {
     method: "POST",
@@ -229,6 +411,7 @@ const sendReply = async (
       html,
       text: body,
       ...(replyTo ? { reply_to: replyTo } : {}),
+      ...(replyHeaders ? { headers: replyHeaders } : {}),
     }),
   });
 
@@ -250,6 +433,7 @@ export const registerEmailRoutes = (
       type?: string;
       data?: {
         email_id?: string;
+        message_id?: string;
         from?: string;
         to?: string[];
         subject?: string;
@@ -280,7 +464,13 @@ export const registerEmailRoutes = (
       return c.json({ error: "Expected email.received event with data.email_id" }, 400);
     }
 
-    const { email_id, from, to = [], subject = "(no subject)" } = payload.data;
+    const {
+      email_id,
+      message_id,
+      from,
+      to = [],
+      subject = "(no subject)",
+    } = payload.data;
     if (!from) {
       return c.json({ error: "data.from is required" }, 400);
     }
@@ -352,11 +542,23 @@ export const registerEmailRoutes = (
         ].join("\n");
 
         const chat = await chatService.createChat();
+        const emailAttachments = await loadEmailAttachments(email_id!);
+        const resolvedUploads = emailAttachments.length > 0
+          ? await chatService.resolveUploads(
+              chat.id,
+              await chatService.storeUploads(chat.id, emailAttachments),
+            )
+          : { images: [], attachments: [] };
         let responseText = "";
 
         await chatService.promptChat(
           chat.id,
-          { message: promptMessage, images: [], attachments: [], context: {} },
+          {
+            message: promptMessage,
+            images: resolvedUploads.images,
+            attachments: resolvedUploads.attachments,
+            context: {},
+          },
           (event: SseEvent) => {
             if (event.event === "text_delta") {
               const delta = (event.data as { delta?: string }).delta ?? "";
@@ -366,7 +568,10 @@ export const registerEmailRoutes = (
         );
 
         if (responseText.trim().length > 0) {
-          await sendReply(from, subject, responseText.trim());
+          await sendReply(from, subject, responseText.trim(), {
+            messageId: message_id ?? content.messageId,
+            references: content.references,
+          });
           console.log(`[email] Replied to ${from} re: "${subject}" (chat ${chat.id})`);
         }
       } catch (error) {
