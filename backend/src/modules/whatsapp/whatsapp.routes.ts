@@ -116,6 +116,26 @@ type AskUserQuestionDetails = {
   allowSkip: boolean;
 };
 
+interface TwilioErrorResponse {
+  code?: unknown;
+  message?: unknown;
+  more_info?: unknown;
+  status?: unknown;
+}
+
+class TwilioWhatsAppSendError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly twilioCode: string | null,
+    readonly twilioMessage: string | null,
+    readonly moreInfo: string | null,
+  ) {
+    super(message);
+    this.name = "TwilioWhatsAppSendError";
+  }
+}
+
 const twilioFetch = async (
   accountSid: string,
   authToken: string,
@@ -220,6 +240,7 @@ const splitWhatsAppReply = (body: string): string[] => {
 const sendWhatsAppReply = async (
   to: string,
   body: string,
+  meta: { chunkIndex?: number; chunkCount?: number } = {},
 ): Promise<{ sid: string | null; status: string | null }> => {
   const accountSid = readRequiredEnv("TWILIO_ACCOUNT_SID");
   const authToken = readRequiredEnv("TWILIO_AUTH_TOKEN");
@@ -267,12 +288,33 @@ const sendWhatsAppReply = async (
         };
       }
 
-      const error = new Error(`Twilio WhatsApp send failed with status ${response.status}`);
+      const errorResponse = responseJson as TwilioErrorResponse | null;
+      const twilioCode =
+        typeof errorResponse?.code === "number" || typeof errorResponse?.code === "string"
+          ? String(errorResponse.code)
+          : null;
+      const twilioMessage =
+        typeof errorResponse?.message === "string" ? errorResponse.message : null;
+      const moreInfo =
+        typeof errorResponse?.more_info === "string" ? errorResponse.more_info : null;
+      const error = new TwilioWhatsAppSendError(
+        [
+          `Twilio WhatsApp send failed with status ${response.status}`,
+          twilioCode ? `code ${twilioCode}` : null,
+          twilioMessage,
+        ]
+          .filter(Boolean)
+          .join(": "),
+        response.status,
+        twilioCode,
+        twilioMessage,
+        moreInfo,
+      );
       lastError = error;
       const isRetryable = TWILIO_RETRYABLE_STATUS_CODES.has(response.status) && attempt < 3;
 
       console.error(
-        `[whatsapp] Twilio send failed attempt=${attempt} status=${response.status} retryable=${isRetryable} body=${responseText}`,
+        `[whatsapp] Twilio send failed attempt=${attempt} status=${response.status} twilioCode=${twilioCode ?? "unknown"} retryable=${isRetryable} message=${twilioMessage ?? responseText}`,
       );
 
       if (!isRetryable) {
@@ -285,22 +327,31 @@ const sendWhatsAppReply = async (
             from,
             status_code: response.status,
             attempt,
+            ...(twilioCode ? { twilio_code: twilioCode } : {}),
           },
           extras: {
             responseBody: responseText,
             responseJson,
             messageLength: body.length,
+            maxReplyChunkChars: MAX_WHATSAPP_REPLY_CHARS,
+            chunkIndex: meta.chunkIndex ?? null,
+            chunkCount: meta.chunkCount ?? null,
+            twilioMessage,
+            moreInfo,
           },
           level: "error",
-          fingerprint: ["whatsapp", "twilio", "send_reply", String(response.status)],
+          fingerprint: [
+            "whatsapp",
+            "twilio",
+            "send_reply",
+            String(response.status),
+            twilioCode ?? "unknown_code",
+          ],
         });
         throw error;
       }
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message.startsWith("Twilio WhatsApp send failed with status ")
-      ) {
+      if (error instanceof TwilioWhatsAppSendError) {
         throw error;
       }
 
@@ -325,6 +376,9 @@ const sendWhatsAppReply = async (
           },
           extras: {
             messageLength: body.length,
+            maxReplyChunkChars: MAX_WHATSAPP_REPLY_CHARS,
+            chunkIndex: meta.chunkIndex ?? null,
+            chunkCount: meta.chunkCount ?? null,
           },
           level: "error",
           fingerprint: ["whatsapp", "twilio", "send_reply", "thrown"],
@@ -348,8 +402,13 @@ const sendWhatsAppReplyChunked = async (
   const chunks = splitWhatsAppReply(body);
   const results: Array<{ sid: string | null; status: string | null }> = [];
 
-  for (const chunk of chunks) {
-    results.push(await sendWhatsAppReply(to, chunk));
+  for (const [index, chunk] of chunks.entries()) {
+    results.push(
+      await sendWhatsAppReply(to, chunk, {
+        chunkIndex: index + 1,
+        chunkCount: chunks.length,
+      }),
+    );
   }
 
   return results;
@@ -814,6 +873,13 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
           );
         }
       } catch (error) {
+        if (error instanceof TwilioWhatsAppSendError) {
+          console.error(
+            `[whatsapp] Failed to send outbound WhatsApp reply from=${from} status=${error.status} twilioCode=${error.twilioCode ?? "unknown"} message=${error.twilioMessage ?? error.message}`,
+          );
+          return;
+        }
+
         captureBackendException(error, {
           tags: {
             area: "whatsapp",
