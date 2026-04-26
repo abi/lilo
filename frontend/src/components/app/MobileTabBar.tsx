@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import type { WorkspaceAppLink } from "../workspace/types";
 import type { MobileView } from "./types";
 
@@ -7,7 +8,7 @@ interface MobileTabBarProps {
   selectedViewerPath: string | null;
   onOpenChats: () => void;
   onOpenHome: () => void;
-  onOpenWorkspaceOrViewer: () => void;
+  onOpenWorkspaceOrViewer: (app?: WorkspaceAppLink) => void;
 }
 
 export function MobileTabBar({
@@ -20,7 +21,9 @@ export function MobileTabBar({
 }: MobileTabBarProps) {
   // The "Home" tab is the built-in `desktop` workspace app. The third tab
   // shows whatever app is currently selected (if any) — collapsing into the
-  // Home tab when desktop itself is selected.
+  // Home tab when desktop itself is selected. We also remember the most
+  // recent non-desktop app so the third tab keeps that app's icon/name even
+  // after the user navigates back to Home.
   const currentApp = workspaceApps.find(
     (app) =>
       selectedViewerPath === app.href ||
@@ -31,7 +34,24 @@ export function MobileTabBar({
     mobileView === "viewer" && currentApp?.name === "desktop";
   const isOnOtherApp =
     (mobileView === "viewer" || mobileView === "workspace") && !isOnDesktop;
-  const otherApp = currentApp && currentApp.name !== "desktop" ? currentApp : null;
+
+  const [rememberedAppName, setRememberedAppName] = useState<string | null>(null);
+  useEffect(() => {
+    if (currentApp && currentApp.name !== "desktop") {
+      setRememberedAppName(currentApp.name);
+    }
+  }, [currentApp]);
+
+  // Resolve the remembered name against the live workspaceApps list so the
+  // tab tracks renames / icon changes and gracefully clears if the app gets
+  // removed.
+  const rememberedApp = useMemo(() => {
+    if (!rememberedAppName) return null;
+    return workspaceApps.find((app) => app.name === rememberedAppName) ?? null;
+  }, [rememberedAppName, workspaceApps]);
+
+  const otherApp =
+    currentApp && currentApp.name !== "desktop" ? currentApp : rememberedApp;
   const tabClass = (active: boolean) =>
     `flex flex-1 flex-col items-center justify-center gap-1 py-3 text-[11px] font-medium transition min-h-[56px] ${
       active ? "text-neutral-900 dark:text-neutral-100" : "text-neutral-400"
@@ -62,7 +82,17 @@ export function MobileTabBar({
       </button>
       <button
         type="button"
-        onClick={onOpenWorkspaceOrViewer}
+        onClick={() => {
+          // If we have a remembered/current non-desktop app and the user
+          // isn't already viewing it, jump straight to that app. Otherwise
+          // fall through to the default "open workspace or current viewer"
+          // behavior.
+          if (otherApp && !isOnOtherApp) {
+            onOpenWorkspaceOrViewer(otherApp);
+          } else {
+            onOpenWorkspaceOrViewer();
+          }
+        }}
         className={tabClass(isOnOtherApp)}
       >
         {otherApp?.iconHref ? (

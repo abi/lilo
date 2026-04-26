@@ -613,9 +613,14 @@ function App() {
           selectedViewerPath={workspace.selectedViewerPath}
           onOpenChats={shell.openChatsTab}
           onOpenHome={handleOpenMobileHome}
-          onOpenWorkspaceOrViewer={() =>
-            shell.openWorkspaceOrViewer(Boolean(workspace.selectedViewerPath))
-          }
+          onOpenWorkspaceOrViewer={(app) => {
+            if (app) {
+              workspace.setSelectedViewerPath(app.viewerPath);
+              shell.openMobileViewer();
+              return;
+            }
+            shell.openWorkspaceOrViewer(Boolean(workspace.selectedViewerPath));
+          }}
         />
       ) : null}
 
