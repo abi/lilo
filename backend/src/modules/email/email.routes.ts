@@ -7,6 +7,11 @@ import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
 import { readCsvEnv, readEnv } from "../../shared/config/env.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
 import { ASK_USER_QUESTION_TOOL_NAME } from "../../shared/tools/askUserQuestionTool.js";
+import {
+  resolveEmailChatId,
+  resolveEmailThreadRootMessageId,
+  storeEmailChatId,
+} from "./threadStore.js";
 
 /**
  * Email forwarding via Resend.
@@ -40,6 +45,9 @@ const getLiloEmailTo = (): string | null =>
 
 const getLiloEmailFrom = (): string | null =>
   readEnv("LILO_EMAIL_REPLY_FROM");
+
+const getLiloPublicAppUrl = (): string | null =>
+  readEnv("LILO_PUBLIC_APP_URL");
 
 const getAllowedEmails = (): string[] => {
   const allowedEmails = readCsvEnv("LILO_EMAIL_ALLOWED_SENDERS").map((entry) =>
@@ -170,6 +178,7 @@ type ReceivedEmailContent = {
   text: string;
   html: string;
   messageId: string | null;
+  inReplyTo: string | null;
   references: string | null;
 };
 
@@ -229,6 +238,31 @@ const isImageMimeType = (value: string): boolean =>
 
 const getAttachmentName = (attachment: ReceivedEmailAttachment, index: number): string =>
   attachment.filename.trim() || `email-attachment-${index + 1}`;
+
+const buildChatPermalink = (chatId: string): string | null => {
+  const baseUrl = getLiloPublicAppUrl();
+  if (!baseUrl) {
+    return null;
+  }
+
+  try {
+    const url = new URL(baseUrl);
+    url.searchParams.set("chat", chatId);
+    return url.toString();
+  } catch {
+    console.warn("[email] Ignoring invalid LILO_PUBLIC_APP_URL", { baseUrl });
+    return null;
+  }
+};
+
+const appendChatPermalink = (body: string, chatId: string): string => {
+  const permalink = buildChatPermalink(chatId);
+  if (!permalink) {
+    return body;
+  }
+
+  return `${body.trim()}\n\n---\nOpen this chat in Lilo:\n${permalink}`;
+};
 
 const getAskUserQuestionDetails = (value: unknown): AskUserQuestionDetails | null => {
   if (!value || typeof value !== "object") {
@@ -300,6 +334,7 @@ const fetchEmailContent = async (
     text: data.text ?? "",
     html: data.html ?? "",
     messageId: data.message_id ?? null,
+    inReplyTo: normalizeHeaderValue(data.headers?.["in-reply-to"] ?? data.headers?.["In-Reply-To"]),
     references: normalizeHeaderValue(data.headers?.references ?? data.headers?.References),
   };
 };
@@ -600,12 +635,27 @@ export const registerEmailRoutes = (
           emailBody,
         ].join("\n");
 
-        const chat = await chatService.createChat();
+        const threadRootMessageId = resolveEmailThreadRootMessageId(
+          message_id ?? content.messageId,
+          content.references,
+          content.inReplyTo,
+        );
+        const existingChatId = threadRootMessageId
+          ? await resolveEmailChatId(threadRootMessageId)
+          : null;
+        const chatId =
+          existingChatId && (await chatService.hasChat(existingChatId))
+            ? existingChatId
+            : (await chatService.createChat()).id;
+        if (threadRootMessageId) {
+          await storeEmailChatId(threadRootMessageId, chatId);
+        }
+
         const emailAttachments = await loadEmailAttachments(email_id!);
         const resolvedUploads = emailAttachments.length > 0
           ? await chatService.resolveUploads(
-              chat.id,
-              await chatService.storeUploads(chat.id, emailAttachments),
+              chatId,
+              await chatService.storeUploads(chatId, emailAttachments),
             )
           : { images: [], attachments: [] };
         let responseParagraphs: string[] = [];
@@ -631,7 +681,7 @@ export const registerEmailRoutes = (
             .join("\n\n");
 
         await chatService.promptChat(
-          chat.id,
+          chatId,
           {
             message: promptMessage,
             images: resolvedUploads.images,
@@ -676,11 +726,11 @@ export const registerEmailRoutes = (
 
         const emailResponseText = responseText();
         if (emailResponseText.length > 0) {
-          await sendReply(from, subject, emailResponseText, {
+          await sendReply(from, subject, appendChatPermalink(emailResponseText, chatId), {
             messageId: message_id ?? content.messageId,
             references: content.references,
           });
-          console.log(`[email] Replied to ${from} re: "${subject}" (chat ${chat.id})`);
+          console.log(`[email] Replied to ${from} re: "${subject}" (chat ${chatId})`);
         }
       } catch (error) {
         console.error("[email] Failed to process inbound email:", error);
