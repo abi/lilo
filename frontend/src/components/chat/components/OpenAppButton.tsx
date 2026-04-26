@@ -14,6 +14,7 @@ export function OpenAppButton({
 }: OpenAppButtonProps) {
   const appName = message.appName ?? "app";
   const matchedApp = workspaceApps.find((app) => app.name === appName);
+  const appLabel = matchedApp?.displayName ?? appName;
   const appIcon = matchedApp?.iconHref;
 
   return (
@@ -25,7 +26,7 @@ export function OpenAppButton({
       {appIcon ? (
         <img
           src={appIcon}
-          alt={`${appName} icon`}
+          alt={`${appLabel} icon`}
           className="h-10 w-10 rounded-xl object-cover shadow-sm ring-1 ring-black/5"
         />
       ) : (
@@ -43,7 +44,7 @@ export function OpenAppButton({
         </div>
       )}
       <span className="flex-1 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-        Open {appName}
+        Open {appLabel}
       </span>
       <svg
         className="h-5 w-5 text-neutral-300 dark:text-neutral-600"
