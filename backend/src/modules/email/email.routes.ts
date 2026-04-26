@@ -6,6 +6,7 @@ import type { UploadedChatFile } from "../chat/chat.request.js";
 import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
 import { readCsvEnv, readEnv } from "../../shared/config/env.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
+import { ASK_USER_QUESTION_TOOL_NAME } from "../../shared/tools/askUserQuestionTool.js";
 
 /**
  * Email forwarding via Resend.
@@ -180,6 +181,12 @@ type ReceivedEmailAttachment = {
   downloadUrl: string;
 };
 
+type AskUserQuestionDetails = {
+  question: string;
+  options: string[];
+  allowSkip: boolean;
+};
+
 const normalizeHeaderValue = (value: unknown): string | null => {
   if (Array.isArray(value)) {
     return value.filter((entry): entry is string => typeof entry === "string").join(" ");
@@ -222,6 +229,55 @@ const isImageMimeType = (value: string): boolean =>
 
 const getAttachmentName = (attachment: ReceivedEmailAttachment, index: number): string =>
   attachment.filename.trim() || `email-attachment-${index + 1}`;
+
+const getAskUserQuestionDetails = (value: unknown): AskUserQuestionDetails | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const details = value as {
+    question?: unknown;
+    options?: unknown;
+    allowSkip?: unknown;
+  };
+  const question = typeof details.question === "string" ? details.question.trim() : "";
+  const options = Array.isArray(details.options)
+    ? details.options
+        .filter((option): option is string => typeof option === "string")
+        .map((option) => option.trim())
+        .filter(Boolean)
+    : [];
+
+  if (!question && options.length === 0) {
+    return null;
+  }
+
+  return {
+    question,
+    options,
+    allowSkip: typeof details.allowSkip === "boolean" ? details.allowSkip : true,
+  };
+};
+
+const formatEmailQuestionFallback = (details: AskUserQuestionDetails): string => {
+  const parts = [
+    details.question || "Could you reply with a bit more information?",
+  ];
+
+  if (details.options.length > 0) {
+    parts.push(
+      "",
+      "Reply with one of these options:",
+      ...details.options.map((option, index) => `${index + 1}. ${option}`),
+    );
+  }
+
+  if (details.allowSkip) {
+    parts.push("", "You can also reply with \"skip\" if you want me to choose a reasonable default.");
+  }
+
+  return parts.join("\n");
+};
 
 /** Fetch the full email content (body + headers) from Resend's receiving API. */
 const fetchEmailContent = async (
@@ -535,6 +591,9 @@ export const registerEmailRoutes = (
         const emailBody = content.text || content.html || "";
 
         const promptMessage = [
+          `Channel: email`,
+          `If you need a follow-up answer, ask it in plain email prose. Number any options so the user can reply by number or text.`,
+          ``,
           `From: ${from}`,
           `Subject: ${subject}`,
           ``,
@@ -549,7 +608,27 @@ export const registerEmailRoutes = (
               await chatService.storeUploads(chat.id, emailAttachments),
             )
           : { images: [], attachments: [] };
-        let responseText = "";
+        let responseParagraphs: string[] = [];
+        let activeAssistantParagraphIndex: number | null = null;
+
+        const appendResponseText = (delta: string) => {
+          if (delta.length === 0) {
+            return;
+          }
+
+          if (activeAssistantParagraphIndex === null) {
+            responseParagraphs.push("");
+            activeAssistantParagraphIndex = responseParagraphs.length - 1;
+          }
+
+          responseParagraphs[activeAssistantParagraphIndex] += delta;
+        };
+
+        const responseText = () =>
+          responseParagraphs
+            .map((paragraph) => paragraph.trim())
+            .filter(Boolean)
+            .join("\n\n");
 
         await chatService.promptChat(
           chat.id,
@@ -560,15 +639,44 @@ export const registerEmailRoutes = (
             context: {},
           },
           (event: SseEvent) => {
+            if (event.event === "assistant_message_start") {
+              activeAssistantParagraphIndex = null;
+            }
+
+            if (event.event === "assistant_text_start" && activeAssistantParagraphIndex === null) {
+              responseParagraphs.push("");
+              activeAssistantParagraphIndex = responseParagraphs.length - 1;
+            }
+
             if (event.event === "text_delta") {
               const delta = (event.data as { delta?: string }).delta ?? "";
-              responseText += delta;
+              appendResponseText(delta);
+            }
+
+            if (event.event === "assistant_text_end" || event.event === "assistant_message_end") {
+              activeAssistantParagraphIndex = null;
+            }
+
+            if (event.event === "tool_result") {
+              const toolName = (event.data as { toolName?: unknown }).toolName;
+              if (toolName !== ASK_USER_QUESTION_TOOL_NAME) {
+                return;
+              }
+
+              const details = getAskUserQuestionDetails(
+                (event.data as { details?: unknown }).details,
+              );
+              if (details) {
+                responseParagraphs = [formatEmailQuestionFallback(details)];
+                activeAssistantParagraphIndex = null;
+              }
             }
           },
         );
 
-        if (responseText.trim().length > 0) {
-          await sendReply(from, subject, responseText.trim(), {
+        const emailResponseText = responseText();
+        if (emailResponseText.length > 0) {
+          await sendReply(from, subject, emailResponseText, {
             messageId: message_id ?? content.messageId,
             references: content.references,
           });
