@@ -397,7 +397,26 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
         }
 
         let responseText = "";
+        let currentAssistantMessageText = "";
+        let sentMessageCount = 0;
         let completionReason: string | null = null;
+
+        const flushAssistantMessage = async () => {
+          const text = currentAssistantMessageText.trim();
+          currentAssistantMessageText = "";
+          if (text.length === 0) {
+            return;
+          }
+
+          const sendResult = await sendWhatsAppReply(from, text);
+          sentMessageCount += 1;
+          console.log(
+            `[whatsapp] replied chat=${chatId} to=${from} mode=prompt message=${sentMessageCount} sid=${
+              sendResult.sid ?? "unknown"
+            } status=${sendResult.status ?? "unknown"}`,
+          );
+        };
+
         await chatService.promptChat(
           chatId,
           {
@@ -406,10 +425,19 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
             attachments: [],
             context: {},
           },
-          (event: SseEvent) => {
+          async (event: SseEvent) => {
+            if (event.event === "assistant_message_start") {
+              currentAssistantMessageText = "";
+            }
+
             if (event.event === "text_delta") {
               const delta = (event.data as { delta?: string }).delta ?? "";
               responseText += delta;
+              currentAssistantMessageText += delta;
+            }
+
+            if (event.event === "assistant_message_end") {
+              await flushAssistantMessage();
             }
 
             if (event.event === "done") {
@@ -425,24 +453,19 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
           },
         );
 
+        await flushAssistantMessage();
+
         console.log(
           `[whatsapp] prompt finished chat=${chatId} from=${from} completionReason=${
             completionReason ?? "unknown"
-          } responseLength=${responseText.trim().length}`,
+          } responseLength=${responseText.trim().length} sentMessageCount=${sentMessageCount}`,
         );
 
-        if (completionReason === "completed" && responseText.trim().length > 0) {
-          const sendResult = await sendWhatsAppReply(from, responseText.trim());
-          console.log(
-            `[whatsapp] replied chat=${chatId} to=${from} mode=prompt sid=${
-              sendResult.sid ?? "unknown"
-            } status=${sendResult.status ?? "unknown"}`,
-          );
-        } else {
+        if (completionReason !== "completed" || sentMessageCount === 0) {
           const reason = completionReason ?? "unknown";
           const severity = completionReason === "aborted" ? "warning" : "error";
           const skipError = new Error(
-            `WhatsApp reply skipped for chat=${chatId} because completionReason=${reason} responseLength=${responseText.trim().length}`,
+            `WhatsApp reply skipped for chat=${chatId} because completionReason=${reason} sentMessageCount=${sentMessageCount} responseLength=${responseText.trim().length}`,
           );
           captureBackendException(skipError, {
             tags: {
@@ -456,6 +479,7 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
               chatId,
               responseText,
               responseLength: responseText.trim().length,
+              sentMessageCount,
               imageCount: images.length,
               bodyLength: body.length,
             },
@@ -463,7 +487,7 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
             fingerprint: ["whatsapp", "skip_reply", reason],
           });
           console.error(
-            `[whatsapp] skipped reply chat=${chatId} to=${from} mode=prompt completionReason=${reason} responseLength=${responseText.trim().length}`,
+            `[whatsapp] skipped reply chat=${chatId} to=${from} mode=prompt completionReason=${reason} sentMessageCount=${sentMessageCount} responseLength=${responseText.trim().length}`,
           );
         }
       } catch (error) {
