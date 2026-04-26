@@ -228,6 +228,72 @@ const sendWhatsAppReply = async (
     : new Error("Twilio WhatsApp send failed for an unknown reason"));
 };
 
+const sendWhatsAppTypingIndicator = async (messageId: string): Promise<void> => {
+  const accountSid = readRequiredEnv("TWILIO_ACCOUNT_SID");
+  const authToken = readRequiredEnv("TWILIO_AUTH_TOKEN");
+  const params = new URLSearchParams({
+    messageId,
+    channel: "whatsapp",
+  });
+
+  const response = await twilioFetch(
+    accountSid,
+    authToken,
+    "https://messaging.twilio.com/v2/Indicators/Typing.json",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Twilio WhatsApp typing indicator failed with status ${response.status}: ${await response.text()}`,
+    );
+  }
+};
+
+const startWhatsAppTypingIndicatorLoop = (
+  messageId: string | null,
+): (() => void) => {
+  if (!messageId) {
+    return () => undefined;
+  }
+
+  let stopped = false;
+  let interval: ReturnType<typeof setInterval> | null = null;
+
+  const tick = async () => {
+    try {
+      await sendWhatsAppTypingIndicator(messageId);
+      console.log(`[whatsapp] sent typing indicator messageId=${messageId}`);
+    } catch (error) {
+      console.warn(
+        `[whatsapp] failed to send typing indicator messageId=${messageId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  };
+
+  void tick();
+  interval = setInterval(() => {
+    if (!stopped) {
+      void tick();
+    }
+  }, 20_000);
+
+  return () => {
+    stopped = true;
+    if (interval) {
+      clearInterval(interval);
+    }
+  };
+};
+
 const parseNumMedia = (value: FormDataEntryValue | undefined): number => {
   if (typeof value !== "string") {
     return 0;
@@ -241,6 +307,15 @@ type TwilioWebhookBody = Record<string, string | File>;
 
 const buildInboundWhatsAppPrompt = (body: string): string =>
   `WhatsApp message from user: ${body || "(empty message)"}`;
+
+const getInboundMessageSid = (form: TwilioWebhookBody): string | null => {
+  const candidates = [form.MessageSid, form.SmsMessageSid, form.SmsSid];
+  const sid = candidates.find(
+    (value): value is string => typeof value === "string" && /^(SM|MM)[0-9a-fA-F]{32}$/.test(value),
+  );
+
+  return sid ?? null;
+};
 
 const loadInboundImages = async (form: TwilioWebhookBody): Promise<ImageContent[]> => {
   const accountSid = readRequiredEnv("TWILIO_ACCOUNT_SID");
@@ -367,6 +442,10 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
     }
 
     const processWhatsApp = async () => {
+      const stopTypingIndicator = startWhatsAppTypingIndicatorLoop(
+        getInboundMessageSid(form),
+      );
+
       try {
         const now = new Date();
         const timezone = await getWhatsAppThreadTimezone();
@@ -501,6 +580,8 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
           level: "error",
         });
         console.error("[whatsapp] Failed to process inbound WhatsApp:", error);
+      } finally {
+        stopTypingIndicator();
       }
     };
 
