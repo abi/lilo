@@ -10,9 +10,23 @@
   color-scheme: dark;
 }
 
+html,
+body {
+  /* Lock the document to the viewport so iOS Safari can't rubber-band the
+     whole page (the white-on-overscroll behavior). All app scrolling lives
+     in internal containers, which keep their own scrollbars. */
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   @apply m-0 bg-white text-neutral-900 antialiased dark:bg-neutral-900 dark:text-neutral-100;
   font-family: "DM Sans", system-ui, sans-serif;
+}
+
+#root {
+  height: 100%;
 }
 
 * {
