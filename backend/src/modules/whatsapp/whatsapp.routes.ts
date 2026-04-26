@@ -694,22 +694,33 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
         let currentAssistantMessageText = "";
         let sentMessageCount = 0;
         let completionReason: string | null = null;
+        let sendQueue = Promise.resolve();
 
-        const flushAssistantMessage = async () => {
-          const text = currentAssistantMessageText.trim();
-          currentAssistantMessageText = "";
-          if (text.length === 0) {
+        const enqueueWhatsAppSend = (
+          text: string,
+          kind: "assistant" | "question_fallback",
+        ) => {
+          const bodyToSend = text.trim();
+          if (bodyToSend.length === 0) {
             return;
           }
 
-          const sendResults = await sendWhatsAppReplyChunked(from, text);
-          sentMessageCount += sendResults.length;
-          const lastSendResult = sendResults[sendResults.length - 1];
-          console.log(
-            `[whatsapp] replied chat=${chatId} to=${from} mode=prompt chunks=${sendResults.length} sentMessageCount=${sentMessageCount} sid=${
-              lastSendResult?.sid ?? "unknown"
-            } status=${lastSendResult?.status ?? "unknown"}`,
-          );
+          sendQueue = sendQueue.then(async () => {
+            const sendResults = await sendWhatsAppReplyChunked(from, bodyToSend);
+            sentMessageCount += sendResults.length;
+            const lastSendResult = sendResults[sendResults.length - 1];
+            console.log(
+              `[whatsapp] replied chat=${chatId} to=${from} mode=prompt kind=${kind} chunks=${sendResults.length} sentMessageCount=${sentMessageCount} sid=${
+                lastSendResult?.sid ?? "unknown"
+              } status=${lastSendResult?.status ?? "unknown"}`,
+            );
+          });
+        };
+
+        const flushAssistantMessage = () => {
+          const text = currentAssistantMessageText.trim();
+          currentAssistantMessageText = "";
+          enqueueWhatsAppSend(text, "assistant");
         };
 
         await chatService.promptChat(
@@ -720,7 +731,7 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
             attachments: resolvedUploads.attachments,
             context: {},
           },
-          async (event: SseEvent) => {
+          (event: SseEvent) => {
             if (event.event === "assistant_message_start") {
               currentAssistantMessageText = "";
             }
@@ -732,24 +743,20 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
             }
 
             if (event.event === "assistant_message_end") {
-              await flushAssistantMessage();
+              flushAssistantMessage();
             }
 
             if (event.event === "tool_result") {
               const toolName = (event.data as { toolName?: unknown }).toolName;
               if (toolName === ASK_USER_QUESTION_TOOL_NAME) {
-                await flushAssistantMessage();
+                flushAssistantMessage();
                 const details = getAskUserQuestionDetails(
                   (event.data as { details?: unknown }).details,
                 );
                 if (details) {
                   const fallback = formatWhatsAppQuestionFallback(details);
                   responseText += `\n\n${fallback}`;
-                  const sendResults = await sendWhatsAppReplyChunked(from, fallback);
-                  sentMessageCount += sendResults.length;
-                  console.log(
-                    `[whatsapp] sent question fallback chat=${chatId} to=${from} chunks=${sendResults.length} sentMessageCount=${sentMessageCount}`,
-                  );
+                  enqueueWhatsAppSend(fallback, "question_fallback");
                 }
               }
             }
@@ -767,7 +774,8 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
           },
         );
 
-        await flushAssistantMessage();
+        flushAssistantMessage();
+        await sendQueue;
 
         console.log(
           `[whatsapp] prompt finished chat=${chatId} from=${from} completionReason=${
