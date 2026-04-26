@@ -74,6 +74,7 @@ interface DesktopWorkspaceChatShellProps {
   loadingChats: boolean;
   showAppChats: boolean;
   onSelectChat: (chatId: string) => void;
+  onPrefetchChat?: (chatId: string) => void;
   onSelectAppChat: (chat: AppChatSummary) => void;
   onToggleShowAppChats: () => void;
   pickerInjection: ViewerPickerInjection;
@@ -119,6 +120,7 @@ export function DesktopWorkspaceChatShell({
   loadingChats,
   showAppChats,
   onSelectChat,
+  onPrefetchChat,
   onSelectAppChat,
   onToggleShowAppChats,
   pickerInjection,
@@ -223,6 +225,7 @@ export function DesktopWorkspaceChatShell({
               loadingChats,
               showAppChats,
               onSelectChat,
+              onPrefetchChat,
               onSelectAppChat,
               onToggleShowAppChats,
             }}

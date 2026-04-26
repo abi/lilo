@@ -143,6 +143,10 @@ const appNameFromToolDetails = (details: unknown): string | undefined => {
 };
 
 const resumedRunSubscriptions = new Map<string, () => void>();
+
+// Tracks in-flight prefetch requests so prefetchChat can be called liberally
+// (touchstart, app-boot warm-up, etc.) without firing duplicate fetches.
+const prefetchesInFlight = new Set<string>();
 const resumedRunSyncState = new Map<string, { inFlight: boolean; pending: boolean }>();
 const pushedChatTitles = new Map<string, string>();
 let activeChatSocketChatId: string | null = null;
@@ -636,6 +640,44 @@ export const useChatStore = create<ChatStoreState>((set, get) => {
         },
       },
     }));
+  },
+
+  /**
+   * Fetch a chat's full detail and merge it into the store WITHOUT changing
+   * the active chat. Safe to call liberally — duplicate calls dedupe via the
+   * module-level Set, and already-loaded chats are a no-op. Failures are
+   * silently swallowed so a flaky prefetch never disrupts UX.
+   */
+  prefetchChat: async (chatId) => {
+    if (!chatId) return;
+    if (prefetchesInFlight.has(chatId)) return;
+    if (get().chatsById[chatId]?.isLoaded) return;
+
+    prefetchesInFlight.add(chatId);
+    try {
+      const payload = await fetchJson<ChatDetailResponse>(
+        `${API_BASE_URL}/chats/${chatId}`,
+      );
+      const chat = applyPushedTitle(payload.chat);
+      set((state) => {
+        // If selectChat won the race and already loaded the chat, leave it.
+        if (state.chatsById[chatId]?.isLoaded) return state;
+        return {
+          chatsById: {
+            ...state.chatsById,
+            [chatId]: {
+              ...createChatState(chat, state.chatsById[chatId]),
+              messages: chat.messages,
+              isLoaded: true,
+            },
+          },
+        };
+      });
+    } catch {
+      // Silent — prefetch failures shouldn't surface.
+    } finally {
+      prefetchesInFlight.delete(chatId);
+    }
   },
 
   selectChat: async (chatId) => {

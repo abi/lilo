@@ -123,6 +123,7 @@ export interface ChatStoreState {
     modelId?: ChatSummary["modelId"];
   }) => Promise<string>;
   selectChat: (chatId: string) => Promise<void>;
+  prefetchChat: (chatId: string) => Promise<void>;
   updateChatModel: (
     chatId: string,
     modelSelection: Pick<ChatSummary, "modelProvider" | "modelId">,

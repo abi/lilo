@@ -12,6 +12,8 @@ interface ChatListProps {
   loading?: boolean;
   onSelectChat: (chatId: string) => void;
   onSelectAppChat?: (chat: AppChatSummary) => void;
+  /** Fired on pointerdown — kicks off the chat fetch ~100-200ms before tap. */
+  onPrefetchChat?: (chatId: string) => void;
 }
 
 type DateGroup = {
@@ -92,6 +94,7 @@ export function ChatList({
   loading = false,
   onSelectChat,
   onSelectAppChat,
+  onPrefetchChat,
 }: ChatListProps) {
   const isMobile = variant === "mobile";
   const visibleChats = useMemo(
@@ -204,6 +207,7 @@ export function ChatList({
                 <button
                   key={chat.id}
                   type="button"
+                  onPointerDown={() => onPrefetchChat?.(chat.id)}
                   onClick={() => onSelectChat(chat.id)}
                   className={`group relative flex w-full items-start gap-3 text-left transition ${
                     isMobile

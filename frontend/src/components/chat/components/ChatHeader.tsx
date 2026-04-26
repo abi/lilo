@@ -21,6 +21,7 @@ interface ChatHeaderProps {
     loadingChats: boolean;
     showAppChats: boolean;
     onSelectChat: (chatId: string) => void;
+    onPrefetchChat?: (chatId: string) => void;
     onSelectAppChat: (chat: AppChatSummary) => void;
     onToggleShowAppChats: () => void;
   };
@@ -121,6 +122,7 @@ export function ChatHeader({
               loadingChats={history.loadingChats}
               showAppChats={history.showAppChats}
               onSelectChat={history.onSelectChat}
+              onPrefetchChat={history.onPrefetchChat}
               onSelectAppChat={history.onSelectAppChat}
               onToggleShowAppChats={history.onToggleShowAppChats}
             />
