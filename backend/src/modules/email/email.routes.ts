@@ -627,8 +627,6 @@ export const registerEmailRoutes = (
 
         const promptMessage = [
           `Channel: email`,
-          `If you need a follow-up answer, ask it in plain email prose. Number any options so the user can reply by number or text.`,
-          ``,
           `From: ${from}`,
           `Subject: ${subject}`,
           ``,
