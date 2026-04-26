@@ -1,10 +1,12 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Hono } from "hono";
 import type { ImageContent } from "@mariozechner/pi-ai";
+import type { UploadedChatFile } from "../chat/chat.request.js";
 import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
 import { readCsvEnv, readRequiredEnv } from "../../shared/config/env.js";
 import { WORKSPACE_ROOT } from "../../shared/config/paths.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
+import { ASK_USER_QUESTION_TOOL_NAME } from "../../shared/tools/askUserQuestionTool.js";
 import { readWorkspaceAppPrefs } from "../../shared/workspace/appPrefs.js";
 import { resolveDailyWhatsAppChatId, storeDailyWhatsAppChatId } from "./threadStore.js";
 
@@ -78,8 +80,61 @@ const resolveExternalRequestUrl = (requestUrl: string, headers: Headers): string
   return url.toString();
 };
 
-const isSupportedInboundImageMimeType = (value: string): boolean =>
-  /^(image\/jpeg|image\/jpg|image\/png|image\/webp)$/i.test(value.trim());
+const MAX_WHATSAPP_REPLY_CHARS = 1_500;
+
+const isImageMimeType = (value: string): boolean =>
+  value.trim().toLowerCase().startsWith("image/");
+
+const MEDIA_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "audio/aac": ".aac",
+  "audio/amr": ".amr",
+  "audio/mpeg": ".mp3",
+  "audio/mp3": ".mp3",
+  "audio/ogg": ".ogg",
+  "audio/wav": ".wav",
+  "audio/webm": ".webm",
+  "image/gif": ".gif",
+  "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "text/plain": ".txt",
+  "video/3gpp": ".3gp",
+  "video/mp4": ".mp4",
+  "video/mpeg": ".mpeg",
+  "video/quicktime": ".mov",
+  "video/webm": ".webm",
+};
+
+const getMediaExtension = (mimeType: string): string =>
+  MEDIA_EXTENSION_BY_MIME_TYPE[mimeType.trim().toLowerCase()] ?? ".bin";
+
+type AskUserQuestionDetails = {
+  question: string;
+  options: string[];
+  allowSkip: boolean;
+};
+
+interface TwilioErrorResponse {
+  code?: unknown;
+  message?: unknown;
+  more_info?: unknown;
+  status?: unknown;
+}
+
+class TwilioWhatsAppSendError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly twilioCode: string | null,
+    readonly twilioMessage: string | null,
+    readonly moreInfo: string | null,
+  ) {
+    super(message);
+    this.name = "TwilioWhatsAppSendError";
+  }
+}
 
 const twilioFetch = async (
   accountSid: string,
@@ -104,9 +159,88 @@ const sleep = async (ms: number): Promise<void> =>
     setTimeout(resolve, ms);
   });
 
+const findWhatsAppReplySplitIndex = (text: string): number => {
+  const search = text.slice(0, MAX_WHATSAPP_REPLY_CHARS + 1);
+  const minimumCleanBoundary = Math.floor(MAX_WHATSAPP_REPLY_CHARS * 0.45);
+  const boundaries = [
+    { pattern: "\n", offset: 0 },
+    { pattern: ". ", offset: 1 },
+    { pattern: "? ", offset: 1 },
+    { pattern: "! ", offset: 1 },
+    { pattern: "; ", offset: 1 },
+    { pattern: ", ", offset: 1 },
+    { pattern: " ", offset: 0 },
+  ];
+
+  let best = -1;
+  for (const boundary of boundaries) {
+    const index = search.lastIndexOf(boundary.pattern);
+    if (index >= minimumCleanBoundary && index > best) {
+      best = index + boundary.offset;
+    }
+  }
+
+  return best > 0 ? best : MAX_WHATSAPP_REPLY_CHARS;
+};
+
+const splitOversizedWhatsAppText = (text: string): string[] => {
+  const chunks: string[] = [];
+  let remaining = text.trim();
+
+  while (remaining.length > MAX_WHATSAPP_REPLY_CHARS) {
+    const splitIndex = findWhatsAppReplySplitIndex(remaining);
+    const chunk = remaining.slice(0, splitIndex).trim();
+    if (chunk.length > 0) {
+      chunks.push(chunk);
+    }
+    remaining = remaining.slice(splitIndex).trim();
+  }
+
+  if (remaining.length > 0) {
+    chunks.push(remaining);
+  }
+
+  return chunks;
+};
+
+const splitWhatsAppReply = (body: string): string[] => {
+  const paragraphs = body
+    .replace(/\r\n/g, "\n")
+    .trim()
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+  const chunks: string[] = [];
+
+  const appendChunk = (chunk: string) => {
+    const trimmed = chunk.trim();
+    if (trimmed.length === 0) {
+      return;
+    }
+
+    if (trimmed.length > MAX_WHATSAPP_REPLY_CHARS) {
+      splitOversizedWhatsAppText(trimmed).forEach(appendChunk);
+      return;
+    }
+
+    const previous = chunks[chunks.length - 1];
+    const joined = previous ? `${previous}\n\n${trimmed}` : trimmed;
+    if (previous && joined.length <= MAX_WHATSAPP_REPLY_CHARS) {
+      chunks[chunks.length - 1] = joined;
+      return;
+    }
+
+    chunks.push(trimmed);
+  };
+
+  paragraphs.forEach(appendChunk);
+  return chunks;
+};
+
 const sendWhatsAppReply = async (
   to: string,
   body: string,
+  meta: { chunkIndex?: number; chunkCount?: number } = {},
 ): Promise<{ sid: string | null; status: string | null }> => {
   const accountSid = readRequiredEnv("TWILIO_ACCOUNT_SID");
   const authToken = readRequiredEnv("TWILIO_AUTH_TOKEN");
@@ -154,12 +288,33 @@ const sendWhatsAppReply = async (
         };
       }
 
-      const error = new Error(`Twilio WhatsApp send failed with status ${response.status}`);
+      const errorResponse = responseJson as TwilioErrorResponse | null;
+      const twilioCode =
+        typeof errorResponse?.code === "number" || typeof errorResponse?.code === "string"
+          ? String(errorResponse.code)
+          : null;
+      const twilioMessage =
+        typeof errorResponse?.message === "string" ? errorResponse.message : null;
+      const moreInfo =
+        typeof errorResponse?.more_info === "string" ? errorResponse.more_info : null;
+      const error = new TwilioWhatsAppSendError(
+        [
+          `Twilio WhatsApp send failed with status ${response.status}`,
+          twilioCode ? `code ${twilioCode}` : null,
+          twilioMessage,
+        ]
+          .filter(Boolean)
+          .join(": "),
+        response.status,
+        twilioCode,
+        twilioMessage,
+        moreInfo,
+      );
       lastError = error;
       const isRetryable = TWILIO_RETRYABLE_STATUS_CODES.has(response.status) && attempt < 3;
 
       console.error(
-        `[whatsapp] Twilio send failed attempt=${attempt} status=${response.status} retryable=${isRetryable} body=${responseText}`,
+        `[whatsapp] Twilio send failed attempt=${attempt} status=${response.status} twilioCode=${twilioCode ?? "unknown"} retryable=${isRetryable} message=${twilioMessage ?? responseText}`,
       );
 
       if (!isRetryable) {
@@ -172,22 +327,31 @@ const sendWhatsAppReply = async (
             from,
             status_code: response.status,
             attempt,
+            ...(twilioCode ? { twilio_code: twilioCode } : {}),
           },
           extras: {
             responseBody: responseText,
             responseJson,
             messageLength: body.length,
+            maxReplyChunkChars: MAX_WHATSAPP_REPLY_CHARS,
+            chunkIndex: meta.chunkIndex ?? null,
+            chunkCount: meta.chunkCount ?? null,
+            twilioMessage,
+            moreInfo,
           },
           level: "error",
-          fingerprint: ["whatsapp", "twilio", "send_reply", String(response.status)],
+          fingerprint: [
+            "whatsapp",
+            "twilio",
+            "send_reply",
+            String(response.status),
+            twilioCode ?? "unknown_code",
+          ],
         });
         throw error;
       }
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message.startsWith("Twilio WhatsApp send failed with status ")
-      ) {
+      if (error instanceof TwilioWhatsAppSendError) {
         throw error;
       }
 
@@ -212,6 +376,9 @@ const sendWhatsAppReply = async (
           },
           extras: {
             messageLength: body.length,
+            maxReplyChunkChars: MAX_WHATSAPP_REPLY_CHARS,
+            chunkIndex: meta.chunkIndex ?? null,
+            chunkCount: meta.chunkCount ?? null,
           },
           level: "error",
           fingerprint: ["whatsapp", "twilio", "send_reply", "thrown"],
@@ -228,6 +395,91 @@ const sendWhatsAppReply = async (
     : new Error("Twilio WhatsApp send failed for an unknown reason"));
 };
 
+const sendWhatsAppReplyChunked = async (
+  to: string,
+  body: string,
+): Promise<Array<{ sid: string | null; status: string | null }>> => {
+  const chunks = splitWhatsAppReply(body);
+  const results: Array<{ sid: string | null; status: string | null }> = [];
+
+  for (const [index, chunk] of chunks.entries()) {
+    results.push(
+      await sendWhatsAppReply(to, chunk, {
+        chunkIndex: index + 1,
+        chunkCount: chunks.length,
+      }),
+    );
+  }
+
+  return results;
+};
+
+const sendWhatsAppTypingIndicator = async (messageId: string): Promise<void> => {
+  const accountSid = readRequiredEnv("TWILIO_ACCOUNT_SID");
+  const authToken = readRequiredEnv("TWILIO_AUTH_TOKEN");
+  const params = new URLSearchParams({
+    messageId,
+    channel: "whatsapp",
+  });
+
+  const response = await twilioFetch(
+    accountSid,
+    authToken,
+    "https://messaging.twilio.com/v2/Indicators/Typing.json",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Twilio WhatsApp typing indicator failed with status ${response.status}: ${await response.text()}`,
+    );
+  }
+};
+
+const startWhatsAppTypingIndicatorLoop = (
+  messageId: string | null,
+): (() => void) => {
+  if (!messageId) {
+    return () => undefined;
+  }
+
+  let stopped = false;
+  let interval: ReturnType<typeof setInterval> | null = null;
+
+  const tick = async () => {
+    try {
+      await sendWhatsAppTypingIndicator(messageId);
+      console.log(`[whatsapp] sent typing indicator messageId=${messageId}`);
+    } catch (error) {
+      console.warn(
+        `[whatsapp] failed to send typing indicator messageId=${messageId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  };
+
+  void tick();
+  interval = setInterval(() => {
+    if (!stopped) {
+      void tick();
+    }
+  }, 20_000);
+
+  return () => {
+    stopped = true;
+    if (interval) {
+      clearInterval(interval);
+    }
+  };
+};
+
 const parseNumMedia = (value: FormDataEntryValue | undefined): number => {
   if (typeof value !== "string") {
     return 0;
@@ -240,44 +492,131 @@ const parseNumMedia = (value: FormDataEntryValue | undefined): number => {
 type TwilioWebhookBody = Record<string, string | File>;
 
 const buildInboundWhatsAppPrompt = (body: string): string =>
-  `WhatsApp message from user: ${body || "(empty message)"}`;
+  [
+    "Channel: WhatsApp",
+    "If you need a follow-up answer, ask it in plain WhatsApp prose. Number any options so the user can reply by number or text.",
+    "",
+    `WhatsApp message from user: ${body || "(empty message)"}`,
+  ].join("\n");
 
-const loadInboundImages = async (form: TwilioWebhookBody): Promise<ImageContent[]> => {
+const getInboundMessageSid = (form: TwilioWebhookBody): string | null => {
+  const candidates = [form.MessageSid, form.SmsMessageSid, form.SmsSid];
+  const sid = candidates.find(
+    (value): value is string => typeof value === "string" && /^(SM|MM)[0-9a-fA-F]{32}$/.test(value),
+  );
+
+  return sid ?? null;
+};
+
+const getInboundMediaName = (mimeType: string, index: number): string =>
+  `whatsapp-media-${index + 1}${getMediaExtension(mimeType)}`;
+
+const loadInboundMedia = async (form: TwilioWebhookBody): Promise<UploadedChatFile[]> => {
   const accountSid = readRequiredEnv("TWILIO_ACCOUNT_SID");
   const authToken = readRequiredEnv("TWILIO_AUTH_TOKEN");
   const numMedia = parseNumMedia(form.NumMedia);
-  const images: ImageContent[] = [];
+  const uploads: UploadedChatFile[] = [];
 
   for (let index = 0; index < numMedia; index += 1) {
     const mediaUrl = form[`MediaUrl${index}`];
     const mediaContentType = form[`MediaContentType${index}`];
 
-    if (typeof mediaUrl !== "string" || typeof mediaContentType !== "string") {
+    if (typeof mediaUrl !== "string") {
       continue;
     }
 
-    if (!isSupportedInboundImageMimeType(mediaContentType)) {
-      console.log(
-        `[whatsapp] ignoring unsupported inbound media type=${mediaContentType} url=${mediaUrl}`,
-      );
-      continue;
-    }
+    const mimeType =
+      typeof mediaContentType === "string" && mediaContentType.trim().length > 0
+        ? mediaContentType.trim()
+        : "application/octet-stream";
 
-    const response = await twilioFetch(accountSid, authToken, mediaUrl);
-    if (!response.ok) {
-      throw new Error(
-        `Failed to download inbound media ${index} (${mediaContentType}): ${response.status}`,
-      );
-    }
+    try {
+      const response = await twilioFetch(accountSid, authToken, mediaUrl);
+      if (!response.ok) {
+        console.warn("[whatsapp] failed to download inbound media", {
+          index,
+          mimeType,
+          status: response.status,
+        });
+        continue;
+      }
 
-    images.push({
-      type: "image",
-      mimeType: mediaContentType,
-      data: Buffer.from(await response.arrayBuffer()).toString("base64"),
-    });
+      const arrayBuffer = await response.arrayBuffer();
+      const data = Buffer.from(arrayBuffer).toString("base64");
+      const image: ImageContent | undefined = isImageMimeType(mimeType)
+        ? {
+            type: "image",
+            mimeType,
+            data,
+          }
+        : undefined;
+
+      uploads.push({
+        originalName: getInboundMediaName(mimeType, index),
+        mimeType,
+        size: arrayBuffer.byteLength,
+        bytes: new Uint8Array(arrayBuffer),
+        image,
+      });
+    } catch (error) {
+      console.warn("[whatsapp] failed to process inbound media", {
+        index,
+        mimeType,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
-  return images;
+  return uploads;
+};
+
+const getAskUserQuestionDetails = (value: unknown): AskUserQuestionDetails | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const details = value as {
+    question?: unknown;
+    options?: unknown;
+    allowSkip?: unknown;
+  };
+  const question = typeof details.question === "string" ? details.question.trim() : "";
+  const options = Array.isArray(details.options)
+    ? details.options
+        .filter((option): option is string => typeof option === "string")
+        .map((option) => option.trim())
+        .filter(Boolean)
+    : [];
+
+  if (!question && options.length === 0) {
+    return null;
+  }
+
+  return {
+    question,
+    options,
+    allowSkip: typeof details.allowSkip === "boolean" ? details.allowSkip : true,
+  };
+};
+
+const formatWhatsAppQuestionFallback = (details: AskUserQuestionDetails): string => {
+  const parts = [
+    details.question || "Could you reply with a bit more information?",
+  ];
+
+  if (details.options.length > 0) {
+    parts.push(
+      "",
+      "Reply with one of these options:",
+      ...details.options.map((option, index) => `${index + 1}. ${option}`),
+    );
+  }
+
+  if (details.allowSkip) {
+    parts.push("", "You can also reply with \"skip\" if you want me to choose a reasonable default.");
+  }
+
+  return parts.join("\n");
 };
 
 export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService): void => {
@@ -367,12 +706,16 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
     }
 
     const processWhatsApp = async () => {
+      const stopTypingIndicator = startWhatsAppTypingIndicatorLoop(
+        getInboundMessageSid(form),
+      );
+
       try {
         const now = new Date();
         const timezone = await getWhatsAppThreadTimezone();
-        const images = await loadInboundImages(form);
+        const inboundMedia = await loadInboundMedia(form);
         console.log(
-          `[whatsapp] inbound from=${from} bodyLength=${body.length} imageCount=${images.length} timezone=${timezone}`,
+          `[whatsapp] inbound from=${from} bodyLength=${body.length} mediaCount=${inboundMedia.length} timezone=${timezone}`,
         );
 
         let chatId = await resolveDailyWhatsAppChatId(from, now, timezone);
@@ -383,13 +726,23 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
           console.log(`[whatsapp] created chat=${chatId} from=${from} timezone=${timezone}`);
         }
 
+        const resolvedUploads = inboundMedia.length > 0
+          ? await chatService.resolveUploads(
+              chatId,
+              await chatService.storeUploads(chatId, inboundMedia),
+            )
+          : { images: [], attachments: [] };
+        console.log(
+          `[whatsapp] resolved media chat=${chatId} imageCount=${resolvedUploads.images.length} attachmentCount=${resolvedUploads.attachments.length}`,
+        );
+
         const currentChat = await chatService.getChat(chatId);
         if (currentChat?.status === "streaming") {
           console.log(`[whatsapp] steering active chat=${chatId} from=${from}`);
           await chatService.steerChat(chatId, {
             message: buildInboundWhatsAppPrompt(body),
-            images,
-            attachments: [],
+            images: resolvedUploads.images,
+            attachments: resolvedUploads.attachments,
             context: {},
           });
           console.log(`[whatsapp] steer accepted chat=${chatId} from=${from}`);
@@ -397,19 +750,74 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
         }
 
         let responseText = "";
+        let currentAssistantMessageText = "";
+        let sentMessageCount = 0;
         let completionReason: string | null = null;
+        let sendQueue = Promise.resolve();
+
+        const enqueueWhatsAppSend = (
+          text: string,
+          kind: "assistant" | "question_fallback",
+        ) => {
+          const bodyToSend = text.trim();
+          if (bodyToSend.length === 0) {
+            return;
+          }
+
+          sendQueue = sendQueue.then(async () => {
+            const sendResults = await sendWhatsAppReplyChunked(from, bodyToSend);
+            sentMessageCount += sendResults.length;
+            const lastSendResult = sendResults[sendResults.length - 1];
+            console.log(
+              `[whatsapp] replied chat=${chatId} to=${from} mode=prompt kind=${kind} chunks=${sendResults.length} sentMessageCount=${sentMessageCount} sid=${
+                lastSendResult?.sid ?? "unknown"
+              } status=${lastSendResult?.status ?? "unknown"}`,
+            );
+          });
+        };
+
+        const flushAssistantMessage = () => {
+          const text = currentAssistantMessageText.trim();
+          currentAssistantMessageText = "";
+          enqueueWhatsAppSend(text, "assistant");
+        };
+
         await chatService.promptChat(
           chatId,
           {
             message: buildInboundWhatsAppPrompt(body),
-            images,
-            attachments: [],
+            images: resolvedUploads.images,
+            attachments: resolvedUploads.attachments,
             context: {},
           },
           (event: SseEvent) => {
+            if (event.event === "assistant_message_start") {
+              currentAssistantMessageText = "";
+            }
+
             if (event.event === "text_delta") {
               const delta = (event.data as { delta?: string }).delta ?? "";
               responseText += delta;
+              currentAssistantMessageText += delta;
+            }
+
+            if (event.event === "assistant_message_end") {
+              flushAssistantMessage();
+            }
+
+            if (event.event === "tool_result") {
+              const toolName = (event.data as { toolName?: unknown }).toolName;
+              if (toolName === ASK_USER_QUESTION_TOOL_NAME) {
+                flushAssistantMessage();
+                const details = getAskUserQuestionDetails(
+                  (event.data as { details?: unknown }).details,
+                );
+                if (details) {
+                  const fallback = formatWhatsAppQuestionFallback(details);
+                  responseText += `\n\n${fallback}`;
+                  enqueueWhatsAppSend(fallback, "question_fallback");
+                }
+              }
             }
 
             if (event.event === "done") {
@@ -425,24 +833,20 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
           },
         );
 
+        flushAssistantMessage();
+        await sendQueue;
+
         console.log(
           `[whatsapp] prompt finished chat=${chatId} from=${from} completionReason=${
             completionReason ?? "unknown"
-          } responseLength=${responseText.trim().length}`,
+          } responseLength=${responseText.trim().length} sentMessageCount=${sentMessageCount}`,
         );
 
-        if (completionReason === "completed" && responseText.trim().length > 0) {
-          const sendResult = await sendWhatsAppReply(from, responseText.trim());
-          console.log(
-            `[whatsapp] replied chat=${chatId} to=${from} mode=prompt sid=${
-              sendResult.sid ?? "unknown"
-            } status=${sendResult.status ?? "unknown"}`,
-          );
-        } else {
+        if (completionReason !== "completed" || sentMessageCount === 0) {
           const reason = completionReason ?? "unknown";
           const severity = completionReason === "aborted" ? "warning" : "error";
           const skipError = new Error(
-            `WhatsApp reply skipped for chat=${chatId} because completionReason=${reason} responseLength=${responseText.trim().length}`,
+            `WhatsApp reply skipped for chat=${chatId} because completionReason=${reason} sentMessageCount=${sentMessageCount} responseLength=${responseText.trim().length}`,
           );
           captureBackendException(skipError, {
             tags: {
@@ -456,17 +860,26 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
               chatId,
               responseText,
               responseLength: responseText.trim().length,
-              imageCount: images.length,
+              sentMessageCount,
+              imageCount: resolvedUploads.images.length,
+              attachmentCount: resolvedUploads.attachments.length,
               bodyLength: body.length,
             },
             level: severity,
             fingerprint: ["whatsapp", "skip_reply", reason],
           });
           console.error(
-            `[whatsapp] skipped reply chat=${chatId} to=${from} mode=prompt completionReason=${reason} responseLength=${responseText.trim().length}`,
+            `[whatsapp] skipped reply chat=${chatId} to=${from} mode=prompt completionReason=${reason} sentMessageCount=${sentMessageCount} responseLength=${responseText.trim().length}`,
           );
         }
       } catch (error) {
+        if (error instanceof TwilioWhatsAppSendError) {
+          console.error(
+            `[whatsapp] Failed to send outbound WhatsApp reply from=${from} status=${error.status} twilioCode=${error.twilioCode ?? "unknown"} message=${error.twilioMessage ?? error.message}`,
+          );
+          return;
+        }
+
         captureBackendException(error, {
           tags: {
             area: "whatsapp",
@@ -477,6 +890,8 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
           level: "error",
         });
         console.error("[whatsapp] Failed to process inbound WhatsApp:", error);
+      } finally {
+        stopTypingIndicator();
       }
     };
 

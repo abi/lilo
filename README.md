@@ -218,6 +218,7 @@ RESEND_WEBHOOK_SECRET=whsec_...
 LILO_EMAIL_AGENT_ADDRESS=hi@yourdomain.com        # your bot's inbound address
 LILO_EMAIL_REPLY_FROM="Lilo <lilo@yourdomain.com>"
 LILO_EMAIL_ALLOWED_SENDERS=you@yours.com,partner@theirs.com   # allowlist
+LILO_PUBLIC_APP_URL=https://your-lilo.example.com # optional; adds chat permalinks to email replies
 ```
 
 1. Set up a receiving domain in Resend.
