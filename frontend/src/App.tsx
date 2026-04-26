@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import { CommandPalette } from "./components/app/CommandPalette";
 import { DesktopCollapsedSidebarStrip } from "./components/app/DesktopCollapsedSidebarStrip";
 import { DesktopSidebarPanel } from "./components/app/DesktopSidebarPanel";
@@ -152,10 +152,17 @@ function App() {
   }, [showAppChats, setActiveAppChatId]);
 
   const handleSelectChat = useCallback(
-    async (chatId: string) => {
+    (chatId: string) => {
+      // Switch the view first so the tap feels instant, then load. The store
+      // sets `activeChatId` synchronously inside selectChat — wrapping in a
+      // transition lets React keep the chat list responsive while the (often
+      // heavy) ChatPane re-render and any network fetch happen in the
+      // background.
       setActiveAppChatId(null);
-      await selectChat(chatId);
       shell.openConversation();
+      startTransition(() => {
+        void selectChat(chatId);
+      });
     },
     [selectChat, setActiveAppChatId, shell],
   );
@@ -536,8 +543,10 @@ function App() {
           showAppChats={showAppChats}
           onSelectChat={(chatId) => void handleSelectChat(chatId)}
           onSelectAppChat={(chat) => {
-            void selectAppChat(chat);
             shell.openConversation();
+            startTransition(() => {
+              void selectAppChat(chat);
+            });
           }}
           onToggleShowAppChats={() => setShowAppChats((value) => !value)}
           pickerInjection={pickerInjection}

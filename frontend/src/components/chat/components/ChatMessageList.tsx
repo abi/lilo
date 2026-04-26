@@ -45,39 +45,6 @@ export function ChatMessageList({
   onOpenViewerApp,
   onImageClick,
 }: ChatMessageListProps) {
-  if (typeof window !== "undefined") {
-    console.debug("[chat] rendering message groups", {
-      chatId: chat.id,
-      totalMessages: chat.messages.length,
-      totalGroups: messageGroups.length,
-      groups: messageGroups.map((group) => {
-        if (group.kind === "content") {
-          return {
-            kind: group.kind,
-            role: group.message.role,
-            id: group.message.id,
-            toolName: group.message.toolName ?? null,
-            preview: group.message.content.slice(0, 120),
-          };
-        }
-
-        if (group.kind === "actions") {
-          return {
-            kind: group.kind,
-            actions: group.actions.map((action) => ({
-              callId: action.call.id,
-              toolName: action.call.toolName ?? null,
-              resultId: action.result?.id ?? null,
-              resultPreview: action.result?.content.slice(0, 120) ?? null,
-            })),
-          };
-        }
-
-        return { kind: group.kind };
-      }),
-    });
-  }
-
   const handleRenderedMessageCopy = (event: ClipboardEvent<HTMLDivElement>) => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
@@ -117,7 +84,7 @@ export function ChatMessageList({
       className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-6"
     >
       <div className={`${fullWidth ? "mx-0 max-w-none" : "mx-auto max-w-3xl"} flex flex-col overflow-hidden`}>
-        {chat.messages.length === 0 ? (
+        {chat.messages.length === 0 && chat.isLoaded ? (
           <div className="flex flex-col items-center gap-5 py-24">
             <img
               src="/favicon.svg"
