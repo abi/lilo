@@ -6,6 +6,7 @@ interface ChatListProps {
   chats: ChatSessionState[];
   appChats?: AppChatSummary[];
   showAppChats?: boolean;
+  variant?: "default" | "mobile";
   activeChatId: string | null;
   activeAppChatId?: string | null;
   loading?: boolean;
@@ -85,12 +86,14 @@ export function ChatList({
   chats,
   appChats = [],
   showAppChats = false,
+  variant = "default",
   activeChatId,
   activeAppChatId = null,
   loading = false,
   onSelectChat,
   onSelectAppChat,
 }: ChatListProps) {
+  const isMobile = variant === "mobile";
   const visibleChats = useMemo(
     () => chats.filter((chat) => chat.messageCount > 0),
     [chats],
@@ -114,7 +117,13 @@ export function ChatList({
       );
     }
     return (
-      <div className="flex flex-col gap-0.5">
+      <div
+        className={
+          isMobile
+            ? "flex flex-col divide-y divide-neutral-200/70 dark:divide-neutral-800"
+            : "flex flex-col gap-0.5"
+        }
+      >
         {appChats.map((chat) => {
           const isActive = chat.id === activeAppChatId;
           return (
@@ -122,19 +131,31 @@ export function ChatList({
               key={chat.id}
               type="button"
               onClick={() => onSelectAppChat?.(chat)}
-              className={`group relative flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition ${
-                isActive
-                  ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
-                  : "text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800/60"
+              className={`group relative flex w-full items-start gap-3 text-left transition ${
+                isMobile
+                  ? `min-h-[72px] px-4 py-3.5 ${
+                      isActive
+                        ? "bg-indigo-50 text-neutral-900 dark:bg-indigo-950/40 dark:text-neutral-100"
+                        : "text-neutral-700 active:bg-neutral-100 dark:text-neutral-300 dark:active:bg-neutral-800"
+                    }`
+                  : `rounded-lg px-2 py-2 ${
+                      isActive
+                        ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
+                        : "text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800/60"
+                    }`
               }`}
             >
-              {isActive ? (
+              {!isMobile && isActive ? (
                 <span className="absolute left-0 top-1.5 h-[calc(100%-12px)] w-0.5 rounded-full bg-neutral-900 dark:bg-neutral-100" />
               ) : null}
               <span className="mt-0.5 shrink-0 rounded bg-neutral-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300">
                 {chat.appName}
               </span>
-              <span className="line-clamp-2 min-w-0 flex-1 text-sm font-medium leading-snug">
+              <span
+                className={`line-clamp-2 min-w-0 flex-1 font-medium leading-snug ${
+                  isMobile ? "text-[17px]" : "text-sm"
+                }`}
+              >
                 {chat.title}
               </span>
             </button>
@@ -153,13 +174,23 @@ export function ChatList({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={isMobile ? "flex flex-col gap-5" : "flex flex-col gap-4"}>
       {groups.map((group) => (
         <section key={group.label}>
-          <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+          <p
+            className={`font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 ${
+              isMobile ? "px-4 pb-2 text-[11px]" : "px-2 pb-1.5 text-[10px]"
+            }`}
+          >
             {group.label}
           </p>
-          <div className="flex flex-col gap-0.5">
+          <div
+            className={
+              isMobile
+                ? "flex flex-col divide-y divide-neutral-200/70 dark:divide-neutral-800"
+                : "flex flex-col gap-0.5"
+            }
+          >
             {group.chats.map((chat) => {
               const isActive = chat.id === activeChatId;
               const isBusy =
@@ -174,13 +205,21 @@ export function ChatList({
                   key={chat.id}
                   type="button"
                   onClick={() => onSelectChat(chat.id)}
-                  className={`group relative flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition ${
-                    isActive
-                      ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
-                      : "text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800/60"
+                  className={`group relative flex w-full items-start gap-3 text-left transition ${
+                    isMobile
+                      ? `min-h-[72px] px-4 py-3.5 ${
+                          isActive
+                            ? "bg-indigo-50 text-neutral-900 dark:bg-indigo-950/40 dark:text-neutral-100"
+                            : "text-neutral-700 active:bg-neutral-100 dark:text-neutral-300 dark:active:bg-neutral-800"
+                        }`
+                      : `rounded-lg px-2 py-2 ${
+                          isActive
+                            ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
+                            : "text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800/60"
+                        }`
                   }`}
                 >
-                  {isActive ? (
+                  {!isMobile && isActive ? (
                     <span className="absolute left-0 top-1.5 h-[calc(100%-12px)] w-0.5 rounded-full bg-neutral-900 dark:bg-neutral-100" />
                   ) : null}
                   {isError || isBusy ? (
@@ -192,10 +231,24 @@ export function ChatList({
                       />
                     </span>
                   ) : null}
-                  <span className="line-clamp-2 min-w-0 flex-1 text-sm font-medium leading-snug">
+                  <span
+                    className={`line-clamp-2 min-w-0 flex-1 font-medium leading-snug ${
+                      isMobile ? "text-[17px]" : "text-sm"
+                    }`}
+                  >
                     {chat.title}
                   </span>
-                  <span className="mt-0.5 shrink-0 text-[11px] font-medium text-neutral-400 dark:text-neutral-500">
+                  <span
+                    className={`shrink-0 font-medium ${
+                      isMobile
+                        ? `mt-0.5 text-[13px] ${
+                            isActive
+                              ? "text-indigo-500 dark:text-indigo-400"
+                              : "text-neutral-400 dark:text-neutral-500"
+                          }`
+                        : "mt-0.5 text-[11px] text-neutral-400 dark:text-neutral-500"
+                    }`}
+                  >
                     {formatRelativeTime(chat.updatedAt)}
                   </span>
                 </button>

@@ -27,9 +27,9 @@ export function MobileChatListScreen({
         <button
           type="button"
           onClick={onCreateChat}
-          className="flex items-center gap-1.5 rounded-full bg-neutral-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
+          className="flex items-center gap-1.5 rounded-full bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/20 transition active:bg-indigo-700 dark:bg-indigo-500 dark:active:bg-indigo-600"
         >
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
           New Chat
@@ -40,6 +40,7 @@ export function MobileChatListScreen({
           chats={chats}
           activeChatId={activeChatId}
           loading={loading}
+          variant="mobile"
           onSelectChat={onSelectChat}
         />
       </div>
