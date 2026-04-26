@@ -114,6 +114,10 @@ export interface ChatPromptOptions {
 
 export interface SseEvent {
   event:
+    | "assistant_message_start"
+    | "assistant_message_end"
+    | "assistant_text_start"
+    | "assistant_text_end"
     | "status"
     | "text_delta"
     | "thinking_delta"
@@ -608,11 +612,32 @@ const mapSessionEventToSse = (event: AgentSessionEvent): SseEvent[] => {
     });
   }
 
+  if (event.type === "message_start" && event.message.role === "assistant") {
+    mapped.push({
+      event: "assistant_message_start",
+      data: {},
+    });
+  }
+
   if (event.type === "message_update") {
+    if (event.assistantMessageEvent.type === "text_start") {
+      mapped.push({
+        event: "assistant_text_start",
+        data: {},
+      });
+    }
+
     if (event.assistantMessageEvent.type === "text_delta") {
       mapped.push({
         event: "text_delta",
         data: { delta: event.assistantMessageEvent.delta },
+      });
+    }
+
+    if (event.assistantMessageEvent.type === "text_end") {
+      mapped.push({
+        event: "assistant_text_end",
+        data: {},
       });
     }
 
@@ -626,6 +651,13 @@ const mapSessionEventToSse = (event: AgentSessionEvent): SseEvent[] => {
         data: { state: "thinking", phase: event.assistantMessageEvent.type },
       });
     }
+  }
+
+  if (event.type === "message_end" && event.message.role === "assistant") {
+    mapped.push({
+      event: "assistant_message_end",
+      data: {},
+    });
   }
 
   if (event.type === "tool_execution_start") {
