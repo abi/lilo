@@ -13,6 +13,7 @@ interface WorkspaceSidebarHeaderProps {
   templateUpdates?: WorkspaceTemplateUpdate[];
   onTimeZoneChange: (timeZone: string) => void;
   onRequestTemplateUpdate?: (update: WorkspaceTemplateUpdate) => void;
+  onDismissTemplateUpdate?: (update: WorkspaceTemplateUpdate) => Promise<void> | void;
 }
 
 const getTimeZoneOptions = (): string[] => {
@@ -39,6 +40,7 @@ export function WorkspaceSidebarHeader({
   templateUpdates = [],
   onTimeZoneChange,
   onRequestTemplateUpdate,
+  onDismissTemplateUpdate,
 }: WorkspaceSidebarHeaderProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -201,6 +203,9 @@ export function WorkspaceSidebarHeader({
                       setIsSettingsOpen(false);
                       setQuery("");
                     }}
+                    onDismissTemplateUpdate={(update) =>
+                      onDismissTemplateUpdate?.(update)
+                    }
                   />
                   <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-950">
                     <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400">

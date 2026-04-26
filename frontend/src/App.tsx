@@ -428,6 +428,7 @@ function App() {
             onSelectTheme={setTheme}
             onSaveWorkspaceTimeZone={workspace.saveWorkspaceTimeZone}
             onRequestTemplateUpdate={handleRequestTemplateUpdate}
+            onDismissTemplateUpdate={workspace.dismissTemplateUpdate}
             onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
             onSync={workspace.onSynced}
             onSyncError={workspace.onSyncError}
@@ -449,6 +450,7 @@ function App() {
             onRefreshWorkspace={() => void workspace.loadWorkspace()}
             onSaveWorkspaceTimeZone={workspace.saveWorkspaceTimeZone}
             onRequestTemplateUpdate={handleRequestTemplateUpdate}
+            onDismissTemplateUpdate={workspace.dismissTemplateUpdate}
             onReorderApps={workspace.saveAppOrder}
           />
 
@@ -483,6 +485,7 @@ function App() {
           onRefreshWorkspace={() => void workspace.loadWorkspace()}
           onSaveWorkspaceTimeZone={workspace.saveWorkspaceTimeZone}
           onRequestTemplateUpdate={handleRequestTemplateUpdate}
+          onDismissTemplateUpdate={workspace.dismissTemplateUpdate}
           onReorderApps={workspace.saveAppOrder}
           onSynced={workspace.onSynced}
           onSyncError={workspace.onSyncError}

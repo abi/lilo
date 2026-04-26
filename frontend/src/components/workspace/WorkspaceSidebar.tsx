@@ -18,6 +18,7 @@ interface WorkspaceSidebarProps {
   onRefresh: () => void;
   onTimeZoneChange: (timeZone: string) => void;
   onRequestTemplateUpdate?: (update: WorkspaceTemplateUpdate) => void;
+  onDismissTemplateUpdate?: (update: WorkspaceTemplateUpdate) => Promise<void> | void;
   onReorderApps?: (appNames: string[]) => void;
 }
 
@@ -34,6 +35,7 @@ export function WorkspaceSidebar({
   onRefresh,
   onTimeZoneChange,
   onRequestTemplateUpdate,
+  onDismissTemplateUpdate,
   onReorderApps,
 }: WorkspaceSidebarProps) {
   const {
@@ -64,6 +66,7 @@ export function WorkspaceSidebar({
         templateUpdates={templateUpdates}
         onTimeZoneChange={onTimeZoneChange}
         onRequestTemplateUpdate={onRequestTemplateUpdate}
+        onDismissTemplateUpdate={onDismissTemplateUpdate}
       />
 
       <div className={`${mobile ? "px-4 pb-4" : "px-4 pb-4"} min-h-0 flex-1 overflow-y-auto`}>

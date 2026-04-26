@@ -19,6 +19,7 @@ interface MobileWorkspaceScreenProps {
   onRefreshWorkspace: () => void;
   onSaveWorkspaceTimeZone: (timeZone: string) => void;
   onRequestTemplateUpdate: (update: WorkspaceTemplateUpdate) => void;
+  onDismissTemplateUpdate: (update: WorkspaceTemplateUpdate) => Promise<void>;
   onReorderApps: (appNames: string[]) => void;
   onSynced: () => void;
   onSyncError: (error: string) => void;
@@ -38,6 +39,7 @@ export function MobileWorkspaceScreen({
   onRefreshWorkspace,
   onSaveWorkspaceTimeZone,
   onRequestTemplateUpdate,
+  onDismissTemplateUpdate,
   onReorderApps,
   onSynced,
   onSyncError,
@@ -72,6 +74,7 @@ export function MobileWorkspaceScreen({
         onRefresh={onRefreshWorkspace}
         onTimeZoneChange={onSaveWorkspaceTimeZone}
         onRequestTemplateUpdate={onRequestTemplateUpdate}
+        onDismissTemplateUpdate={onDismissTemplateUpdate}
         onReorderApps={onReorderApps}
       />
     </div>

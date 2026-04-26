@@ -19,6 +19,7 @@ interface DesktopSidebarPanelProps {
   onRefreshWorkspace: () => void;
   onSaveWorkspaceTimeZone: (timeZone: string) => void;
   onRequestTemplateUpdate: (update: WorkspaceTemplateUpdate) => void;
+  onDismissTemplateUpdate: (update: WorkspaceTemplateUpdate) => Promise<void>;
   onReorderApps: (appNames: string[]) => void;
 }
 
@@ -36,6 +37,7 @@ export function DesktopSidebarPanel({
   onRefreshWorkspace,
   onSaveWorkspaceTimeZone,
   onRequestTemplateUpdate,
+  onDismissTemplateUpdate,
   onReorderApps,
 }: DesktopSidebarPanelProps) {
   return (
@@ -55,6 +57,7 @@ export function DesktopSidebarPanel({
         onRefreshWorkspace={onRefreshWorkspace}
         onSaveWorkspaceTimeZone={onSaveWorkspaceTimeZone}
         onRequestTemplateUpdate={onRequestTemplateUpdate}
+        onDismissTemplateUpdate={onDismissTemplateUpdate}
         onReorderApps={onReorderApps}
       />
     </div>

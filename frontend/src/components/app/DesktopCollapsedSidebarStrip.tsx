@@ -20,6 +20,7 @@ interface DesktopCollapsedSidebarStripProps {
   onSelectTheme: (theme: "light" | "dark" | "system") => void;
   onSaveWorkspaceTimeZone: (timeZone: string) => void;
   onRequestTemplateUpdate: (update: WorkspaceTemplateUpdate) => void;
+  onDismissTemplateUpdate: (update: WorkspaceTemplateUpdate) => Promise<void>;
   onOpenCommandPalette: () => void;
   onSync?: () => void;
   onSyncError?: (error: string) => void;
@@ -166,6 +167,7 @@ export function DesktopCollapsedSidebarStrip({
   onSelectTheme,
   onSaveWorkspaceTimeZone,
   onRequestTemplateUpdate,
+  onDismissTemplateUpdate,
   onOpenCommandPalette,
   onSync,
   onSyncError,
@@ -362,6 +364,7 @@ export function DesktopCollapsedSidebarStrip({
           workspaceGitBrowserUrl={workspaceGitBrowserUrl}
           templateUpdates={templateUpdates}
           onRequestTemplateUpdate={onRequestTemplateUpdate}
+          onDismissTemplateUpdate={onDismissTemplateUpdate}
           onTimeZoneChange={onSaveWorkspaceTimeZone}
           theme={theme}
           onSelectTheme={onSelectTheme}

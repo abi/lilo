@@ -24,6 +24,8 @@ interface WorkspaceAppUpdateStateEntry {
   templateVersionApplied?: unknown;
   updatedAt?: unknown;
   status?: unknown;
+  dismissedTemplateVersion?: unknown;
+  dismissedAt?: unknown;
 }
 
 interface WorkspaceAppUpdateState {
@@ -64,6 +66,29 @@ const readJsonFile = <T>(path: string): T | null => {
   }
 };
 
+const readAppUpdateStateFile = (workspaceRoot: string): {
+  version: 1;
+  apps: Record<string, WorkspaceAppUpdateStateEntry>;
+} => {
+  const parsed = readJsonFile<WorkspaceAppUpdateState>(getAppUpdatesPath(workspaceRoot));
+  return {
+    version: 1,
+    apps:
+      parsed?.apps && typeof parsed.apps === "object"
+        ? (parsed.apps as Record<string, WorkspaceAppUpdateStateEntry>)
+        : {},
+  };
+};
+
+const writeAppUpdateStateFile = (
+  workspaceRoot: string,
+  state: { version: 1; apps: Record<string, WorkspaceAppUpdateStateEntry> },
+): void => {
+  const updatesPath = getAppUpdatesPath(workspaceRoot);
+  mkdirSync(dirname(updatesPath), { recursive: true });
+  writeFileSync(updatesPath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+};
+
 const readTemplateManifest = (
   templateRoot: string,
   appName: string,
@@ -86,13 +111,8 @@ const readWorkspaceManifest = (
   return readJsonFile<TemplateManifest>(manifestPath);
 };
 
-const readAppUpdateState = (workspaceRoot: string): Record<string, WorkspaceAppUpdateStateEntry> => {
-  const parsed = readJsonFile<WorkspaceAppUpdateState>(getAppUpdatesPath(workspaceRoot));
-  if (!parsed?.apps || typeof parsed.apps !== "object") {
-    return {};
-  }
-  return parsed.apps as Record<string, WorkspaceAppUpdateStateEntry>;
-};
+const readAppUpdateState = (workspaceRoot: string): Record<string, WorkspaceAppUpdateStateEntry> =>
+  readAppUpdateStateFile(workspaceRoot).apps;
 
 const getAppliedVersion = (
   workspaceRoot: string,
@@ -136,9 +156,29 @@ export const initializeAppUpdateStateForBootstrappedWorkspace = (
     return;
   }
 
-  const updatesPath = getAppUpdatesPath(workspaceRoot);
-  mkdirSync(dirname(updatesPath), { recursive: true });
-  writeFileSync(updatesPath, `${JSON.stringify({ version: 1, apps }, null, 2)}\n`, "utf8");
+  writeAppUpdateStateFile(workspaceRoot, { version: 1, apps });
+};
+
+export const dismissWorkspaceTemplateUpdate = (
+  workspaceRoot: string,
+  templateRoot: string,
+  appName: string,
+): { appName: string; dismissedTemplateVersion: string } | null => {
+  const manifest = readTemplateManifest(templateRoot, appName);
+  const latestVersion = normalizeString(manifest?.templateVersion);
+  if (!latestVersion) {
+    return null;
+  }
+
+  const state = readAppUpdateStateFile(workspaceRoot);
+  state.apps[appName] = {
+    ...state.apps[appName],
+    dismissedTemplateVersion: latestVersion,
+    dismissedAt: new Date().toISOString(),
+  };
+  writeAppUpdateStateFile(workspaceRoot, state);
+
+  return { appName, dismissedTemplateVersion: latestVersion };
 };
 
 export const getWorkspaceTemplateUpdates = (
@@ -160,6 +200,9 @@ export const getWorkspaceTemplateUpdates = (
 
     const currentVersion = getAppliedVersion(workspaceRoot, app.name, updateState);
     if (currentVersion && compareVersions(currentVersion, latestVersion) >= 0) {
+      return [];
+    }
+    if (normalizeString(updateState[app.name]?.dismissedTemplateVersion) === latestVersion) {
       return [];
     }
 

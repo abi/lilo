@@ -13,6 +13,7 @@ interface WorkspaceSettingsButtonProps {
   workspaceGitBrowserUrl?: string;
   templateUpdates?: WorkspaceTemplateUpdate[];
   onRequestTemplateUpdate?: (update: WorkspaceTemplateUpdate) => void;
+  onDismissTemplateUpdate?: (update: WorkspaceTemplateUpdate) => Promise<void> | void;
   onTimeZoneChange: (timeZone: string) => void;
   theme: ThemeOption;
   onSelectTheme: (theme: ThemeOption) => void;
@@ -148,6 +149,7 @@ export function WorkspaceSettingsButton({
   workspaceGitBrowserUrl,
   templateUpdates = [],
   onRequestTemplateUpdate,
+  onDismissTemplateUpdate,
   onTimeZoneChange,
   theme,
   onSelectTheme,
@@ -357,6 +359,9 @@ export function WorkspaceSettingsButton({
                       setIsOpen(false);
                       setQuery("");
                     }}
+                    onDismissTemplateUpdate={(update) =>
+                      onDismissTemplateUpdate?.(update)
+                    }
                   />
 
                   <section className="flex min-h-0 flex-1 flex-col border-b border-neutral-200 dark:border-neutral-700">

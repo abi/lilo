@@ -32,7 +32,10 @@ import {
   getWorkspaceConfigPath,
   readWorkspaceAppPrefs,
 } from "../../shared/workspace/appPrefs.js";
-import { getWorkspaceTemplateUpdates } from "../../shared/workspace/templateUpdates.js";
+import {
+  dismissWorkspaceTemplateUpdate,
+  getWorkspaceTemplateUpdates,
+} from "../../shared/workspace/templateUpdates.js";
 import {
   getShellRunSnapshot,
   startShellRun,
@@ -1785,6 +1788,21 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
         ...(workspaceGitBrowserUrl ? { gitBrowserUrl: workspaceGitBrowserUrl } : {}),
       },
     });
+  });
+
+  app.post("/workspace/template-updates/:appName/dismiss", async (c) => {
+    const appName = c.req.param("appName");
+    const result = dismissWorkspaceTemplateUpdate(
+      WORKSPACE_ROOT,
+      WORKSPACE_TEMPLATE_DIR,
+      appName,
+    );
+
+    if (!result) {
+      return c.json({ error: "Template app not found" }, 404);
+    }
+
+    return c.json(result);
   });
 
   app.get("/workspace-file/:filePath{.+}", async (c) => {

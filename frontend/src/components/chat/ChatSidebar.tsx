@@ -17,6 +17,7 @@ interface ChatSidebarProps {
   onRefreshWorkspace: () => void;
   onSaveWorkspaceTimeZone: (timeZone: string) => void;
   onRequestTemplateUpdate: (update: WorkspaceTemplateUpdate) => void;
+  onDismissTemplateUpdate: (update: WorkspaceTemplateUpdate) => Promise<void>;
   onReorderApps: (appNames: string[]) => void;
 }
 
@@ -32,6 +33,7 @@ export function ChatSidebar({
   onRefreshWorkspace,
   onSaveWorkspaceTimeZone,
   onRequestTemplateUpdate,
+  onDismissTemplateUpdate,
   onReorderApps,
 }: ChatSidebarProps) {
   return (
@@ -55,6 +57,7 @@ export function ChatSidebar({
           onRefresh={onRefreshWorkspace}
           onTimeZoneChange={onSaveWorkspaceTimeZone}
           onRequestTemplateUpdate={onRequestTemplateUpdate}
+          onDismissTemplateUpdate={onDismissTemplateUpdate}
           onReorderApps={onReorderApps}
         />
       </div>

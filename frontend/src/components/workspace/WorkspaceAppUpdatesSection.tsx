@@ -1,8 +1,10 @@
+import { useState } from "react";
 import type { WorkspaceTemplateUpdate } from "./types";
 
 interface WorkspaceAppUpdatesSectionProps {
   templateUpdates: WorkspaceTemplateUpdate[];
   onRequestTemplateUpdate: (update: WorkspaceTemplateUpdate) => void;
+  onDismissTemplateUpdate: (update: WorkspaceTemplateUpdate) => Promise<void> | void;
   className?: string;
 }
 
@@ -12,9 +14,11 @@ const formatVersion = (version: string | null): string =>
 export function WorkspaceAppUpdatesSection({
   templateUpdates,
   onRequestTemplateUpdate,
+  onDismissTemplateUpdate,
   className = "border-b border-neutral-200 px-4 py-4 dark:border-neutral-700",
 }: WorkspaceAppUpdatesSectionProps) {
   const hasUpdates = templateUpdates.length > 0;
+  const [dismissingAppName, setDismissingAppName] = useState<string | null>(null);
 
   return (
     <section className={className}>
@@ -42,6 +46,7 @@ export function WorkspaceAppUpdatesSection({
         <div className="mt-3 flex flex-col gap-2">
           {templateUpdates.map((update) => {
             const label = update.displayName ?? update.appName;
+            const isDismissing = dismissingAppName === update.appName;
 
             return (
               <article
@@ -57,13 +62,32 @@ export function WorkspaceAppUpdatesSection({
                       {formatVersion(update.currentVersion)} → {formatVersion(update.latestVersion)}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="shrink-0 rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white"
-                    onClick={() => onRequestTemplateUpdate(update)}
-                  >
-                    Ask agent
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      className="rounded-lg border border-amber-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-neutral-600 transition hover:border-amber-300 hover:text-neutral-900 disabled:cursor-wait disabled:opacity-60 dark:border-amber-500/25 dark:bg-neutral-950/20 dark:text-neutral-300 dark:hover:border-amber-500/40 dark:hover:text-white"
+                      disabled={isDismissing}
+                      onClick={() => {
+                        setDismissingAppName(update.appName);
+                        void Promise.resolve(onDismissTemplateUpdate(update))
+                          .catch((error) => {
+                            console.error("Failed to dismiss app update", error);
+                          })
+                          .finally(() => {
+                            setDismissingAppName(null);
+                          });
+                      }}
+                    >
+                      {isDismissing ? "Dismissing..." : "Dismiss"}
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white"
+                      onClick={() => onRequestTemplateUpdate(update)}
+                    >
+                      Ask agent
+                    </button>
+                  </div>
                 </div>
 
                 <p className="mt-2 text-xs leading-relaxed text-neutral-700 dark:text-neutral-300">

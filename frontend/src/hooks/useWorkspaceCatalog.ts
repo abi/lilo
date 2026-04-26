@@ -332,6 +332,36 @@ export function useWorkspaceCatalog({
     [workspacePreferences],
   );
 
+  const dismissTemplateUpdate = useCallback(
+    async (update: WorkspaceTemplateUpdate) => {
+      const previousUpdates = templateUpdates;
+      setTemplateUpdates((updates) =>
+        updates.filter((item) => item.appName !== update.appName),
+      );
+
+      try {
+        const response = await authFetch(
+          `${API_BASE_URL}/workspace/template-updates/${encodeURIComponent(update.appName)}/dismiss`,
+          { method: "POST" },
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            await parseErrorMessage(response, "Failed to dismiss app update"),
+          );
+        }
+
+        await loadWorkspace();
+      } catch (error) {
+        setTemplateUpdates(previousUpdates);
+        throw error instanceof Error
+          ? error
+          : new Error("Failed to dismiss app update");
+      }
+    },
+    [loadWorkspace, templateUpdates],
+  );
+
   const retryStartup = useCallback(() => {
     void initialize();
     void loadWorkspace();
@@ -395,6 +425,7 @@ export function useWorkspaceCatalog({
     saveAppOrder,
     saveArchivedApps,
     saveWorkspaceTimeZone,
+    dismissTemplateUpdate,
     retryStartup,
   };
 }
