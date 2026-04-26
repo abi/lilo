@@ -26,6 +26,7 @@ import type {
 } from "./types";
 
 const ACTIVE_CHAT_STORAGE_KEY = "lilo-active-chat-id";
+const CHAT_URL_PARAM = "chat";
 
 const readStoredActiveChatId = (): string | null => {
   if (typeof window === "undefined") {
@@ -53,6 +54,37 @@ const writeStoredActiveChatId = (chatId: string | null) => {
     localStorage.setItem(ACTIVE_CHAT_STORAGE_KEY, chatId);
   } catch {
     // ignore storage failures
+  }
+};
+
+const readUrlChatId = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return new URL(window.location.href).searchParams.get(CHAT_URL_PARAM);
+  } catch {
+    return null;
+  }
+};
+
+const writeUrlChatId = (chatId: string | null) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const url = new URL(window.location.href);
+    if (chatId) {
+      url.searchParams.set(CHAT_URL_PARAM, chatId);
+    } else {
+      url.searchParams.delete(CHAT_URL_PARAM);
+    }
+
+    window.history.replaceState(window.history.state, "", url.toString());
+  } catch {
+    // ignore URL update failures
   }
 };
 
@@ -468,7 +500,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => {
   return ({
   chatOrder: [],
   chatsById: {},
-  activeChatId: readStoredActiveChatId(),
+  activeChatId: readUrlChatId() ?? readStoredActiveChatId(),
   initialized: false,
   loadingInitial: false,
   initializationError: null,
@@ -492,11 +524,14 @@ export const useChatStore = create<ChatStoreState>((set, get) => {
         set({ loadingInitial: false, initialized: true });
       } else {
         const merged = mergeChatSummaries(chats, get().chatsById);
+        const permalinkChatId = readUrlChatId();
         const currentActiveChatId = get().activeChatId;
         const activeChatId =
-          currentActiveChatId && merged.chatsById[currentActiveChatId]
-            ? currentActiveChatId
-            : chats[0].id;
+          permalinkChatId && merged.chatsById[permalinkChatId]
+            ? permalinkChatId
+            : currentActiveChatId && merged.chatsById[currentActiveChatId]
+              ? currentActiveChatId
+              : chats[0].id;
 
         set({
           ...merged,
@@ -1235,6 +1270,7 @@ async function syncActiveChatSocket(chatId: string | null): Promise<void> {
 useChatStore.subscribe((state, previousState) => {
   if (state.activeChatId !== previousState.activeChatId) {
     writeStoredActiveChatId(state.activeChatId);
+    writeUrlChatId(state.activeChatId);
     void syncActiveChatSocket(state.activeChatId);
   }
 });
