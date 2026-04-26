@@ -1,5 +1,6 @@
 import type { ChatSessionState } from "../../store/chatStore";
 import { ChatList } from "../chat/ChatList";
+import { NewChatButton } from "../chat/components/NewChatButton";
 
 interface MobileChatListScreenProps {
   chats: ChatSessionState[];
@@ -24,16 +25,7 @@ export function MobileChatListScreen({
             Chats
           </h2>
         </div>
-        <button
-          type="button"
-          onClick={onCreateChat}
-          className="flex items-center gap-1.5 rounded-full bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/20 transition active:bg-indigo-700 dark:bg-indigo-500 dark:active:bg-indigo-600"
-        >
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          New Chat
-        </button>
+        <NewChatButton onClick={onCreateChat} />
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
         <ChatList

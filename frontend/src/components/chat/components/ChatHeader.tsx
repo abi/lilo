@@ -2,6 +2,7 @@ import type { ChatSessionState } from "../../../store/chatStore";
 import type { AppChatSummary } from "../../../hooks/useAppChats";
 import { ChannelStatusButton } from "./ChannelStatusButton";
 import { ChatHistoryDropdown } from "./ChatHistoryDropdown";
+import { NewChatButton } from "./NewChatButton";
 import { TruncatedTitle } from "./TruncatedTitle";
 
 interface ChatHeaderProps {
@@ -68,28 +69,7 @@ export function ChatHeader({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <ChannelStatusButton />
-          {onNewChat ? (
-            <button
-              type="button"
-              onClick={onNewChat}
-              title="New Chat"
-              className="flex shrink-0 items-center gap-1.5 rounded-full bg-neutral-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
-            >
-              <svg
-                className="h-4 w-4 shrink-0"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              <span className="whitespace-nowrap">New Chat</span>
-            </button>
-          ) : null}
+          {onNewChat ? <NewChatButton onClick={onNewChat} /> : null}
         </div>
       </header>
     );
