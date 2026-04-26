@@ -5,6 +5,7 @@ import type {
   WorkspaceAppLink,
   WorkspaceEntry,
   WorkspacePreferences,
+  WorkspaceTemplateUpdate,
 } from "../components/workspace/types";
 import { API_BASE_URL, formatSetupError, parseErrorMessage } from "./workspace/utils";
 
@@ -109,6 +110,7 @@ export function useWorkspaceCatalog({
 }: UseWorkspaceCatalogOptions) {
   const [workspaceApps, setWorkspaceApps] = useState<WorkspaceAppLink[]>([]);
   const [workspaceEntries, setWorkspaceEntries] = useState<WorkspaceEntry[]>([]);
+  const [templateUpdates, setTemplateUpdates] = useState<WorkspaceTemplateUpdate[]>([]);
   const [selectedViewerPath, setSelectedViewerPath] = useState<string | null>(() =>
     readStoredSelectedViewerPath(),
   );
@@ -135,13 +137,16 @@ export function useWorkspaceCatalog({
       const payload = (await response.json()) as {
         apps?: WorkspaceAppLink[];
         entries?: WorkspaceEntry[];
+        templateUpdates?: WorkspaceTemplateUpdate[];
         preferences?: Partial<WorkspacePreferences>;
       };
 
       const apps = payload.apps ?? [];
       const entries = payload.entries ?? [];
+      const updates = payload.templateUpdates ?? [];
       setWorkspaceApps(apps);
       setWorkspaceEntries(entries);
+      setTemplateUpdates(updates);
       setWorkspacePreferences({
         timeZone: payload.preferences?.timeZone ?? DEFAULT_WORKSPACE_TIME_ZONE,
         gitRemoteUrl: payload.preferences?.gitRemoteUrl,
@@ -371,6 +376,7 @@ export function useWorkspaceCatalog({
   return {
     workspaceApps,
     workspaceEntries,
+    templateUpdates,
     selectedViewerPath,
     viewerRefreshKey,
     silentSyncError,

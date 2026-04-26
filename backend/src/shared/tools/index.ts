@@ -4,6 +4,7 @@ import { browserAutomateTool } from "./browserbaseTools.js";
 import { webScrapeTool, webSearchTool } from "./firecrawlTools.js";
 import { generateImagesTool, removeBackgroundTool } from "./imageTools.js";
 import { openAppTool } from "./openAppTool.js";
+import { templateAppListTool, templateAppReadTool } from "./templateAppTools.js";
 
 export const CUSTOM_TOOLS: ToolDefinition[] = [
   askUserQuestionTool,
@@ -13,4 +14,6 @@ export const CUSTOM_TOOLS: ToolDefinition[] = [
   webScrapeTool,
   generateImagesTool,
   removeBackgroundTool,
+  templateAppListTool,
+  templateAppReadTool,
 ];

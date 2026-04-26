@@ -2,6 +2,7 @@
   "id": "calories",
   "name": "Calories",
   "description": "Calorie and macro tracker. Log meals via photo (agent-analyzed) or manually, track against daily goals, browse by date.",
+  "templateVersion": "1.0.0",
   "icon": "icon.png",
   "entry": "index.html"
 }

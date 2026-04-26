@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { logout, notifyAuthRequired } from "../../lib/auth";
+import { WorkspaceAppUpdatesSection } from "./WorkspaceAppUpdatesSection";
+import type { WorkspaceTemplateUpdate } from "./types";
 
 interface WorkspaceSidebarHeaderProps {
   mobile?: boolean;
@@ -8,7 +10,9 @@ interface WorkspaceSidebarHeaderProps {
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
   workspaceGitBrowserUrl?: string;
+  templateUpdates?: WorkspaceTemplateUpdate[];
   onTimeZoneChange: (timeZone: string) => void;
+  onRequestTemplateUpdate?: (update: WorkspaceTemplateUpdate) => void;
 }
 
 const getTimeZoneOptions = (): string[] => {
@@ -32,7 +36,9 @@ export function WorkspaceSidebarHeader({
   workspaceTimeZone,
   workspaceGitRemoteUrl,
   workspaceGitBrowserUrl,
+  templateUpdates = [],
   onTimeZoneChange,
+  onRequestTemplateUpdate,
 }: WorkspaceSidebarHeaderProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -84,19 +90,6 @@ export function WorkspaceSidebarHeader({
     };
   }, [isSettingsOpen]);
 
-  useEffect(() => {
-    if (!isSettingsOpen) {
-      return;
-    }
-
-    const id = window.requestAnimationFrame(() => {
-      searchInputRef.current?.focus();
-      searchInputRef.current?.select();
-    });
-
-    return () => window.cancelAnimationFrame(id);
-  }, [isSettingsOpen]);
-
   return (
     <div
       className={`relative flex items-center justify-end gap-1 ${mobile ? "px-4 pt-4" : "px-4 pt-3"}`}
@@ -105,7 +98,7 @@ export function WorkspaceSidebarHeader({
         <div className="relative">
           <button
             type="button"
-            className="mb-1 rounded p-1 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
+            className="relative mb-1 rounded p-1 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
             onClick={() => {
               setIsSettingsOpen(true);
               setQuery("");
@@ -124,6 +117,11 @@ export function WorkspaceSidebarHeader({
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01A1.65 1.65 0 0 0 9 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
+            {templateUpdates.length > 0 ? (
+              <span className="absolute right-0 top-0 flex h-3.5 min-w-3.5 translate-x-1 -translate-y-1 items-center justify-center rounded-full bg-amber-500 px-0.5 text-[8px] font-bold leading-none text-white shadow-sm">
+                {templateUpdates.length}
+              </span>
+            ) : null}
           </button>
         </div>
       ) : null}
@@ -195,6 +193,15 @@ export function WorkspaceSidebarHeader({
                       {workspaceGitRemoteUrl || "Not configured"}
                     </p>
                   </div>
+                  <WorkspaceAppUpdatesSection
+                    className="mb-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-950"
+                    templateUpdates={templateUpdates}
+                    onRequestTemplateUpdate={(update) => {
+                      onRequestTemplateUpdate?.(update);
+                      setIsSettingsOpen(false);
+                      setQuery("");
+                    }}
+                  />
                   <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-950">
                     <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400">
                       Search Timezones

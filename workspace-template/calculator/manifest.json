@@ -2,6 +2,7 @@
   "id": "calculator",
   "name": "Calculator",
   "description": "Sleek calculator with standard arithmetic operations and a modern UI.",
+  "templateVersion": "1.0.0",
   "icon": "icon.png",
   "entry": "index.html"
 }

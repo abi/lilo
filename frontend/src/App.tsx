@@ -17,6 +17,7 @@ import { useIsDesktop } from "./hooks/useMediaQuery";
 import { useShellNavigation } from "./hooks/useShellNavigation";
 import { useViewerHistoryNav } from "./hooks/useViewerHistoryNav";
 import { useWorkspaceState } from "./hooks/useWorkspaceState";
+import { useWorkspaceTemplateUpdateRequest } from "./hooks/useWorkspaceTemplateUpdateRequest";
 import { useViewerElementPicker } from "./components/workspace/hooks/useViewerElementPicker";
 import type { WorkspaceAppLink } from "./components/workspace/types";
 import { type ChatElementSelection, useChatStore } from "./store/chatStore";
@@ -135,6 +136,14 @@ function App() {
     await selectChat(chatId);
     shell.openConversation();
   }, [createChat, selectChat, setActiveAppChatId, shell]);
+
+  const handleRequestTemplateUpdate = useWorkspaceTemplateUpdateRequest({
+    createChat,
+    selectChat,
+    sendMessage,
+    setActiveAppChatId,
+    openConversation: shell.openConversation,
+  });
 
   useEffect(() => {
     if (!showAppChats) {
@@ -411,12 +420,14 @@ function App() {
             workspaceTimeZone={workspace.workspacePreferences.timeZone}
             workspaceGitRemoteUrl={workspace.workspacePreferences.gitRemoteUrl}
             workspaceGitBrowserUrl={workspace.workspacePreferences.gitBrowserUrl}
+            templateUpdates={workspace.templateUpdates}
             onToggleSidebar={shell.sidebarOpen ? shell.hideSidebarPanel : shell.showSidebarPanel}
             onToggleArchived={shell.toggleArchivedInStrip}
             onSelectApp={handleOpenViewerApp}
             onReorderApps={workspace.saveAppOrder}
             onSelectTheme={setTheme}
             onSaveWorkspaceTimeZone={workspace.saveWorkspaceTimeZone}
+            onRequestTemplateUpdate={handleRequestTemplateUpdate}
             onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
             onSync={workspace.onSynced}
             onSyncError={workspace.onSyncError}
@@ -429,11 +440,15 @@ function App() {
             hidden={shell.hiddenDesktopSidebar}
             selectedViewerPath={workspace.selectedViewerPath}
             workspaceTimeZone={workspace.workspacePreferences.timeZone}
+            workspaceGitRemoteUrl={workspace.workspacePreferences.gitRemoteUrl}
+            workspaceGitBrowserUrl={workspace.workspacePreferences.gitBrowserUrl}
             workspaceApps={workspace.workspaceApps}
             workspaceEntries={workspace.workspaceEntries}
+            templateUpdates={workspace.templateUpdates}
             onSelectApp={workspace.setSelectedViewerPath}
             onRefreshWorkspace={() => void workspace.loadWorkspace()}
             onSaveWorkspaceTimeZone={workspace.saveWorkspaceTimeZone}
+            onRequestTemplateUpdate={handleRequestTemplateUpdate}
             onReorderApps={workspace.saveAppOrder}
           />
 
@@ -462,10 +477,12 @@ function App() {
           workspaceTimeZone={workspace.workspacePreferences.timeZone}
           workspaceGitRemoteUrl={workspace.workspacePreferences.gitRemoteUrl}
           workspaceGitBrowserUrl={workspace.workspacePreferences.gitBrowserUrl}
+          templateUpdates={workspace.templateUpdates}
           syncError={workspace.silentSyncError}
           onSelectApp={handleOpenMobileWorkspaceApp}
           onRefreshWorkspace={() => void workspace.loadWorkspace()}
           onSaveWorkspaceTimeZone={workspace.saveWorkspaceTimeZone}
+          onRequestTemplateUpdate={handleRequestTemplateUpdate}
           onReorderApps={workspace.saveAppOrder}
           onSynced={workspace.onSynced}
           onSyncError={workspace.onSyncError}

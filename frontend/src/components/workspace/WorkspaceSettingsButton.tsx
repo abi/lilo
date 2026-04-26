@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { logout, notifyAuthRequired } from "../../lib/auth";
+import { WorkspaceAppUpdatesSection } from "./WorkspaceAppUpdatesSection";
 import { TIMEZONE_META } from "./timezoneMeta";
+import type { WorkspaceTemplateUpdate } from "./types";
 
 type ThemeOption = "light" | "dark" | "system";
 
@@ -9,6 +11,8 @@ interface WorkspaceSettingsButtonProps {
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
   workspaceGitBrowserUrl?: string;
+  templateUpdates?: WorkspaceTemplateUpdate[];
+  onRequestTemplateUpdate?: (update: WorkspaceTemplateUpdate) => void;
   onTimeZoneChange: (timeZone: string) => void;
   theme: ThemeOption;
   onSelectTheme: (theme: ThemeOption) => void;
@@ -142,6 +146,8 @@ export function WorkspaceSettingsButton({
   workspaceTimeZone,
   workspaceGitRemoteUrl,
   workspaceGitBrowserUrl,
+  templateUpdates = [],
+  onRequestTemplateUpdate,
   onTimeZoneChange,
   theme,
   onSelectTheme,
@@ -219,22 +225,11 @@ export function WorkspaceSettingsButton({
     return () => window.clearInterval(tick);
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-    const id = window.requestAnimationFrame(() => {
-      searchInputRef.current?.focus();
-      searchInputRef.current?.select();
-    });
-    return () => window.cancelAnimationFrame(id);
-  }, [isOpen]);
-
   return (
     <>
       <button
         type="button"
-        className={triggerClassName}
+        className={`relative ${triggerClassName}`}
         onClick={() => {
           setIsOpen(true);
           setQuery("");
@@ -253,6 +248,11 @@ export function WorkspaceSettingsButton({
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01A1.65 1.65 0 0 0 9 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
+        {templateUpdates.length > 0 ? (
+          <span className="absolute right-0 top-0 flex h-4 min-w-4 translate-x-1 -translate-y-1 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-none text-white shadow-sm">
+            {templateUpdates.length}
+          </span>
+        ) : null}
         {label ? <span className="text-[10px] font-medium">{label}</span> : null}
       </button>
 
@@ -349,6 +349,15 @@ export function WorkspaceSettingsButton({
                       </p>
                     </div>
                   </section>
+
+                  <WorkspaceAppUpdatesSection
+                    templateUpdates={templateUpdates}
+                    onRequestTemplateUpdate={(update) => {
+                      onRequestTemplateUpdate?.(update);
+                      setIsOpen(false);
+                      setQuery("");
+                    }}
+                  />
 
                   <section className="flex min-h-0 flex-1 flex-col border-b border-neutral-200 dark:border-neutral-700">
                     <div className="px-4 pt-4">

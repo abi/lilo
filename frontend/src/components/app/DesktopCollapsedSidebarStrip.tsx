@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { CloudSyncButton } from "../CloudSyncButton";
 import { WorkspaceSettingsButton } from "../workspace/WorkspaceSettingsButton";
-import type { WorkspaceAppLink } from "../workspace/types";
+import type { WorkspaceAppLink, WorkspaceTemplateUpdate } from "../workspace/types";
 
 interface DesktopCollapsedSidebarStripProps {
   workspaceApps: WorkspaceAppLink[];
@@ -12,12 +12,14 @@ interface DesktopCollapsedSidebarStripProps {
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
   workspaceGitBrowserUrl?: string;
+  templateUpdates: WorkspaceTemplateUpdate[];
   onToggleSidebar: () => void;
   onToggleArchived: () => void;
   onSelectApp: (href: string) => void;
   onReorderApps: (appNames: string[]) => void;
   onSelectTheme: (theme: "light" | "dark" | "system") => void;
   onSaveWorkspaceTimeZone: (timeZone: string) => void;
+  onRequestTemplateUpdate: (update: WorkspaceTemplateUpdate) => void;
   onOpenCommandPalette: () => void;
   onSync?: () => void;
   onSyncError?: (error: string) => void;
@@ -156,12 +158,14 @@ export function DesktopCollapsedSidebarStrip({
   workspaceTimeZone,
   workspaceGitRemoteUrl,
   workspaceGitBrowserUrl,
+  templateUpdates,
   onToggleSidebar,
   onToggleArchived,
   onSelectApp,
   onReorderApps,
   onSelectTheme,
   onSaveWorkspaceTimeZone,
+  onRequestTemplateUpdate,
   onOpenCommandPalette,
   onSync,
   onSyncError,
@@ -356,6 +360,8 @@ export function DesktopCollapsedSidebarStrip({
           workspaceTimeZone={workspaceTimeZone}
           workspaceGitRemoteUrl={workspaceGitRemoteUrl}
           workspaceGitBrowserUrl={workspaceGitBrowserUrl}
+          templateUpdates={templateUpdates}
+          onRequestTemplateUpdate={onRequestTemplateUpdate}
           onTimeZoneChange={onSaveWorkspaceTimeZone}
           theme={theme}
           onSelectTheme={onSelectTheme}

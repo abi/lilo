@@ -1,4 +1,8 @@
-import type { WorkspaceAppLink, WorkspaceEntry } from "../workspace/types";
+import type {
+  WorkspaceAppLink,
+  WorkspaceEntry,
+  WorkspaceTemplateUpdate,
+} from "../workspace/types";
 import { ChatSidebar } from "../chat/ChatSidebar";
 
 interface DesktopSidebarPanelProps {
@@ -6,11 +10,15 @@ interface DesktopSidebarPanelProps {
   hidden: boolean;
   selectedViewerPath: string | null;
   workspaceTimeZone: string;
+  workspaceGitRemoteUrl?: string;
+  workspaceGitBrowserUrl?: string;
   workspaceApps: WorkspaceAppLink[];
   workspaceEntries: WorkspaceEntry[];
+  templateUpdates: WorkspaceTemplateUpdate[];
   onSelectApp: (href: string) => void;
   onRefreshWorkspace: () => void;
   onSaveWorkspaceTimeZone: (timeZone: string) => void;
+  onRequestTemplateUpdate: (update: WorkspaceTemplateUpdate) => void;
   onReorderApps: (appNames: string[]) => void;
 }
 
@@ -19,11 +27,15 @@ export function DesktopSidebarPanel({
   hidden,
   selectedViewerPath,
   workspaceTimeZone,
+  workspaceGitRemoteUrl,
+  workspaceGitBrowserUrl,
   workspaceApps,
   workspaceEntries,
+  templateUpdates,
   onSelectApp,
   onRefreshWorkspace,
   onSaveWorkspaceTimeZone,
+  onRequestTemplateUpdate,
   onReorderApps,
 }: DesktopSidebarPanelProps) {
   return (
@@ -34,11 +46,15 @@ export function DesktopSidebarPanel({
       <ChatSidebar
         selectedViewerPath={selectedViewerPath}
         workspaceTimeZone={workspaceTimeZone}
+        workspaceGitRemoteUrl={workspaceGitRemoteUrl}
+        workspaceGitBrowserUrl={workspaceGitBrowserUrl}
         workspaceApps={workspaceApps}
         workspaceEntries={workspaceEntries}
+        templateUpdates={templateUpdates}
         onSelectApp={onSelectApp}
         onRefreshWorkspace={onRefreshWorkspace}
         onSaveWorkspaceTimeZone={onSaveWorkspaceTimeZone}
+        onRequestTemplateUpdate={onRequestTemplateUpdate}
         onReorderApps={onReorderApps}
       />
     </div>

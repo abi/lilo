@@ -1,7 +1,7 @@
 import { useWorkspaceTreeState } from "./hooks/useWorkspaceTreeState";
 import { WorkspaceSidebarHeader } from "./WorkspaceSidebarHeader";
 import { WorkspaceTree } from "./tree/WorkspaceTree";
-import type { WorkspaceAppLink, WorkspaceEntry } from "./types";
+import type { WorkspaceAppLink, WorkspaceEntry, WorkspaceTemplateUpdate } from "./types";
 
 export type { WorkspaceAppLink, WorkspaceEntry, WorkspaceEntryKind } from "./types";
 
@@ -12,10 +12,12 @@ interface WorkspaceSidebarProps {
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
   workspaceGitBrowserUrl?: string;
+  templateUpdates?: WorkspaceTemplateUpdate[];
   mobile?: boolean;
   onSelectApp: (href: string) => void;
   onRefresh: () => void;
   onTimeZoneChange: (timeZone: string) => void;
+  onRequestTemplateUpdate?: (update: WorkspaceTemplateUpdate) => void;
   onReorderApps?: (appNames: string[]) => void;
 }
 
@@ -26,10 +28,12 @@ export function WorkspaceSidebar({
   workspaceTimeZone,
   workspaceGitRemoteUrl,
   workspaceGitBrowserUrl,
+  templateUpdates = [],
   mobile = false,
   onSelectApp,
   onRefresh,
   onTimeZoneChange,
+  onRequestTemplateUpdate,
   onReorderApps,
 }: WorkspaceSidebarProps) {
   const {
@@ -57,7 +61,9 @@ export function WorkspaceSidebar({
         workspaceTimeZone={workspaceTimeZone}
         workspaceGitRemoteUrl={workspaceGitRemoteUrl}
         workspaceGitBrowserUrl={workspaceGitBrowserUrl}
+        templateUpdates={templateUpdates}
         onTimeZoneChange={onTimeZoneChange}
+        onRequestTemplateUpdate={onRequestTemplateUpdate}
       />
 
       <div className={`${mobile ? "px-4 pb-4" : "px-4 pb-4"} min-h-0 flex-1 overflow-y-auto`}>

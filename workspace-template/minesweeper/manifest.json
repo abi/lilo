@@ -2,6 +2,7 @@
   "id": "minesweeper",
   "name": "Minesweeper",
   "description": "Classic Minesweeper with three difficulty levels, retro-styled dark UI, LED counters, and flag support.",
+  "templateVersion": "1.0.0",
   "icon": "icon.png",
   "entry": "index.html"
 }

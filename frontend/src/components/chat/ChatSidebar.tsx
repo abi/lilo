@@ -1,14 +1,22 @@
 import { WorkspaceSidebar } from "../workspace/WorkspaceSidebar";
-import type { WorkspaceAppLink, WorkspaceEntry } from "../workspace/types";
+import type {
+  WorkspaceAppLink,
+  WorkspaceEntry,
+  WorkspaceTemplateUpdate,
+} from "../workspace/types";
 
 interface ChatSidebarProps {
   selectedViewerPath: string | null;
   workspaceTimeZone: string;
   workspaceApps: WorkspaceAppLink[];
   workspaceEntries: WorkspaceEntry[];
+  workspaceGitRemoteUrl?: string;
+  workspaceGitBrowserUrl?: string;
+  templateUpdates: WorkspaceTemplateUpdate[];
   onSelectApp: (href: string) => void;
   onRefreshWorkspace: () => void;
   onSaveWorkspaceTimeZone: (timeZone: string) => void;
+  onRequestTemplateUpdate: (update: WorkspaceTemplateUpdate) => void;
   onReorderApps: (appNames: string[]) => void;
 }
 
@@ -17,9 +25,13 @@ export function ChatSidebar({
   workspaceTimeZone,
   workspaceApps,
   workspaceEntries,
+  workspaceGitRemoteUrl,
+  workspaceGitBrowserUrl,
+  templateUpdates,
   onSelectApp,
   onRefreshWorkspace,
   onSaveWorkspaceTimeZone,
+  onRequestTemplateUpdate,
   onReorderApps,
 }: ChatSidebarProps) {
   return (
@@ -36,9 +48,13 @@ export function ChatSidebar({
           workspaceEntries={workspaceEntries}
           selectedViewerPath={selectedViewerPath}
           workspaceTimeZone={workspaceTimeZone}
+          workspaceGitRemoteUrl={workspaceGitRemoteUrl}
+          workspaceGitBrowserUrl={workspaceGitBrowserUrl}
+          templateUpdates={templateUpdates}
           onSelectApp={onSelectApp}
           onRefresh={onRefreshWorkspace}
           onTimeZoneChange={onSaveWorkspaceTimeZone}
+          onRequestTemplateUpdate={onRequestTemplateUpdate}
           onReorderApps={onReorderApps}
         />
       </div>

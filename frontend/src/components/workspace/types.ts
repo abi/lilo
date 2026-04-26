@@ -33,3 +33,10 @@ export type WorkspacePreferences = {
   gitRemoteUrl?: string;
   gitBrowserUrl?: string;
 };
+
+export type WorkspaceTemplateUpdate = {
+  appName: string;
+  displayName?: string;
+  currentVersion: string | null;
+  latestVersion: string;
+};

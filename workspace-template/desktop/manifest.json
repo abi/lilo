@@ -2,6 +2,7 @@
   "id": "desktop",
   "name": "Desktop",
   "description": "Minimal home-screen launcher. Grid of all workspace app icons, drag-reorder, and archive/unarchive — no widgets, greeting, or clock.",
+  "templateVersion": "1.0.0",
   "icon": "icon.png",
   "entry": "index.html"
 }

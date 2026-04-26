@@ -1,6 +1,10 @@
 import { CloudSyncButton } from "../CloudSyncButton";
 import { WorkspaceSidebar } from "../workspace/WorkspaceSidebar";
-import type { WorkspaceAppLink, WorkspaceEntry } from "../workspace/types";
+import type {
+  WorkspaceAppLink,
+  WorkspaceEntry,
+  WorkspaceTemplateUpdate,
+} from "../workspace/types";
 
 interface MobileWorkspaceScreenProps {
   workspaceApps: WorkspaceAppLink[];
@@ -9,10 +13,12 @@ interface MobileWorkspaceScreenProps {
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
   workspaceGitBrowserUrl?: string;
+  templateUpdates: WorkspaceTemplateUpdate[];
   syncError?: string | null;
   onSelectApp: (href: string) => void;
   onRefreshWorkspace: () => void;
   onSaveWorkspaceTimeZone: (timeZone: string) => void;
+  onRequestTemplateUpdate: (update: WorkspaceTemplateUpdate) => void;
   onReorderApps: (appNames: string[]) => void;
   onSynced: () => void;
   onSyncError: (error: string) => void;
@@ -26,10 +32,12 @@ export function MobileWorkspaceScreen({
   workspaceTimeZone,
   workspaceGitRemoteUrl,
   workspaceGitBrowserUrl,
+  templateUpdates,
   syncError,
   onSelectApp,
   onRefreshWorkspace,
   onSaveWorkspaceTimeZone,
+  onRequestTemplateUpdate,
   onReorderApps,
   onSynced,
   onSyncError,
@@ -59,9 +67,11 @@ export function MobileWorkspaceScreen({
         workspaceTimeZone={workspaceTimeZone}
         workspaceGitRemoteUrl={workspaceGitRemoteUrl}
         workspaceGitBrowserUrl={workspaceGitBrowserUrl}
+        templateUpdates={templateUpdates}
         onSelectApp={onSelectApp}
         onRefresh={onRefreshWorkspace}
         onTimeZoneChange={onSaveWorkspaceTimeZone}
+        onRequestTemplateUpdate={onRequestTemplateUpdate}
         onReorderApps={onReorderApps}
       />
     </div>

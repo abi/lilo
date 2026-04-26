@@ -17,6 +17,7 @@ import type { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import {
   WORKSPACE_ROOT,
+  WORKSPACE_TEMPLATE_DIR,
   getSafeWorkspaceGitUrl,
   getWorkspaceGitBrowserUrl,
 } from "../../shared/config/paths.js";
@@ -31,6 +32,7 @@ import {
   getWorkspaceConfigPath,
   readWorkspaceAppPrefs,
 } from "../../shared/workspace/appPrefs.js";
+import { getWorkspaceTemplateUpdates } from "../../shared/workspace/templateUpdates.js";
 import {
   getShellRunSnapshot,
   startShellRun,
@@ -1767,10 +1769,16 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
     const sortedApps = sortAppsBySavedOrder(apps, prefs.appNames);
     const workspaceGitUrl = getSafeWorkspaceGitUrl();
     const workspaceGitBrowserUrl = getWorkspaceGitBrowserUrl();
+    const templateUpdates = getWorkspaceTemplateUpdates(
+      WORKSPACE_ROOT,
+      WORKSPACE_TEMPLATE_DIR,
+      sortedApps,
+    );
     return c.json({
       apps: sortedApps,
       files,
       entries: await collectWorkspaceEntries(sortedApps),
+      templateUpdates,
       preferences: {
         timeZone: prefs.timeZone ?? DEFAULT_WORKSPACE_TIME_ZONE,
         ...(workspaceGitUrl ? { gitRemoteUrl: workspaceGitUrl } : {}),
