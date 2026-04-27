@@ -20,6 +20,7 @@ export type MessageGroup =
 
 export interface WorkspaceAppViewer {
   name: string;
+  displayName?: string;
   href: string;
   iconHref?: string;
 }
