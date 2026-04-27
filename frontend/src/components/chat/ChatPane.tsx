@@ -12,6 +12,7 @@ import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import type {
   ChatContextInput,
+  ChatElementSelection,
   SendMessageOptions,
   ChatSessionState,
 } from "../../store/chatStore";
@@ -210,6 +211,9 @@ export function ChatPane({
 
   const replaceDraftSelectedElements = useChatStore(
     (state) => state.replaceDraftSelectedElements,
+  );
+  const addDraftSelectedElement = useChatStore(
+    (state) => state.addDraftSelectedElement,
   );
 
   useEffect(() => {
@@ -506,6 +510,9 @@ export function ChatPane({
         }}
         onOpenViewerApp={onOpenViewerApp}
         onImageClick={setLightboxSrc}
+        onAddAssistantSelection={(selection: ChatElementSelection) => {
+          addDraftSelectedElement(chat.id, selection);
+        }}
       />
 
       <ChatComposer

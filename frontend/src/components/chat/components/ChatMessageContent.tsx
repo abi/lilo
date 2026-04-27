@@ -26,6 +26,7 @@ export function ChatMessageContent({
   return (
     <div className={isUser ? "flex w-full flex-col items-end" : ""}>
       <div
+        data-assistant-message-id={message.role === "assistant" ? message.id : undefined}
         className={
           isSystemError
             ? "max-w-2xl overflow-x-auto rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-base leading-relaxed text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300 md:text-base"

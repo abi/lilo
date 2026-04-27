@@ -1,10 +1,11 @@
 import type { ClipboardEvent } from "react";
 import type { RefObject } from "react";
-import type { ChatSessionState } from "../../../store/chatStore";
+import type { ChatElementSelection, ChatSessionState } from "../../../store/chatStore";
 import { getNormalizedSelectionText, getSelectionHtml } from "../lib/copySelection";
 import { isAskUserQuestionDetails } from "../lib/messageGroups";
 import type { MessageGroup, WorkspaceAppViewer } from "../types";
 import { ActionGroup } from "./ActionGroup";
+import { AssistantSelectionController } from "./AssistantSelectionController";
 import { AskUserQuestionCard } from "./AskUserQuestionCard";
 import { ChatActivityIndicator } from "./ChatActivityIndicator";
 import { ChatErrorNotice } from "./ChatErrorNotice";
@@ -27,6 +28,7 @@ interface ChatMessageListProps {
   onSubmitQuestionAnswer: (messageId: string, response: string) => void;
   onOpenViewerApp?: (viewerPath: string) => void;
   onImageClick?: (src: string) => void;
+  onAddAssistantSelection?: (selection: ChatElementSelection) => void;
 }
 
 export function ChatMessageList({
@@ -44,6 +46,7 @@ export function ChatMessageList({
   onSubmitQuestionAnswer,
   onOpenViewerApp,
   onImageClick,
+  onAddAssistantSelection,
 }: ChatMessageListProps) {
   const handleRenderedMessageCopy = (event: ClipboardEvent<HTMLDivElement>) => {
     const selection = window.getSelection();
@@ -83,6 +86,12 @@ export function ChatMessageList({
       onScroll={onScroll}
       className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-6"
     >
+      <AssistantSelectionController
+        chatId={chat.id}
+        chatScrollRef={chatScrollRef}
+        onAddAssistantSelection={onAddAssistantSelection}
+      />
+
       <div className={`${fullWidth ? "mx-0 max-w-none" : "mx-auto max-w-3xl"} flex flex-col overflow-hidden`}>
         {chat.messages.length === 0 && chat.isLoaded ? (
           <div className="flex flex-col items-center gap-5 py-24">
