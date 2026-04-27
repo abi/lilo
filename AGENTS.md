@@ -15,6 +15,13 @@ Lilo is a monorepo with:
 - Put each component in its own file.
 - Keep everything organized well into directories.
 
+## Configuration
+
+- Keep runtime/build configuration centralized.
+- Backend code should read environment-backed values through `backend/src/shared/config/config.ts`; do not read `process.env` directly from routes, services, or tools.
+- Frontend code should read Vite env-backed values through `frontend/src/config/config.ts`; do not read `import.meta.env` directly from components, hooks, stores, or libs.
+- If a new env var is needed, add it to the appropriate `config.ts` first, then consume it from there.
+
 ## Coding Agent
 
 The coding agent used in this product is Pi Mono:
@@ -23,6 +30,13 @@ The coding agent used in this product is Pi Mono:
 - Pi SDK docs: <https://raw.githubusercontent.com/badlogic/pi-mono/refs/heads/main/packages/coding-agent/docs/sdk.md>
 
 When changing Pi SDK integration code in this repo, use the Pi SDK docs above as the primary reference for supported session options and APIs.
+
+## Reference Implementations
+
+When asked how a feature is implemented, or to compare Lilo's implementation to Hermes or OpenClaw, consult these docs for details:
+
+- OpenClaw docs: <https://docs.openclaw.ai/>
+- Hermes Agent docs: <https://hermes-agent.nousresearch.com/docs>
 
 ## Local Development
 

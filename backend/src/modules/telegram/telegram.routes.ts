@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import type { Hono } from "hono";
 import type { ImageContent } from "@mariozechner/pi-ai";
 import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
@@ -66,6 +67,42 @@ type TelegramGetFileResult = {
 
 const getTelegramBotToken = (): string =>
   requireConfigValue(backendConfig.channels.telegram.botToken, "TELEGRAM_BOT_TOKEN");
+
+const secureCompare = (left: string, right: string): boolean => {
+  const leftBuffer = Buffer.from(left, "utf8");
+  const rightBuffer = Buffer.from(right, "utf8");
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(leftBuffer, rightBuffer);
+};
+
+const verifyTelegramWebhookSecret = (headers: Headers): boolean => {
+  const expectedSecret = backendConfig.channels.telegram.webhookSecret;
+  if (!expectedSecret) {
+    return false;
+  }
+
+  const providedSecret = headers.get("x-telegram-bot-api-secret-token") ?? "";
+  return secureCompare(providedSecret, expectedSecret);
+};
+
+const getTelegramSenderId = (message: TelegramMessage): string | null => {
+  const senderId = message.from?.id;
+  return typeof senderId === "number" && Number.isFinite(senderId)
+    ? String(senderId)
+    : null;
+};
+
+const isAllowedTelegramSender = (message: TelegramMessage): boolean => {
+  const senderId = getTelegramSenderId(message);
+  if (!senderId) {
+    return false;
+  }
+
+  return backendConfig.channels.telegram.allowedUserIds.includes(senderId);
+};
 
 const getTelegramThreadTimezone = async (): Promise<string> => {
   const workspacePrefs = await readWorkspaceAppPrefs(WORKSPACE_ROOT);
@@ -212,6 +249,11 @@ export const registerTelegramRoutes = (app: Hono, chatService: PiSdkChatService)
   app.post("/api/inbound-telegram", async (c) => {
     let update: TelegramUpdate;
 
+    if (!verifyTelegramWebhookSecret(c.req.raw.headers)) {
+      console.warn("[telegram] rejected inbound webhook with invalid or missing secret");
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
     try {
       update = (await c.req.json()) as TelegramUpdate;
     } catch {
@@ -220,6 +262,15 @@ export const registerTelegramRoutes = (app: Hono, chatService: PiSdkChatService)
 
     const message = extractTelegramMessage(update);
     if (!message?.chat) {
+      return c.json({ ok: true, ignored: true }, 200);
+    }
+
+    if (!isAllowedTelegramSender(message)) {
+      console.warn("[telegram] ignored message from unauthorized sender", {
+        senderId: getTelegramSenderId(message) ?? "missing",
+        chatId: message.chat.id,
+        chatType: message.chat.type ?? "unknown",
+      });
       return c.json({ ok: true, ignored: true }, 200);
     }
 

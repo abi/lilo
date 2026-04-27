@@ -244,9 +244,22 @@ Point a Twilio WhatsApp webhook at `https://your-lilo/api/inbound-whatsapp`.
 
 ```bash
 TELEGRAM_BOT_TOKEN=123456:ABC-...
+TELEGRAM_WEBHOOK_SECRET=long-random-secret
+LILO_TELEGRAM_ALLOWED_USER_IDS=123456789
 ```
 
-Point your Telegram bot webhook at `https://your-lilo/api/inbound-telegram`.
+Point your Telegram bot webhook at `https://your-lilo/api/inbound-telegram`
+and pass the same secret as Telegram's `secret_token`:
+
+```bash
+curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+  -d "url=https://your-lilo/api/inbound-telegram" \
+  -d "secret_token=$TELEGRAM_WEBHOOK_SECRET"
+```
+
+`LILO_TELEGRAM_ALLOWED_USER_IDS` must contain numeric Telegram user IDs, not
+group chat IDs. To find yours, message your bot and inspect `getUpdates`, or use
+a Telegram ID helper bot such as `@userinfobot`.
 
 > Each contact gets their own persistent chat, so the agent remembers your
 > conversation across messages.
@@ -278,8 +291,8 @@ Lilo is built for a **single, self-hosted user** — not multi-tenant SaaS.
 - **The agent has shell, filesystem, and network access.** Prompt injection
   is a real risk — anything it reads (web pages, emails, PDFs) can try to
   hijack it. Keep messaging allowlists (`LILO_EMAIL_ALLOWED_SENDERS`,
-  `LILO_WHATSAPP_ALLOWED_SENDERS`, Telegram) tight, and keep credentials in env
-  vars, not the workspace.
+  `LILO_WHATSAPP_ALLOWED_SENDERS`, `LILO_TELEGRAM_ALLOWED_USER_IDS`) tight, and
+  keep credentials in env vars, not the workspace.
 - **Webhooks** (`/api/inbound-*`) skip the password gate on purpose and use
   provider-signed verification instead.
 - **Report issues privately** — email `abimanyuraja@gmail.com` or DM on

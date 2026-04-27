@@ -102,6 +102,16 @@ const getChannelStatuses = (): ChannelStatus[] => {
       ? whatsappConfig.allowedSenders.join(",")
       : null,
   );
+  const telegramWebhookSecret = configValue(
+    "TELEGRAM_WEBHOOK_SECRET",
+    telegramConfig.webhookSecret,
+  );
+  const telegramAllowedUserIds = configValue(
+    "LILO_TELEGRAM_ALLOWED_USER_IDS",
+    telegramConfig.allowedUserIds.length > 0
+      ? telegramConfig.allowedUserIds.join(",")
+      : null,
+  );
 
   return [
     buildChannelStatus({
@@ -131,9 +141,19 @@ const getChannelStatuses = (): ChannelStatus[] => {
       id: "telegram",
       label: "Telegram",
       provider: "Telegram Bot API",
-      requiredConfig: [telegramBotToken],
+      requiredConfig: [telegramBotToken, telegramWebhookSecret, telegramAllowedUserIds],
       details: [
         { label: "Bot token", value: secretStatus(telegramBotToken), kind: "secret" },
+        {
+          label: "Webhook secret",
+          value: secretStatus(telegramWebhookSecret),
+          kind: "secret",
+        },
+        {
+          label: "Allowed user IDs",
+          value: listStatus(telegramConfig.allowedUserIds),
+          kind: "list",
+        },
       ],
     }),
     buildChannelStatus({

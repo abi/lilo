@@ -46,6 +46,16 @@ const normalizeImageModel = (value: string | null): ImageGenerationModel => {
   return FALLBACK_IMAGE_MODEL;
 };
 
+const normalizeTelegramUserId = (value: string): string | null => {
+  const normalized = value.trim().replace(/^(telegram:|tg:)/i, "");
+  return /^\d+$/.test(normalized) ? normalized : null;
+};
+
+const readTelegramUserIdList = (name: string): string[] =>
+  readCsvEnv(name)
+    .map((value) => normalizeTelegramUserId(value))
+    .filter((value): value is string => Boolean(value));
+
 export const backendConfig = {
   server: {
     port: readNumberEnv("PORT", 8787),
@@ -82,6 +92,8 @@ export const backendConfig = {
     },
     telegram: {
       botToken: readEnv("TELEGRAM_BOT_TOKEN"),
+      webhookSecret: readEnv("TELEGRAM_WEBHOOK_SECRET"),
+      allowedUserIds: readTelegramUserIdList("LILO_TELEGRAM_ALLOWED_USER_IDS"),
     },
     whatsapp: {
       twilioAccountSid: readEnv("TWILIO_ACCOUNT_SID"),

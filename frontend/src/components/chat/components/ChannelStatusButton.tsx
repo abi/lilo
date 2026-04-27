@@ -466,9 +466,12 @@ function getSetupSteps(channelId: ChannelStatus["id"]): string[] {
   if (channelId === "telegram") {
     return [
       "In Telegram, open BotFather and send /newbot. Choose the bot name and username, then copy the token BotFather gives you.",
-      "Set TELEGRAM_BOT_TOKEN to the BotFather token and redeploy the backend.",
-      "Configure the Telegram webhook to " + getWebhookUrl("/api/inbound-telegram") + ". You can do this by opening https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=" + getWebhookUrl("/api/inbound-telegram") + " with your real token, or by making the same request with curl.",
-      "Open your bot in Telegram and press Start or send a message. Lilo should create a persistent chat for that Telegram conversation.",
+      "Set TELEGRAM_BOT_TOKEN to the BotFather token.",
+      "Find your numeric Telegram user ID. You can message @userinfobot, @getidsbot, or send your bot a message and inspect getUpdates from the Telegram Bot API.",
+      "Set LILO_TELEGRAM_ALLOWED_USER_IDS to the numeric user IDs allowed to talk to Lilo, separated by commas. Do not use group chat IDs here.",
+      "Generate a long random secret, set TELEGRAM_WEBHOOK_SECRET to it, and redeploy the backend.",
+      "Configure the Telegram webhook to " + getWebhookUrl("/api/inbound-telegram") + " and pass the same secret as secret_token. For example: curl -X POST https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook -d url=" + getWebhookUrl("/api/inbound-telegram") + " -d secret_token=<TELEGRAM_WEBHOOK_SECRET>.",
+      "Open your bot in Telegram and send a message from one of the allowed user IDs. Lilo should create a persistent chat for that Telegram conversation.",
       "If messages do not arrive, call getWebhookInfo for the bot token and check Telegram's last_error_message.",
     ];
   }
@@ -500,6 +503,10 @@ function getWebhookUrl(path: string): string {
 function getSecurityChannelDetail(channel: ChannelStatus): ChannelDetail | null {
   if (channel.id === "email") {
     return channel.details.find((detail) => detail.label === "Allowed emails") ?? null;
+  }
+
+  if (channel.id === "telegram") {
+    return channel.details.find((detail) => detail.label === "Allowed user IDs") ?? null;
   }
 
   if (channel.id === "whatsapp") {
