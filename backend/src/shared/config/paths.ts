@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadBackendEnv, readEnv } from "./env.js";
+import { backendConfig } from "./config.js";
 import { initializeAppUpdateStateForBootstrappedWorkspace } from "../workspace/templateUpdates.js";
 
 const SHARED_CONFIG_DIR = dirname(fileURLToPath(import.meta.url));
@@ -12,10 +12,8 @@ export const REPO_ROOT_DIR = resolve(BACKEND_DIR, "..");
 
 export const WORKSPACE_TEMPLATE_DIR = resolve(REPO_ROOT_DIR, "workspace-template");
 
-loadBackendEnv();
-
 export const getWorkspaceGitUrl = (): string | null =>
-  readEnv("LILO_WORKSPACE_GIT_URL");
+  backendConfig.workspace.gitUrl;
 
 export const getSafeWorkspaceGitUrl = (): string | null => {
   const workspaceGitUrl = getWorkspaceGitUrl();
@@ -124,7 +122,7 @@ const bootstrapWorkspaceIfEmpty = (workspaceDir: string): void => {
 };
 
 export const resolveWorkspaceRoot = (): string => {
-  const explicitPath = process.env.LILO_WORKSPACE_DIR?.trim();
+  const explicitPath = backendConfig.workspace.dir;
   if (!explicitPath) {
     throw new Error("LILO_WORKSPACE_DIR must be set");
   }

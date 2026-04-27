@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import { readCsvEnv, readEnv } from "../../shared/config/env.js";
+import { backendConfig } from "../../shared/config/config.js";
 
 type ChannelState = "configured" | "partial" | "missing";
 
@@ -19,17 +19,15 @@ interface ChannelStatus {
   details: ChannelDetail[];
 }
 
-interface EnvSpec {
+interface ConfigSpec {
   name: string;
+  value: string | null;
 }
 
-const env = (name: string): EnvSpec => ({
+const configValue = (name: string, value: string | null): ConfigSpec => ({
   name,
+  value,
 });
-
-const getEnv = (spec: EnvSpec): string | null => readEnv(spec.name);
-
-const parseCsvEnv = (spec: EnvSpec): string[] => readCsvEnv(spec.name);
 
 const stateFromMissing = (missing: string[], totalRequired: number): ChannelState => {
   if (missing.length === 0) {
@@ -39,7 +37,7 @@ const stateFromMissing = (missing: string[], totalRequired: number): ChannelStat
   return missing.length === totalRequired ? "missing" : "partial";
 };
 
-const secretStatus = (spec: EnvSpec): string => (getEnv(spec) ? "Set" : "Missing");
+const secretStatus = (spec: ConfigSpec): string => (spec.value ? "Set" : "Missing");
 
 const valueStatus = (value: string | null): string => value ?? "Missing";
 
@@ -48,13 +46,13 @@ const listStatus = (values: string[]): string =>
 
 const buildChannelStatus = (
   input: Omit<ChannelStatus, "configured" | "state" | "missing"> & {
-    requiredEnv: EnvSpec[];
+    requiredConfig: ConfigSpec[];
   },
 ): ChannelStatus => {
-  const missing = input.requiredEnv
-    .filter((spec) => !getEnv(spec))
+  const missing = input.requiredConfig
+    .filter((spec) => !spec.value)
     .map((spec) => spec.name);
-  const state = stateFromMissing(missing, input.requiredEnv.length);
+  const state = stateFromMissing(missing, input.requiredConfig.length);
 
   return {
     id: input.id,
@@ -68,24 +66,49 @@ const buildChannelStatus = (
 };
 
 const getChannelStatuses = (): ChannelStatus[] => {
-  const resendApiKey = env("RESEND_API_KEY");
-  const resendWebhookSecret = env("RESEND_WEBHOOK_SECRET");
-  const emailAgentAddress = env("LILO_EMAIL_AGENT_ADDRESS");
-  const emailReplyFrom = env("LILO_EMAIL_REPLY_FROM");
-  const emailAllowedSenders = env("LILO_EMAIL_ALLOWED_SENDERS");
-  const telegramBotToken = env("TELEGRAM_BOT_TOKEN");
-  const twilioAccountSid = env("TWILIO_ACCOUNT_SID");
-  const twilioAuthToken = env("TWILIO_AUTH_TOKEN");
-  const whatsAppAgentNumber = env("LILO_WHATSAPP_AGENT_NUMBER");
-  const whatsAppAllowedSenders = env("LILO_WHATSAPP_ALLOWED_SENDERS");
-  const allowedEmails = parseCsvEnv(emailAllowedSenders);
+  const emailConfig = backendConfig.channels.email;
+  const telegramConfig = backendConfig.channels.telegram;
+  const whatsappConfig = backendConfig.channels.whatsapp;
+  const resendApiKey = configValue("RESEND_API_KEY", emailConfig.resendApiKey);
+  const resendWebhookSecret = configValue(
+    "RESEND_WEBHOOK_SECRET",
+    emailConfig.resendWebhookSecret,
+  );
+  const emailAgentAddress = configValue(
+    "LILO_EMAIL_AGENT_ADDRESS",
+    emailConfig.agentAddress,
+  );
+  const emailReplyFrom = configValue("LILO_EMAIL_REPLY_FROM", emailConfig.replyFrom);
+  const emailAllowedSenders = configValue(
+    "LILO_EMAIL_ALLOWED_SENDERS",
+    emailConfig.allowedSenders.length > 0 ? emailConfig.allowedSenders.join(",") : null,
+  );
+  const telegramBotToken = configValue("TELEGRAM_BOT_TOKEN", telegramConfig.botToken);
+  const twilioAccountSid = configValue(
+    "TWILIO_ACCOUNT_SID",
+    whatsappConfig.twilioAccountSid,
+  );
+  const twilioAuthToken = configValue(
+    "TWILIO_AUTH_TOKEN",
+    whatsappConfig.twilioAuthToken,
+  );
+  const whatsAppAgentNumber = configValue(
+    "LILO_WHATSAPP_AGENT_NUMBER",
+    whatsappConfig.agentNumber,
+  );
+  const whatsAppAllowedSenders = configValue(
+    "LILO_WHATSAPP_ALLOWED_SENDERS",
+    whatsappConfig.allowedSenders.length > 0
+      ? whatsappConfig.allowedSenders.join(",")
+      : null,
+  );
 
   return [
     buildChannelStatus({
       id: "email",
       label: "Email",
       provider: "Resend",
-      requiredEnv: [
+      requiredConfig: [
         resendApiKey,
         resendWebhookSecret,
         emailAgentAddress,
@@ -99,16 +122,16 @@ const getChannelStatuses = (): ChannelStatus[] => {
           value: secretStatus(resendWebhookSecret),
           kind: "secret",
         },
-        { label: "Agent address", value: valueStatus(getEnv(emailAgentAddress)) },
-        { label: "Reply sender", value: valueStatus(getEnv(emailReplyFrom)) },
-        { label: "Allowed emails", value: listStatus(allowedEmails), kind: "list" },
+        { label: "Agent address", value: valueStatus(emailAgentAddress.value) },
+        { label: "Reply sender", value: valueStatus(emailReplyFrom.value) },
+        { label: "Allowed emails", value: listStatus(emailConfig.allowedSenders), kind: "list" },
       ],
     }),
     buildChannelStatus({
       id: "telegram",
       label: "Telegram",
       provider: "Telegram Bot API",
-      requiredEnv: [telegramBotToken],
+      requiredConfig: [telegramBotToken],
       details: [
         { label: "Bot token", value: secretStatus(telegramBotToken), kind: "secret" },
       ],
@@ -117,7 +140,7 @@ const getChannelStatuses = (): ChannelStatus[] => {
       id: "whatsapp",
       label: "WhatsApp",
       provider: "Twilio",
-      requiredEnv: [
+      requiredConfig: [
         twilioAccountSid,
         twilioAuthToken,
         whatsAppAgentNumber,
@@ -132,9 +155,9 @@ const getChannelStatuses = (): ChannelStatus[] => {
         { label: "Auth token", value: secretStatus(twilioAuthToken), kind: "secret" },
         {
           label: "Agent number",
-          value: valueStatus(getEnv(whatsAppAgentNumber)),
+          value: valueStatus(whatsAppAgentNumber.value),
         },
-        { label: "Allowed senders", value: valueStatus(getEnv(whatsAppAllowedSenders)) },
+        { label: "Allowed senders", value: valueStatus(whatsAppAllowedSenders.value) },
       ],
     }),
   ];

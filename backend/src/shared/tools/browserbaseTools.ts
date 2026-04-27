@@ -1,6 +1,7 @@
 import { Type } from "@mariozechner/pi-ai";
 import { chromium } from "playwright-core";
 import type { AgentToolResult, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { backendConfig, requireConfigValue } from "../config/config.js";
 
 const BROWSERBASE_API_BASE_URL = "https://api.browserbase.com/v1";
 const DEFAULT_NAVIGATION_TIMEOUT_MS = 20_000;
@@ -86,17 +87,14 @@ const createTextResult = <TDetails>(
 });
 
 const getRequiredBrowserbaseApiKey = (): string => {
-  const apiKey = process.env.BROWSERBASE_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error("BROWSERBASE_API_KEY is not configured");
-  }
-
-  return apiKey;
+  return requireConfigValue(
+    backendConfig.tools.browserbase.apiKey,
+    "BROWSERBASE_API_KEY",
+  );
 };
 
 const getOptionalBrowserbaseProjectId = (): string | null => {
-  const projectId = process.env.BROWSERBASE_PROJECT_ID?.trim();
-  return projectId || null;
+  return backendConfig.tools.browserbase.projectId;
 };
 
 const jsonText = async (response: Response): Promise<string> => {

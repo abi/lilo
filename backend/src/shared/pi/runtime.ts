@@ -1,4 +1,5 @@
 import { getModel } from "@mariozechner/pi-ai";
+import { backendConfig } from "../config/config.js";
 
 export type ChatModelProvider = "openai" | "anthropic";
 export type ChatModelId = "gpt-5.4" | "gpt-5.4-mini" | "claude-opus-4-7";
@@ -23,13 +24,7 @@ export const getPromptFirstEventTimeoutMs = (): number =>
   PROMPT_FIRST_EVENT_TIMEOUT_MS;
 
 const getChatModelAllowlist = (): Set<string> | null => {
-  const raw = process.env.LILO_CHAT_MODEL_ALLOWLIST?.trim();
-  if (!raw) {
-    return null;
-  }
-
-  const values = raw
-    .split(",")
+  const values = backendConfig.chat.modelAllowlist
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
 

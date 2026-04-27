@@ -1,5 +1,3 @@
-import { API_BASE_URL } from "../../config/runtime";
-
 const parseErrorMessage = async (response: Response, fallback: string) => {
   try {
     const payload = (await response.json()) as { error?: string; details?: string };
@@ -65,4 +63,4 @@ const formatJsonViewer = (value: string): string => {
   }
 };
 
-export { API_BASE_URL, formatJsonViewer, formatSetupError, parseErrorMessage };
+export { formatJsonViewer, formatSetupError, parseErrorMessage };

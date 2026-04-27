@@ -1,5 +1,6 @@
 import { Type } from "@mariozechner/pi-ai";
 import type { AgentToolResult, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { backendConfig, requireConfigValue } from "../config/config.js";
 
 const FIRECRAWL_API_BASE_URL = "https://api.firecrawl.dev/v2";
 const DEFAULT_SEARCH_LIMIT = 5;
@@ -84,12 +85,10 @@ const createTextResult = <TDetails>(
 });
 
 const getRequiredFirecrawlApiKey = (): string => {
-  const apiKey = process.env.FIRECRAWL_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error("FIRECRAWL_API_KEY is not configured");
-  }
-
-  return apiKey;
+  return requireConfigValue(
+    backendConfig.tools.firecrawl.apiKey,
+    "FIRECRAWL_API_KEY",
+  );
 };
 
 const dedupeStrings = (value: unknown): string[] => {

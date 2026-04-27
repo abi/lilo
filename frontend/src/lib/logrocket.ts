@@ -1,4 +1,4 @@
-import { ENABLE_LOGROCKET, LOGROCKET_APP_ID } from "../config/runtime";
+import { config } from "../config/config";
 
 type LogRocketModule = typeof import("logrocket");
 
@@ -6,7 +6,8 @@ let didInitLogRocket = false;
 let logRocketModulePromise: Promise<LogRocketModule | null> | null = null;
 
 const shouldEnableLogRocket = (): boolean =>
-  ENABLE_LOGROCKET && LOGROCKET_APP_ID.length > 0;
+  config.observability.logrocket.enabled &&
+  config.observability.logrocket.appId.length > 0;
 
 const loadLogRocket = async (): Promise<LogRocketModule | null> => {
   if (!shouldEnableLogRocket()) {
@@ -17,7 +18,7 @@ const loadLogRocket = async (): Promise<LogRocketModule | null> => {
     logRocketModulePromise = import("logrocket")
       .then((LogRocket) => {
         if (!didInitLogRocket) {
-          LogRocket.default.init(LOGROCKET_APP_ID);
+          LogRocket.default.init(config.observability.logrocket.appId);
           didInitLogRocket = true;
         }
 

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./api";
+import { config } from "../../config/config";
 import type { ChatContextInput, ParsedSseEvent } from "./types";
 
 type ConnectionPhase = "connecting" | "open" | "closed";
@@ -93,7 +93,7 @@ interface ChatSocketListener {
 const controllers = new Map<string, ChatSocketController>();
 
 const buildChatSocketUrl = (chatId: string): string => {
-  const apiBaseUrl = API_BASE_URL.trim();
+  const apiBaseUrl = config.apiBaseUrl.trim();
 
   if (apiBaseUrl.startsWith("http://") || apiBaseUrl.startsWith("https://")) {
     const url = new URL(apiBaseUrl);

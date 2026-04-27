@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 import type { ImageContent } from "@mariozechner/pi-ai";
 import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
+import { backendConfig, requireConfigValue } from "../../shared/config/config.js";
 import { WORKSPACE_ROOT } from "../../shared/config/paths.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
 import { readWorkspaceAppPrefs } from "../../shared/workspace/appPrefs.js";
@@ -63,14 +64,8 @@ type TelegramGetFileResult = {
   file_path?: string;
 };
 
-const getRequiredEnv = (name: string): string => {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`${name} is not configured`);
-  }
-
-  return value;
-};
+const getTelegramBotToken = (): string =>
+  requireConfigValue(backendConfig.channels.telegram.botToken, "TELEGRAM_BOT_TOKEN");
 
 const getTelegramThreadTimezone = async (): Promise<string> => {
   const workspacePrefs = await readWorkspaceAppPrefs(WORKSPACE_ROOT);
@@ -145,7 +140,7 @@ const telegramApiFetch = async <T>(
 };
 
 const sendTelegramReply = async (chatId: number, body: string): Promise<void> => {
-  const botToken = getRequiredEnv("TELEGRAM_BOT_TOKEN");
+  const botToken = getTelegramBotToken();
 
   try {
     await telegramApiFetch(botToken, "sendMessage", {
@@ -200,7 +195,7 @@ const loadInboundImages = async (message: TelegramMessage): Promise<ImageContent
     return [];
   }
 
-  const botToken = getRequiredEnv("TELEGRAM_BOT_TOKEN");
+  const botToken = getTelegramBotToken();
   const preferred = [...photos].sort((left, right) => {
     const leftSize = (left.file_size ?? 0) || left.width * left.height;
     const rightSize = (right.file_size ?? 0) || right.width * right.height;

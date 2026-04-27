@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { API_BASE_URL, ENABLE_WORKSPACE_SYNC } from "../config/runtime";
+import { config } from "../config/config";
 import { authFetch } from "../lib/auth";
 
 type SyncState = "idle" | "syncing" | "done" | "error";
@@ -73,7 +73,7 @@ export function CloudSyncButton({
   toolbarChip = false,
   vertical = false,
 }: CloudSyncButtonProps) {
-  if (!ENABLE_WORKSPACE_SYNC) {
+  if (!config.workspace.syncEnabled) {
     return null;
   }
 
@@ -100,7 +100,7 @@ export function CloudSyncButton({
     setSyncState("syncing");
     setStatusMsg(null);
     try {
-      const res = await authFetch(`${API_BASE_URL}/workspace/sync`, { method: "POST" });
+      const res = await authFetch(`${config.apiBaseUrl}/workspace/sync`, { method: "POST" });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
         const msg = body?.details ?? body?.error ?? `Sync failed (${res.status})`;

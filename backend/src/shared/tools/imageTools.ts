@@ -1,5 +1,6 @@
 import { Type } from "@mariozechner/pi-ai";
 import type { AgentToolResult, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { backendConfig, requireConfigValue } from "../config/config.js";
 import { getImageGenerationModel } from "../config/media.js";
 
 const REPLICATE_API_BASE_URL = "https://api.replicate.com/v1";
@@ -111,15 +112,17 @@ const createTextResult = <TDetails>(
   details,
 });
 
+const hasReplicateApiKey = (): boolean => Boolean(backendConfig.tools.replicate.apiKey);
+
 const createReplicatePrediction = async (
   url: string,
   payload: Record<string, unknown>,
   signal: AbortSignal | undefined,
 ): Promise<string> => {
-  const apiKey = process.env.REPLICATE_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error("REPLICATE_API_KEY is not configured");
-  }
+  const apiKey = requireConfigValue(
+    backendConfig.tools.replicate.apiKey,
+    "REPLICATE_API_KEY",
+  );
 
   const createResponse = await fetch(url, {
     method: "POST",
@@ -148,10 +151,10 @@ const pollReplicatePrediction = async (
   predictionId: string,
   signal: AbortSignal | undefined,
 ): Promise<unknown> => {
-  const apiKey = process.env.REPLICATE_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error("REPLICATE_API_KEY is not configured");
-  }
+  const apiKey = requireConfigValue(
+    backendConfig.tools.replicate.apiKey,
+    "REPLICATE_API_KEY",
+  );
 
   for (let attempt = 0; attempt < REPLICATE_MAX_POLLS; attempt += 1) {
     await delay(REPLICATE_POLL_INTERVAL_MS, signal);
@@ -319,7 +322,7 @@ export const generateImagesTool: ToolDefinition = {
       });
     }
 
-    if (!process.env.REPLICATE_API_KEY?.trim()) {
+    if (!hasReplicateApiKey()) {
       return createTextResult<GenerateImagesDetails>(
         "Image generation requires REPLICATE_API_KEY.",
         { images: [] },
@@ -392,7 +395,7 @@ export const removeBackgroundTool: ToolDefinition = {
       });
     }
 
-    if (!process.env.REPLICATE_API_KEY?.trim()) {
+    if (!hasReplicateApiKey()) {
       return createTextResult<RemoveBackgroundDetails>(
         "Background removal requires REPLICATE_API_KEY.",
         { images: [] },

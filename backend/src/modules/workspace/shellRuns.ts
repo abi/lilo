@@ -1,5 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync } from "node:fs";
+import { backendConfig, getChildProcessEnv } from "../../shared/config/config.js";
 
 export type ShellRunEvent =
   | { event: "stdout"; data: { text: string } }
@@ -35,7 +36,7 @@ const RUN_RETENTION_MS = 5 * 60 * 1000;
 
 const resolveShellBinary = (): string => {
   const candidates = [
-    process.env.SHELL?.trim(),
+    backendConfig.runtime.shell,
     "/bin/zsh",
     "/bin/bash",
     "/bin/sh",
@@ -96,10 +97,7 @@ export const startShellRun = (options: {
   const shellBinary = resolveShellBinary();
   const child = spawn(shellBinary, ["-lc", options.command], {
     cwd: options.cwd,
-    env: {
-      ...process.env,
-      ...(options.env ?? {}),
-    },
+    env: getChildProcessEnv(options.env),
   });
   run.process = child;
 

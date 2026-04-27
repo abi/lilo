@@ -3,7 +3,7 @@ import type { Hono } from "hono";
 import type { ImageContent } from "@mariozechner/pi-ai";
 import type { UploadedChatFile } from "../chat/chat.request.js";
 import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
-import { readCsvEnv, readRequiredEnv } from "../../shared/config/env.js";
+import { backendConfig, requireConfigValue } from "../../shared/config/config.js";
 import { WORKSPACE_ROOT } from "../../shared/config/paths.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
 import { ASK_USER_QUESTION_TOOL_NAME } from "../../shared/tools/askUserQuestionTool.js";
@@ -37,7 +37,10 @@ const secureCompare = (left: string, right: string): boolean => {
 };
 
 const validateTwilioSignature = (url: string, form: TwilioWebhookBody, signature: string): boolean => {
-  const authToken = readRequiredEnv("TWILIO_AUTH_TOKEN");
+  const authToken = requireConfigValue(
+    backendConfig.channels.whatsapp.twilioAuthToken,
+    "TWILIO_AUTH_TOKEN",
+  );
   const sortedEntries = Object.entries(form)
     .filter(([, value]) => typeof value === "string")
     .sort(([left], [right]) => left.localeCompare(right));
@@ -53,7 +56,7 @@ const validateTwilioSignature = (url: string, form: TwilioWebhookBody, signature
 };
 
 const getAllowedWhatsAppSenders = (): string[] => {
-  const allowedSenders = readCsvEnv("LILO_WHATSAPP_ALLOWED_SENDERS").map(
+  const allowedSenders = backendConfig.channels.whatsapp.allowedSenders.map(
     normalizeWhatsAppAddress,
   );
 
@@ -242,10 +245,19 @@ const sendWhatsAppReply = async (
   body: string,
   meta: { chunkIndex?: number; chunkCount?: number } = {},
 ): Promise<{ sid: string | null; status: string | null }> => {
-  const accountSid = readRequiredEnv("TWILIO_ACCOUNT_SID");
-  const authToken = readRequiredEnv("TWILIO_AUTH_TOKEN");
+  const accountSid = requireConfigValue(
+    backendConfig.channels.whatsapp.twilioAccountSid,
+    "TWILIO_ACCOUNT_SID",
+  );
+  const authToken = requireConfigValue(
+    backendConfig.channels.whatsapp.twilioAuthToken,
+    "TWILIO_AUTH_TOKEN",
+  );
   const from = normalizeWhatsAppAddress(
-    readRequiredEnv("LILO_WHATSAPP_AGENT_NUMBER"),
+    requireConfigValue(
+      backendConfig.channels.whatsapp.agentNumber,
+      "LILO_WHATSAPP_AGENT_NUMBER",
+    ),
   );
 
   const params = new URLSearchParams({
@@ -415,8 +427,14 @@ const sendWhatsAppReplyChunked = async (
 };
 
 const sendWhatsAppTypingIndicator = async (messageId: string): Promise<void> => {
-  const accountSid = readRequiredEnv("TWILIO_ACCOUNT_SID");
-  const authToken = readRequiredEnv("TWILIO_AUTH_TOKEN");
+  const accountSid = requireConfigValue(
+    backendConfig.channels.whatsapp.twilioAccountSid,
+    "TWILIO_ACCOUNT_SID",
+  );
+  const authToken = requireConfigValue(
+    backendConfig.channels.whatsapp.twilioAuthToken,
+    "TWILIO_AUTH_TOKEN",
+  );
   const params = new URLSearchParams({
     messageId,
     channel: "whatsapp",
@@ -512,8 +530,14 @@ const getInboundMediaName = (mimeType: string, index: number): string =>
   `whatsapp-media-${index + 1}${getMediaExtension(mimeType)}`;
 
 const loadInboundMedia = async (form: TwilioWebhookBody): Promise<UploadedChatFile[]> => {
-  const accountSid = readRequiredEnv("TWILIO_ACCOUNT_SID");
-  const authToken = readRequiredEnv("TWILIO_AUTH_TOKEN");
+  const accountSid = requireConfigValue(
+    backendConfig.channels.whatsapp.twilioAccountSid,
+    "TWILIO_ACCOUNT_SID",
+  );
+  const authToken = requireConfigValue(
+    backendConfig.channels.whatsapp.twilioAuthToken,
+    "TWILIO_AUTH_TOKEN",
+  );
   const numMedia = parseNumMedia(form.NumMedia);
   const uploads: UploadedChatFile[] = [];
 

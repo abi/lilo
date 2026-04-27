@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { config } from "../config/config";
 import type { WorkspaceEntry } from "../components/workspace/types";
 import { UnauthorizedError, authFetch } from "../lib/auth";
-import { API_BASE_URL, formatJsonViewer, parseErrorMessage } from "./workspace/utils";
+import { formatJsonViewer, parseErrorMessage } from "./workspace/utils";
 
 interface UseWorkspaceFileViewerOptions {
   selectedViewerPath: string | null;
@@ -38,7 +39,7 @@ export function useWorkspaceFileViewer({
     setIsLoadingFileViewer(true);
     setFileViewerError(null);
 
-    authFetch(`${API_BASE_URL}${selectedViewerPath}`, { signal: controller.signal })
+    authFetch(`${config.apiBaseUrl}${selectedViewerPath}`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) {
           if (response.status === 401) {

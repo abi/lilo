@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { getRequestListener } from "@hono/node-server";
-import { loadBackendEnv } from "../shared/config/env.js";
+import { backendConfig } from "../shared/config/config.js";
 import { WORKSPACE_ROOT } from "../shared/config/paths.js";
 import { captureBackendException, initializeBackendSentry } from "../shared/observability/sentry.js";
 import { migrateLegacyWorkspaceAppPrefs } from "../shared/workspace/appPrefs.js";
@@ -11,7 +11,6 @@ import { createNetProxyWebSocketServer } from "../modules/workspace/net.websocke
 import { createApp } from "./createApp.js";
 
 export const startServer = (): void => {
-  loadBackendEnv();
   initializeBackendSentry();
 
   // Fire-and-forget: migrate pre-.lilo/config.json state. Errors are logged
@@ -40,7 +39,7 @@ export const startServer = (): void => {
   const chatService = new PiSdkChatService();
   const appAgentService = new PiAppAgentService();
   const app = createApp({ chatService, appAgentService });
-  const port = Number(process.env.PORT ?? 8787);
+  const port = backendConfig.server.port;
   const server = createServer(getRequestListener(app.fetch));
   const chatWebSocketServer = createChatWebSocketServer(chatService);
   const netProxyWebSocketServer = createNetProxyWebSocketServer();

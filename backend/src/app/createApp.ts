@@ -21,7 +21,6 @@ import {
   setSessionCookie,
   verifyLoginPassword,
 } from "../shared/auth/sessionAuth.js";
-import { loadBackendEnv } from "../shared/config/env.js";
 import { captureBackendException } from "../shared/observability/sentry.js";
 
 interface CreateAppOptions {
@@ -42,8 +41,6 @@ export const createApp = ({
   chatService = new PiSdkChatService(),
   appAgentService = new PiAppAgentService(),
 }: CreateAppOptions = {}): Hono => {
-  loadBackendEnv();
-
   const app = new Hono();
 
   app.use("*", async (c, next) => {

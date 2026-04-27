@@ -1,6 +1,5 @@
 import { UnauthorizedError, authFetch } from "../../lib/auth";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+import { config } from "../../config/config";
 
 const fetchJson = async <T>(input: RequestInfo, init?: RequestInit): Promise<T> => {
   const response = await authFetch(input, init);
@@ -38,7 +37,7 @@ const uploadChatAttachments = async (
   }
 
   const payload = await fetchJson<{ uploadIds: string[] }>(
-    `${API_BASE_URL}/chats/${chatId}/uploads`,
+    `${config.apiBaseUrl}/chats/${chatId}/uploads`,
     {
       method: "POST",
       body: formData,
@@ -48,4 +47,4 @@ const uploadChatAttachments = async (
   return payload.uploadIds;
 };
 
-export { API_BASE_URL, fetchJson, uploadChatAttachments };
+export { fetchJson, uploadChatAttachments };

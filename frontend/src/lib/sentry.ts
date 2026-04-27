@@ -1,4 +1,4 @@
-import { ENABLE_SENTRY, SENTRY_DSN } from "../config/runtime";
+import { config } from "../config/config";
 
 type SentrySeverityLevel = "fatal" | "error" | "warning" | "log" | "info" | "debug";
 
@@ -14,7 +14,9 @@ type SentryBrowserModule = typeof import("@sentry/react");
 let didInitSentry = false;
 let sentryModulePromise: Promise<SentryBrowserModule | null> | null = null;
 
-const shouldEnableSentry = (): boolean => ENABLE_SENTRY && SENTRY_DSN.length > 0;
+const shouldEnableSentry = (): boolean =>
+  config.observability.sentry.enabled &&
+  config.observability.sentry.dsn.length > 0;
 
 const loadSentry = async (): Promise<SentryBrowserModule | null> => {
   if (!shouldEnableSentry()) {
@@ -26,7 +28,7 @@ const loadSentry = async (): Promise<SentryBrowserModule | null> => {
       .then((Sentry) => {
         if (!didInitSentry) {
           Sentry.init({
-            dsn: SENTRY_DSN,
+            dsn: config.observability.sentry.dsn,
           });
 
           didInitSentry = true;

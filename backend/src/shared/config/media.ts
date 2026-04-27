@@ -1,26 +1,6 @@
-import { readEnv } from "./env.js";
+import { backendConfig, type ImageGenerationModel } from "./config.js";
 
-export type ImageGenerationModel =
-  | "flux-2-klein-4b"
-  | "nano-banana"
-  | "nano-banana-2";
+export type { ImageGenerationModel };
 
-const FALLBACK_IMAGE_MODEL: ImageGenerationModel = "nano-banana";
-
-export const getImageGenerationModel = (): ImageGenerationModel => {
-  const configured = readEnv("LILO_IMAGE_MODEL")?.toLowerCase();
-
-  if (configured === "nano-banana-2") {
-    return "nano-banana-2";
-  }
-
-  if (configured === "nano-banana") {
-    return "nano-banana";
-  }
-
-  if (configured === "flux-2-klein-4b") {
-    return "flux-2-klein-4b";
-  }
-
-  return FALLBACK_IMAGE_MODEL;
-};
+export const getImageGenerationModel = (): ImageGenerationModel =>
+  backendConfig.media.imageModel;

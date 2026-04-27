@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../config/runtime";
+import { config } from "../config/config";
 
 const AUTH_REQUIRED_EVENT = "lilo-auth-required";
 
@@ -42,7 +42,7 @@ export interface SessionStatusResponse {
 }
 
 export const fetchSessionStatus = async (): Promise<SessionStatusResponse> => {
-  const response = await authFetch(`${API_BASE_URL}/auth/session`);
+  const response = await authFetch(`${config.apiBaseUrl}/auth/session`);
   if (!response.ok) {
     throw new Error(`Failed to fetch auth session (${response.status})`);
   }
@@ -51,7 +51,7 @@ export const fetchSessionStatus = async (): Promise<SessionStatusResponse> => {
 };
 
 export const loginWithPassword = async (password: string): Promise<void> => {
-  const response = await authFetch(`${API_BASE_URL}/auth/login`, {
+  const response = await authFetch(`${config.apiBaseUrl}/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -74,8 +74,7 @@ export const loginWithPassword = async (password: string): Promise<void> => {
 };
 
 export const logout = async (): Promise<void> => {
-  await authFetch(`${API_BASE_URL}/auth/logout`, {
+  await authFetch(`${config.apiBaseUrl}/auth/logout`, {
     method: "POST",
   });
 };
-

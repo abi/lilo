@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ENABLE_WORKSPACE_SYNC } from "../config/runtime";
+import { config } from "../config/config";
 import { UnauthorizedError, authFetch } from "../lib/auth";
 import type {
   WorkspaceAppLink,
@@ -7,7 +7,7 @@ import type {
   WorkspacePreferences,
   WorkspaceTemplateUpdate,
 } from "../components/workspace/types";
-import { API_BASE_URL, formatSetupError, parseErrorMessage } from "./workspace/utils";
+import { formatSetupError, parseErrorMessage } from "./workspace/utils";
 
 const DEFAULT_WORKSPACE_TIME_ZONE = "America/New_York";
 const SELECTED_VIEWER_PATH_STORAGE_KEY = "lilo-selected-viewer-path";
@@ -123,7 +123,7 @@ export function useWorkspaceCatalog({
 
   const loadWorkspace = useCallback(async (signal?: AbortSignal) => {
     try {
-      const response = await authFetch(`${API_BASE_URL}/workspace/apps`, { signal });
+      const response = await authFetch(`${config.apiBaseUrl}/workspace/apps`, { signal });
       if (!response.ok) {
         if (response.status === 401) {
           throw new UnauthorizedError();
@@ -204,13 +204,13 @@ export function useWorkspaceCatalog({
   );
 
   const silentSync = useCallback(async () => {
-    if (!ENABLE_WORKSPACE_SYNC) {
+    if (!config.workspace.syncEnabled) {
       setSilentSyncError(null);
       return;
     }
 
     try {
-      const response = await authFetch(`${API_BASE_URL}/workspace/sync`, { method: "POST" });
+      const response = await authFetch(`${config.apiBaseUrl}/workspace/sync`, { method: "POST" });
       if (response.ok) {
         setSilentSyncError(null);
         void loadWorkspace();
@@ -237,7 +237,7 @@ export function useWorkspaceCatalog({
       setWorkspaceApps(nextApps);
 
       try {
-        const response = await authFetch(`${API_BASE_URL}/workspace/app-order`, {
+        const response = await authFetch(`${config.apiBaseUrl}/workspace/app-order`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -270,7 +270,7 @@ export function useWorkspaceCatalog({
       setWorkspaceApps(nextApps);
 
       try {
-        const response = await authFetch(`${API_BASE_URL}/workspace/app-archive`, {
+        const response = await authFetch(`${config.apiBaseUrl}/workspace/app-archive`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -314,7 +314,7 @@ export function useWorkspaceCatalog({
       setWorkspacePreferences({ timeZone });
 
       try {
-        const response = await authFetch(`${API_BASE_URL}/workspace/preferences`, {
+        const response = await authFetch(`${config.apiBaseUrl}/workspace/preferences`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -341,7 +341,7 @@ export function useWorkspaceCatalog({
 
       try {
         const response = await authFetch(
-          `${API_BASE_URL}/workspace/template-updates/${encodeURIComponent(update.appName)}/dismiss`,
+          `${config.apiBaseUrl}/workspace/template-updates/${encodeURIComponent(update.appName)}/dismiss`,
           { method: "POST" },
         );
 
@@ -401,7 +401,7 @@ export function useWorkspaceCatalog({
 
   const startupError = initializationError ?? workspaceLoadError;
   const startupErrorMessage = startupError ? formatSetupError(startupError) : null;
-  const selectedViewerUrl = selectedViewerPath ? `${API_BASE_URL}${selectedViewerPath}` : null;
+  const selectedViewerUrl = selectedViewerPath ? `${config.apiBaseUrl}${selectedViewerPath}` : null;
 
   return {
     workspaceApps,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { API_BASE_URL } from "../config/runtime";
+import { config } from "../config/config";
 import { authFetch } from "../lib/auth";
 import type { ChatMessage, ChatSessionState } from "../store/chatStore";
 
@@ -54,7 +54,7 @@ export function useAppChats(showAppChats: boolean) {
 
     setLoadingAppChats(true);
     try {
-      const response = await authFetch(`${API_BASE_URL}/api/app-chats`);
+      const response = await authFetch(`${config.apiBaseUrl}/api/app-chats`);
       if (!response.ok) {
         throw new Error(`Failed to fetch app chats (${response.status})`);
       }
@@ -93,7 +93,7 @@ export function useAppChats(showAppChats: boolean) {
         id: summary.id,
       });
       const response = await authFetch(
-        `${API_BASE_URL}/api/app-chats/${encodeURIComponent(summary.appName)}/${encodeURIComponent(summary.sessionId)}`,
+        `${config.apiBaseUrl}/api/app-chats/${encodeURIComponent(summary.appName)}/${encodeURIComponent(summary.sessionId)}`,
       );
       if (!response.ok) {
         throw new Error(`Failed to fetch app chat (${response.status})`);

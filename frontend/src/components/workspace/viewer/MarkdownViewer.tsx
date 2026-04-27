@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { API_BASE_URL } from "../../../config/runtime";
+import { config } from "../../../config/config";
 import { authFetch } from "../../../lib/auth";
 import { MarkdownRenderer } from "../../MarkdownRenderer";
 
@@ -54,7 +54,7 @@ export function MarkdownViewer({
     try {
       const relativePath = basePath.replace(/^\/workspace-file\//, "");
       const response = await authFetch(
-        `${API_BASE_URL}/workspace-file/${relativePath}`,
+        `${config.apiBaseUrl}/workspace-file/${relativePath}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { API_BASE_URL, fetchJson, uploadChatAttachments } from "./api";
+import { config } from "../../config/config";
+import { fetchJson, uploadChatAttachments } from "./api";
 import {
   appendInlineErrorMessage,
   createChatState,
@@ -395,7 +396,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => {
     resumedRunSyncState.set(chatId, syncState);
 
     try {
-      const payload = await fetchJson<ChatDetailResponse>(`${API_BASE_URL}/chats/${chatId}`);
+      const payload = await fetchJson<ChatDetailResponse>(`${config.apiBaseUrl}/chats/${chatId}`);
       const detail = applyPushedTitle(payload.chat);
       set((state) => ({
         chatsById: {
@@ -519,7 +520,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => {
 
     try {
       const payload = await fetchJson<{ chats: import("./types").ChatSummary[] }>(
-        `${API_BASE_URL}/chats`,
+        `${config.apiBaseUrl}/chats`,
       );
       const chats = applyPushedTitles(payload.chats);
 
@@ -565,7 +566,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => {
 
   refreshChatList: async () => {
     const payload = await fetchJson<{ chats: import("./types").ChatSummary[] }>(
-      `${API_BASE_URL}/chats`,
+      `${config.apiBaseUrl}/chats`,
     );
     const chats = applyPushedTitles(payload.chats);
     const merged = mergeChatSummaries(chats, get().chatsById);
@@ -593,7 +594,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => {
             modelId: options.modelId,
           })
         : undefined;
-    const payload = await fetchJson<ChatDetailResponse>(`${API_BASE_URL}/chats`, {
+    const payload = await fetchJson<ChatDetailResponse>(`${config.apiBaseUrl}/chats`, {
       method: "POST",
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body,
@@ -618,7 +619,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => {
   },
 
   updateChatModel: async (chatId, modelSelection) => {
-    const payload = await fetchJson<ChatDetailResponse>(`${API_BASE_URL}/chats/${chatId}/model`, {
+    const payload = await fetchJson<ChatDetailResponse>(`${config.apiBaseUrl}/chats/${chatId}/model`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -656,7 +657,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => {
     prefetchesInFlight.add(chatId);
     try {
       const payload = await fetchJson<ChatDetailResponse>(
-        `${API_BASE_URL}/chats/${chatId}`,
+        `${config.apiBaseUrl}/chats/${chatId}`,
       );
       const chat = applyPushedTitle(payload.chat);
       set((state) => {
@@ -691,7 +692,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => {
     }
 
     try {
-      const payload = await fetchJson<ChatDetailResponse>(`${API_BASE_URL}/chats/${chatId}`);
+      const payload = await fetchJson<ChatDetailResponse>(`${config.apiBaseUrl}/chats/${chatId}`);
       const chat = applyPushedTitle(payload.chat);
 
       set((state) => ({
@@ -963,7 +964,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => {
         await getChatSocketController(chatId).stopRun();
     } catch {
       try {
-        await authFetch(`${API_BASE_URL}/chats/${chatId}/stop`, { method: "POST" });
+        await authFetch(`${config.apiBaseUrl}/chats/${chatId}/stop`, { method: "POST" });
       } catch {
         // Best-effort stop; the stream will clean up local state.
       }
@@ -1215,7 +1216,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => {
       );
     } finally {
       await get().refreshChatList().catch(() => undefined);
-      await fetchJson<ChatDetailResponse>(`${API_BASE_URL}/chats/${chatId}`)
+      await fetchJson<ChatDetailResponse>(`${config.apiBaseUrl}/chats/${chatId}`)
         .then((payload) => {
           const detail = applyPushedTitle(payload.chat);
           set((state) => ({

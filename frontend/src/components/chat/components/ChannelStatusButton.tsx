@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
-import { API_BASE_URL, fetchJson } from "../../../store/chat/api";
+import { config } from "../../../config/config";
+import { fetchJson } from "../../../store/chat/api";
 
 type ChannelState = "configured" | "partial" | "missing";
 
@@ -128,7 +129,7 @@ export function ChannelStatusButton() {
     setLoading(true);
     setError(null);
 
-    fetchJson<ChannelStatusResponse>(`${API_BASE_URL}/api/channels/status`)
+    fetchJson<ChannelStatusResponse>(`${config.apiBaseUrl}/api/channels/status`)
       .then((payload) => {
         if (!cancelled) {
           setChannels(payload.channels);
@@ -487,7 +488,7 @@ function getSetupSteps(channelId: ChannelStatus["id"]): string[] {
 }
 
 function getWebhookUrl(path: string): string {
-  const configuredBaseUrl = API_BASE_URL.trim();
+  const configuredBaseUrl = config.apiBaseUrl.trim();
   const baseUrl =
     configuredBaseUrl.startsWith("http://") || configuredBaseUrl.startsWith("https://")
       ? configuredBaseUrl

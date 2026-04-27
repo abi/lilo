@@ -4,7 +4,7 @@ import { marked } from "marked";
 import type { ImageContent } from "@mariozechner/pi-ai";
 import type { UploadedChatFile } from "../chat/chat.request.js";
 import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
-import { readCsvEnv, readEnv } from "../../shared/config/env.js";
+import { backendConfig } from "../../shared/config/config.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
 import { ASK_USER_QUESTION_TOOL_NAME } from "../../shared/tools/askUserQuestionTool.js";
 import {
@@ -35,22 +35,22 @@ const MAX_EMAIL_ATTACHMENTS = 24;
 const MAX_EMAIL_ATTACHMENT_BYTES = 40 * 1024 * 1024;
 
 const getResendApiKey = (): string | null =>
-  process.env.RESEND_API_KEY?.trim() || null;
+  backendConfig.channels.email.resendApiKey;
 
 const getResendWebhookSecret = (): string | null =>
-  process.env.RESEND_WEBHOOK_SECRET?.trim() || null;
+  backendConfig.channels.email.resendWebhookSecret;
 
 const getLiloEmailTo = (): string | null =>
-  readEnv("LILO_EMAIL_AGENT_ADDRESS");
+  backendConfig.channels.email.agentAddress;
 
 const getLiloEmailFrom = (): string | null =>
-  readEnv("LILO_EMAIL_REPLY_FROM");
+  backendConfig.channels.email.replyFrom;
 
 const getLiloPublicAppUrl = (): string | null =>
-  readEnv("LILO_PUBLIC_APP_URL");
+  backendConfig.server.publicAppUrl;
 
 const getAllowedEmails = (): string[] => {
-  const allowedEmails = readCsvEnv("LILO_EMAIL_ALLOWED_SENDERS").map((entry) =>
+  const allowedEmails = backendConfig.channels.email.allowedSenders.map((entry) =>
     entry.toLowerCase(),
   );
   if (allowedEmails.length === 0) {

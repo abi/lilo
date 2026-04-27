@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import type { Context } from "hono";
+import { backendConfig } from "../config/config.js";
 
 const SESSION_COOKIE_NAME = "lilo_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
@@ -17,7 +18,7 @@ const base64UrlDecode = (value: string): string =>
   Buffer.from(value, "base64url").toString("utf8");
 
 const getCookieSecret = (): string | null =>
-  process.env.LILO_AUTH_SESSION_SECRET?.trim() || process.env.LILO_AUTH_PASSWORD?.trim() || null;
+  backendConfig.auth.sessionSecret;
 
 const sign = (payload: string, secret: string): string =>
   createHmac("sha256", secret).update(payload).digest("base64url");
@@ -82,10 +83,10 @@ const readPayload = (token: string): SessionPayload | null => {
 };
 
 export const isCookieSessionAuthEnabled = (): boolean =>
-  Boolean(process.env.LILO_AUTH_PASSWORD?.trim());
+  Boolean(backendConfig.auth.password);
 
 export const verifyLoginPassword = (password: string): boolean => {
-  const expected = process.env.LILO_AUTH_PASSWORD?.trim();
+  const expected = backendConfig.auth.password;
   if (!expected) {
     return false;
   }
@@ -115,7 +116,7 @@ export const createSessionToken = (): string => {
 export const setSessionCookie = (c: Context, token: string): void => {
   setCookie(c, SESSION_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: backendConfig.runtime.nodeEnv === "production",
     sameSite: "Lax",
     path: "/",
     maxAge: SESSION_TTL_SECONDS,

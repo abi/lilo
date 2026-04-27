@@ -1,3 +1,5 @@
+import { backendConfig } from "../config/config.js";
+
 type SentrySeverityLevel = "fatal" | "error" | "warning" | "log" | "info" | "debug";
 
 interface CaptureBackendExceptionOptions {
@@ -12,17 +14,9 @@ type SentryNodeModule = typeof import("@sentry/node");
 let didInitSentry = false;
 let sentryModulePromise: Promise<SentryNodeModule | null> | null = null;
 
-const parseBooleanEnv = (value: string | undefined): boolean => {
-  if (!value) {
-    return false;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
-};
-
 const shouldEnableSentry = (): boolean =>
-  parseBooleanEnv(process.env.ENABLE_SENTRY) && Boolean(process.env.SENTRY_DSN?.trim());
+  backendConfig.observability.sentry.enabled &&
+  Boolean(backendConfig.observability.sentry.dsn);
 
 const loadSentry = async (): Promise<SentryNodeModule | null> => {
   if (!shouldEnableSentry()) {
@@ -34,7 +28,7 @@ const loadSentry = async (): Promise<SentryNodeModule | null> => {
       .then((Sentry) => {
         if (!didInitSentry) {
           Sentry.init({
-            dsn: process.env.SENTRY_DSN?.trim(),
+            dsn: backendConfig.observability.sentry.dsn ?? undefined,
           });
 
           didInitSentry = true;
