@@ -63,3 +63,138 @@ body {
 pre {
   overflow-x: auto;
 }
+
+.markdown-wysiwyg {
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.markdown-wysiwyg > * + * {
+  margin-top: 0.75rem;
+}
+
+.markdown-wysiwyg h1,
+.markdown-wysiwyg h2,
+.markdown-wysiwyg h3 {
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.markdown-wysiwyg h1 {
+  font-size: 1.875rem;
+}
+
+.markdown-wysiwyg h2 {
+  font-size: 1.5rem;
+}
+
+.markdown-wysiwyg h3 {
+  font-size: 1.25rem;
+}
+
+.markdown-wysiwyg ul,
+.markdown-wysiwyg ol {
+  padding-left: 1.5rem;
+}
+
+.markdown-wysiwyg ul {
+  list-style: disc;
+}
+
+.markdown-wysiwyg ol {
+  list-style: decimal;
+}
+
+.markdown-wysiwyg blockquote {
+  border-left: 3px solid #d4d4d4;
+  color: #525252;
+  padding-left: 1rem;
+}
+
+.dark .markdown-wysiwyg blockquote {
+  border-left-color: #525252;
+  color: #d4d4d4;
+}
+
+.markdown-wysiwyg code {
+  border-radius: 0.375rem;
+  background: #f5f5f5;
+  padding: 0.125rem 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.dark .markdown-wysiwyg code {
+  background: #171717;
+}
+
+.markdown-wysiwyg pre {
+  border-radius: 0.75rem;
+  background: #171717;
+  color: #f5f5f5;
+  padding: 1rem;
+}
+
+.markdown-wysiwyg pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-wysiwyg a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dark .markdown-wysiwyg a {
+  color: #93c5fd;
+}
+
+.markdown-wysiwyg ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.markdown-wysiwyg ul[data-type="taskList"] li {
+  align-items: flex-start;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.markdown-wysiwyg ul[data-type="taskList"] li > label {
+  line-height: 1.7;
+  user-select: none;
+}
+
+.markdown-wysiwyg ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+.markdown-wysiwyg p.is-editor-empty:first-child::before {
+  color: #a3a3a3;
+  content: "Start writing...";
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.milkdown-editor .milkdown {
+  min-height: 100%;
+  --crepe-font-title: "DM Sans", system-ui, sans-serif;
+  --crepe-font-default: "DM Sans", system-ui, sans-serif;
+}
+
+.milkdown-editor .milkdown .editor {
+  min-height: 100%;
+  padding: 1.25rem 1.5rem;
+}
+
+.milkdown-editor .milkdown .ProseMirror {
+  min-height: calc(100vh - 16rem);
+  outline: none;
+}
+
+.milkdown-editor .milkdown .milkdown-toolbar {
+  z-index: 30;
+}
