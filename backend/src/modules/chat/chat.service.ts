@@ -18,7 +18,7 @@ import {
   OPEN_APP_TOOL_NAME,
   isOpenAppDetails,
 } from "../../shared/tools/openAppTool.js";
-import { PI_SYSTEM_PROMPT } from "../../shared/prompts/piSystemPrompt.js";
+import { buildPiSystemPrompt } from "../../shared/prompts/piSystemPrompt.js";
 import { WORKSPACE_ROOT } from "../../shared/config/paths.js";
 import { resolveSessionSubdir } from "../../shared/config/sessions.js";
 import {
@@ -1677,9 +1677,10 @@ export class PiSdkChatService {
     }
 
     const sessionManager = SessionManager.open(sessionInfo.path, this.sessionDir);
+    const systemPrompt = await buildPiSystemPrompt(this.workspaceDir);
     const resourceLoader = await createSystemPromptResourceLoader(
       this.workspaceDir,
-      PI_SYSTEM_PROMPT,
+      systemPrompt,
     );
     const modelSelection = await this.readChatModelSelection(sessionInfo.path);
     const { session } = await createAgentSession({

@@ -1,17 +1,22 @@
 import { existsSync, readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { captureBackendException } from "../observability/sentry.js";
 
 const PROMPTS_DIR = dirname(fileURLToPath(import.meta.url));
+const SOUL_FILE_NAME = "SOUL.md";
+const MAX_SOUL_PROMPT_CHARS = 12_000;
 const DESIGN_SYSTEM_PATH_CANDIDATES = [
   resolve(PROMPTS_DIR, "DESIGN-SYSTEM.md"),
   resolve(PROMPTS_DIR, "../../../src/shared/prompts/DESIGN-SYSTEM.md"),
 ];
 
-const BASE_PI_SYSTEM_PROMPT = `
+const DEFAULT_SOUL_PROMPT = `# Soul / Identity
 
-You are Lilo, a powerful agent that can help with a wide range of tasks. You are primarily a chatbot but you can also build apps as a coding agent.
+You are Lilo, a powerful agent that can help with a wide range of tasks. You are primarily a chatbot but you can also build apps as a coding agent.`;
+
+const BASE_PI_SYSTEM_PROMPT = `
 
 # Core instructions
 
@@ -583,4 +588,36 @@ const readDesignSystemPrompt = (): string => {
   }
 };
 
-export const PI_SYSTEM_PROMPT = `${BASE_PI_SYSTEM_PROMPT}${readDesignSystemPrompt()}`;
+const readWorkspaceSoulPrompt = async (workspaceDir: string): Promise<string> => {
+  try {
+    const soul = (await readFile(resolve(workspaceDir, SOUL_FILE_NAME), "utf8")).trim();
+    if (soul.length === 0) {
+      return DEFAULT_SOUL_PROMPT;
+    }
+
+    if (soul.length <= MAX_SOUL_PROMPT_CHARS) {
+      return `# Soul / Identity\n\n${soul}`;
+    }
+
+    captureBackendException(new Error("SOUL.md exceeded prompt character limit and was truncated"), {
+      tags: {
+        area: "prompts",
+        prompt_file: SOUL_FILE_NAME,
+      },
+      extras: {
+        workspaceDir,
+        length: soul.length,
+        maxLength: MAX_SOUL_PROMPT_CHARS,
+      },
+      level: "warning",
+      fingerprint: ["prompts", "soul", "truncated"],
+    });
+
+    return `# Soul / Identity\n\n${soul.slice(0, MAX_SOUL_PROMPT_CHARS).trim()}\n\n[SOUL.md truncated to ${MAX_SOUL_PROMPT_CHARS} characters.]`;
+  } catch {
+    return DEFAULT_SOUL_PROMPT;
+  }
+};
+
+export const buildPiSystemPrompt = async (workspaceDir: string): Promise<string> =>
+  `${await readWorkspaceSoulPrompt(workspaceDir)}${BASE_PI_SYSTEM_PROMPT}${readDesignSystemPrompt()}`;
