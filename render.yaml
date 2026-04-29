@@ -8,7 +8,6 @@ services:
     startCommand: node backend/dist/index.js
     healthCheckPath: /health
     autoDeployTrigger: commit
-    maxShutdownDelaySeconds: 120
     disk:
       name: lilo-data
       mountPath: /var/data
