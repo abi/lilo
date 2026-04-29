@@ -61,7 +61,7 @@ const readTelegramUserIdList = (name: string): string[] =>
 export const backendConfig = {
   server: {
     port: readNumberEnv("PORT", 8787),
-    publicAppUrl: readEnv("LILO_PUBLIC_APP_URL"),
+    publicAppUrl: readEnv("LILO_PUBLIC_APP_URL") ?? readEnv("RENDER_EXTERNAL_URL"),
   },
   runtime: {
     nodeEnv: readEnv("NODE_ENV") ?? "development",

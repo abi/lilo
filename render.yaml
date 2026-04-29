@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: lilo
+    runtime: node
+    plan: starter
+    region: oregon
+    buildCommand: corepack enable && corepack prepare pnpm@10.5.2 --activate && pnpm install --frozen-lockfile && pnpm build
+    startCommand: node backend/dist/index.js
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    maxShutdownDelaySeconds: 120
+    disk:
+      name: lilo-data
+      mountPath: /var/data
+      sizeGB: 10
+    envVars:
+      - key: NODE_VERSION
+        value: 24.14.1
+      - key: PORT
+        value: 10000
+      - key: LILO_WORKSPACE_DIR
+        value: /var/data/workspace
+      - key: LILO_SESSIONS_DIR
+        value: /var/data/sessions
+      - key: LILO_AUTH_PASSWORD
+        sync: false
+      - key: LILO_AUTH_SESSION_SECRET
+        generateValue: true
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LILO_WORKSPACE_GIT_URL
+        sync: false
