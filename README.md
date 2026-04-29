@@ -40,7 +40,7 @@ https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
 <tr><td><b>🎨 Rich tool suite</b></td><td>Image generation (Replicate), web search & scraping (Firecrawl), headless browser automation (Browserbase), filesystem ops, shell execution, network fetch — all callable by apps and the agent when configured.</td></tr>
 <tr><td><b>📱 Mobile-ready</b></td><td>Optimized for phones. All apps render seamlessly on both.</td></tr>
 <tr><td><b>🔐 Password-gated and private</b></td><td>One env var locks down the entire web app and all backend APIs (REST + WebSocket). Webhooks stay accessible with their own provider-signed requests.</td></tr>
-<tr><td><b>🧰 Model-agnostic</b></td><td>Pick between <b>GPT 5.4</b> (OpenAI) and <b>Claude Opus 4.7</b> (Anthropic) per chat. Switch mid-conversation.</td></tr>
+<tr><td><b>🧰 Model-agnostic</b></td><td>Pick between <b>GPT 5.5</b> (OpenAI) and <b>Claude Opus 4.7</b> (Anthropic) per chat. Switch mid-conversation.</td></tr>
 <tr><td><b>🔄 Git-backed cloud sync</b></td><td>Optionally sync your workspace to a git remote so the entire workspace (apps, data, and memories) is versioned and portable across devices.</td></tr>
 <tr><td><b>⌨️ Keyboard-first UX</b></td><td><code>⌘K</code> / <code>Ctrl+K</code> command palette for instant app switching. Browser back/forward navigates between previously opened apps.</td></tr>
 </table>
@@ -74,7 +74,7 @@ LILO_WORKSPACE_DIR=./workspace          # where the agent's files live
 LILO_SESSIONS_DIR=./.lilo-sessions      # persistent chat session storage
 
 # At least one chat model
-OPENAI_API_KEY=sk-...                   # enables GPT 5.4
+OPENAI_API_KEY=sk-...                   # enables GPT 5.5
 ANTHROPIC_API_KEY=sk-ant-...            # enables Claude Opus 4.7
 
 # Recommended
@@ -125,7 +125,7 @@ At least one is required to actually use Lilo.
 
 | Variable            | Enables               |
 | ------------------- | --------------------- |
-| `OPENAI_API_KEY`    | GPT 5.4, GPT 5.4 Mini |
+| `OPENAI_API_KEY`    | GPT 5.5, GPT 5.4 Mini |
 | `ANTHROPIC_API_KEY` | Claude Opus 4.7       |
 
 
@@ -135,7 +135,7 @@ Limit the chat dropdown/API to specific models with a comma-separated allowlist:
 LILO_CHAT_MODEL_ALLOWLIST=gpt-5.4-mini
 ```
 
-Supported model ids: `claude-opus-4-7`, `gpt-5.4`, `gpt-5.4-mini`.
+Supported model ids: `claude-opus-4-7`, `gpt-5.5`, `gpt-5.4-mini`.
 
 ### Agent tools (optional)
 

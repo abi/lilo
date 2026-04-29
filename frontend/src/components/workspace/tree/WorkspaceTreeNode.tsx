@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { EntryIcon } from "../EntryIcon";
 import { kindBadge, reorderAppNames } from "../lib/workspaceTree";
 import type { WorkspaceAppLink, WorkspaceEntry } from "../types";
@@ -37,10 +38,24 @@ export function WorkspaceTreeNode({
     entry.kind === "app" ? selectedEntry?.appName === entry.name || isSelected : isSelected;
   const appIndex = workspaceApps.findIndex((app) => app.name === entry.name);
   const badge = kindBadge(entry.kind);
+  const rowRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isSelected) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      rowRef.current?.scrollIntoView({ block: "nearest" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isSelected]);
 
   return (
     <div key={entry.relativePath} className="space-y-0.5">
       <div
+        ref={rowRef}
         className={`flex items-center gap-1 rounded-lg ${
           isContextSelected
             ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"

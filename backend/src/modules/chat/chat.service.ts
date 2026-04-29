@@ -5,7 +5,6 @@ import type { AgentSessionEvent, SessionContext } from "@mariozechner/pi-coding-
 import {
   SessionManager,
   createAgentSession,
-  createCodingTools,
 } from "@mariozechner/pi-coding-agent";
 import {
   type ImageContent,
@@ -1688,7 +1687,6 @@ export class PiSdkChatService {
       model: resolvePiModel(modelSelection),
       thinkingLevel: "high",
       sessionManager,
-      tools: createCodingTools(this.workspaceDir),
       customTools: CUSTOM_TOOLS,
       resourceLoader,
     });

@@ -41,7 +41,7 @@ export interface ChatContextInput {
 }
 
 export type ChatModelProvider = "openai" | "anthropic";
-export type ChatModelId = "gpt-5.4" | "gpt-5.4-mini" | "claude-opus-4-7";
+export type ChatModelId = "gpt-5.5" | "gpt-5.4-mini" | "claude-opus-4-7";
 
 export interface ChatMessage {
   id: string;

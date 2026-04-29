@@ -2,7 +2,7 @@ import { getModel } from "@mariozechner/pi-ai";
 import { backendConfig } from "../config/config.js";
 
 export type ChatModelProvider = "openai" | "anthropic";
-export type ChatModelId = "gpt-5.4" | "gpt-5.4-mini" | "claude-opus-4-7";
+export type ChatModelId = "gpt-5.5" | "gpt-5.4-mini" | "claude-opus-4-7";
 
 export interface ChatModelSelection {
   provider: ChatModelProvider;
@@ -11,7 +11,7 @@ export interface ChatModelSelection {
 
 export const CHAT_MODEL_OPTIONS: ChatModelSelection[] = [
   { provider: "anthropic", modelId: "claude-opus-4-7" },
-  { provider: "openai", modelId: "gpt-5.4" },
+  { provider: "openai", modelId: "gpt-5.5" },
   { provider: "openai", modelId: "gpt-5.4-mini" },
 ];
 

@@ -19,7 +19,7 @@ import { useViewerHistoryNav } from "./hooks/useViewerHistoryNav";
 import { useWorkspaceState } from "./hooks/useWorkspaceState";
 import { useWorkspaceTemplateUpdateRequest } from "./hooks/useWorkspaceTemplateUpdateRequest";
 import { useViewerElementPicker } from "./components/workspace/hooks/useViewerElementPicker";
-import type { WorkspaceAppLink } from "./components/workspace/types";
+import type { WorkspaceAppLink, WorkspaceEntry } from "./components/workspace/types";
 import { type ChatElementSelection, useChatStore } from "./store/chatStore";
 import { useThemeStore } from "./store/themeStore";
 
@@ -434,6 +434,22 @@ function App() {
     [workspace, shell],
   );
 
+  const handleOpenFileFromPalette = useCallback(
+    (entry: WorkspaceEntry) => {
+      if (!entry.viewerPath) {
+        return;
+      }
+
+      workspace.setSelectedViewerPath(entry.viewerPath);
+      workspace.refreshViewer();
+      shell.showSidebarPanel();
+      // Also switch the mobile view — harmless on desktop.
+      shell.openMobileViewer();
+      setIsCommandPaletteOpen(false);
+    },
+    [workspace, shell],
+  );
+
   // Global Cmd/Ctrl+K toggles the command palette.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -674,8 +690,10 @@ function App() {
       <CommandPalette
         open={isCommandPaletteOpen}
         workspaceApps={workspace.workspaceApps}
+        workspaceEntries={workspace.workspaceEntries}
         onClose={() => setIsCommandPaletteOpen(false)}
         onSelectApp={handleOpenAppFromPalette}
+        onSelectFile={handleOpenFileFromPalette}
       />
     </div>
   );

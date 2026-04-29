@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { WorkspaceAppLink } from "../workspace/types";
+import { EntryIcon } from "../workspace/EntryIcon";
+import type { WorkspaceAppLink, WorkspaceEntry } from "../workspace/types";
 
 interface CommandPaletteProps {
   open: boolean;
   workspaceApps: WorkspaceAppLink[];
+  workspaceEntries: WorkspaceEntry[];
   onClose: () => void;
   onSelectApp: (app: WorkspaceAppLink) => void;
+  onSelectFile: (entry: WorkspaceEntry) => void;
 }
 
 type ScoredApp = {
@@ -14,6 +17,22 @@ type ScoredApp = {
   score: number;
   index: number;
 };
+
+type ScoredFile = {
+  entry: WorkspaceEntry;
+  score: number;
+  index: number;
+};
+
+type PaletteResult =
+  | {
+      kind: "app";
+      app: WorkspaceAppLink;
+    }
+  | {
+      kind: "file";
+      entry: WorkspaceEntry;
+    };
 
 const scoreApp = (app: WorkspaceAppLink, query: string): number => {
   if (!query) return 1;
@@ -25,18 +44,33 @@ const scoreApp = (app: WorkspaceAppLink, query: string): number => {
   return 0;
 };
 
+const scoreFile = (entry: WorkspaceEntry, query: string): number => {
+  if (!query) return 0;
+  const name = entry.name.toLowerCase();
+  const path = entry.relativePath.toLowerCase();
+  if (name === query || path === query) return 900;
+  if (name.startsWith(query) || path.startsWith(query)) return 400;
+  if (name.includes(query) || path.includes(query)) return 90;
+  return 0;
+};
+
+const getFileParentLabel = (entry: WorkspaceEntry): string =>
+  entry.parentRelativePath ?? "workspace";
+
 export function CommandPalette({
   open,
   workspaceApps,
+  workspaceEntries,
   onClose,
   onSelectApp,
+  onSelectFile,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
-  const filtered = useMemo(() => {
+  const filteredApps = useMemo(() => {
     const q = query.trim().toLowerCase();
     // Always pin the built-in Desktop app to the front, regardless of
     // archive state or search score.
@@ -63,6 +97,36 @@ export function CommandPalette({
     const matches = scored.map((s) => s.app);
     return desktopMatch && desktopApp ? [desktopApp, ...matches] : matches;
   }, [workspaceApps, query]);
+
+  const filteredFiles = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) {
+      return [];
+    }
+
+    const scored: ScoredFile[] = [];
+    workspaceEntries.forEach((entry, index) => {
+      if (entry.kind === "app" || entry.kind === "directory" || !entry.viewerPath) {
+        return;
+      }
+
+      const score = scoreFile(entry, q);
+      if (score > 0) {
+        scored.push({ entry, score, index });
+      }
+    });
+
+    scored.sort((a, b) => b.score - a.score || a.index - b.index);
+    return scored.map((item) => item.entry);
+  }, [workspaceEntries, query]);
+
+  const filtered = useMemo<PaletteResult[]>(
+    () => [
+      ...filteredApps.map((app) => ({ kind: "app" as const, app })),
+      ...filteredFiles.map((entry) => ({ kind: "file" as const, entry })),
+    ],
+    [filteredApps, filteredFiles],
+  );
 
   // Reset state when opened/closed.
   useEffect(() => {
@@ -115,15 +179,19 @@ export function CommandPalette({
       }
       if (event.key === "Enter") {
         event.preventDefault();
-        const app = filtered[selectedIndex];
-        if (app) {
-          onSelectApp(app);
+        const result = filtered[selectedIndex];
+        if (result?.kind === "app") {
+          onSelectApp(result.app);
+          return;
+        }
+        if (result?.kind === "file") {
+          onSelectFile(result.entry);
         }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, filtered, selectedIndex, onClose, onSelectApp]);
+  }, [open, filtered, selectedIndex, onClose, onSelectApp, onSelectFile]);
 
   if (!open) return null;
 
@@ -155,7 +223,7 @@ export function CommandPalette({
             type="text"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={"Search apps\u2026"}
+            placeholder={"Search apps and files\u2026"}
             className="w-full bg-transparent py-1 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 dark:text-neutral-100 dark:placeholder:text-neutral-500"
           />
           <kbd className="hidden shrink-0 rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-sans text-[10px] font-medium text-neutral-500 sm:inline dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
@@ -166,53 +234,103 @@ export function CommandPalette({
         <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto p-1.5">
           {filtered.length === 0 ? (
             <p className="px-3 py-10 text-center text-sm text-neutral-400 dark:text-neutral-500">
-              {query.trim() ? "No matching apps." : "No apps available."}
+              {query.trim() ? "No matching apps or files." : "No apps available."}
             </p>
           ) : (
-            filtered.map((app, index) => {
-              const isActive = index === selectedIndex;
-              return (
-                <button
-                  key={app.name}
-                  type="button"
-                  data-palette-index={index}
-                  onMouseEnter={() => setSelectedIndex(index)}
-                  onClick={() => onSelectApp(app)}
-                  className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition ${
-                    isActive
-                      ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
-                      : "text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800/60"
-                  }`}
-                >
-                  {app.iconHref ? (
-                    <img
-                      src={app.iconHref}
-                      alt=""
-                      className="h-8 w-8 shrink-0 rounded-lg border border-neutral-200 object-cover dark:border-neutral-700"
-                    />
-                  ) : (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-200 text-xs font-bold uppercase text-neutral-600 dark:border-neutral-700 dark:bg-neutral-700 dark:text-neutral-300">
-                      {(app.displayName ?? app.name).charAt(0)}
-                    </div>
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
-                      {app.displayName ?? app.name}
-                    </span>
-                    {app.displayName && app.displayName !== app.name ? (
-                      <span className="block truncate text-[11px] text-neutral-400 dark:text-neutral-500">
-                        {app.name}
+            <>
+              {filteredApps.length > 0 ? (
+                <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
+                  Apps
+                </p>
+              ) : null}
+              {filtered.map((result, index) => {
+                const isActive = index === selectedIndex;
+                if (result.kind === "app") {
+                  const { app } = result;
+                  return (
+                    <button
+                      key={`app:${app.name}`}
+                      type="button"
+                      data-palette-index={index}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                      onClick={() => onSelectApp(app)}
+                      className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition ${
+                        isActive
+                          ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
+                          : "text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800/60"
+                      }`}
+                    >
+                      {app.iconHref ? (
+                        <img
+                          src={app.iconHref}
+                          alt=""
+                          className="h-8 w-8 shrink-0 rounded-lg border border-neutral-200 object-cover dark:border-neutral-700"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-200 text-xs font-bold uppercase text-neutral-600 dark:border-neutral-700 dark:bg-neutral-700 dark:text-neutral-300">
+                          {(app.displayName ?? app.name).charAt(0)}
+                        </div>
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">
+                          {app.displayName ?? app.name}
+                        </span>
+                        {app.displayName && app.displayName !== app.name ? (
+                          <span className="block truncate text-[11px] text-neutral-400 dark:text-neutral-500">
+                            {app.name}
+                          </span>
+                        ) : null}
                       </span>
+                      {isActive ? (
+                        <kbd className="hidden shrink-0 items-center gap-0.5 rounded border border-neutral-200 bg-white px-1.5 py-0.5 font-sans text-[10px] font-medium text-neutral-500 sm:inline-flex dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-400">
+                          {"\u21B5"}
+                        </kbd>
+                      ) : null}
+                    </button>
+                  );
+                }
+
+                const previous = filtered[index - 1];
+                const shouldRenderFilesLabel = result.kind === "file" && previous?.kind !== "file";
+                return (
+                  <div key={`file:${result.entry.relativePath}`}>
+                    {shouldRenderFilesLabel ? (
+                      <p className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
+                        Files
+                      </p>
                     ) : null}
-                  </span>
-                  {isActive ? (
-                    <kbd className="hidden shrink-0 items-center gap-0.5 rounded border border-neutral-200 bg-white px-1.5 py-0.5 font-sans text-[10px] font-medium text-neutral-500 sm:inline-flex dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-400">
-                      {"\u21B5"}
-                    </kbd>
-                  ) : null}
-                </button>
-              );
-            })
+                    <button
+                      type="button"
+                      data-palette-index={index}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                      onClick={() => onSelectFile(result.entry)}
+                      className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition ${
+                        isActive
+                          ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
+                          : "text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800/60"
+                      }`}
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                        <EntryIcon entry={result.entry} />
+                      </div>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">
+                          {result.entry.name}
+                        </span>
+                        <span className="block truncate text-[11px] text-neutral-400 dark:text-neutral-500">
+                          {getFileParentLabel(result.entry)}
+                        </span>
+                      </span>
+                      {isActive ? (
+                        <kbd className="hidden shrink-0 items-center gap-0.5 rounded border border-neutral-200 bg-white px-1.5 py-0.5 font-sans text-[10px] font-medium text-neutral-500 sm:inline-flex dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-400">
+                          {"\u21B5"}
+                        </kbd>
+                      ) : null}
+                    </button>
+                  </div>
+                );
+              })}
+            </>
           )}
         </div>
 

@@ -1,4 +1,4 @@
-import { DefaultResourceLoader } from "@mariozechner/pi-coding-agent";
+import { DefaultResourceLoader, getAgentDir } from "@mariozechner/pi-coding-agent";
 
 export const createSystemPromptResourceLoader = async (
   cwd: string,
@@ -6,6 +6,7 @@ export const createSystemPromptResourceLoader = async (
 ) => {
   const loader = new DefaultResourceLoader({
     cwd,
+    agentDir: getAgentDir(),
     systemPromptOverride: () => systemPrompt,
   });
 

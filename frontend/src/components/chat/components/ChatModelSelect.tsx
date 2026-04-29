@@ -11,9 +11,9 @@ type ChatModelOption = {
 
 const ALL_CHAT_MODEL_OPTIONS: ChatModelOption[] = [
   {
-    label: "GPT 5.4",
+    label: "GPT 5.5",
     provider: "openai",
-    modelId: "gpt-5.4",
+    modelId: "gpt-5.5",
   },
   {
     label: "GPT 5.4 Mini",

@@ -5,7 +5,6 @@ import type { AgentSessionEvent, SessionContext } from "@mariozechner/pi-coding-
 import {
   SessionManager,
   createAgentSession,
-  createCodingTools,
 } from "@mariozechner/pi-coding-agent";
 import {
   WORKSPACE_ROOT,
@@ -632,7 +631,6 @@ export class PiAppAgentService {
       model: this.model,
       thinkingLevel: "high",
       sessionManager,
-      tools: createCodingTools(this.workspaceDir),
       customTools: CUSTOM_TOOLS,
       resourceLoader,
     });
