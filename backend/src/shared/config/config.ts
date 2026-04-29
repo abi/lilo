@@ -6,6 +6,8 @@ export type ImageGenerationModel =
   | "nano-banana-2";
 
 const FALLBACK_IMAGE_MODEL: ImageGenerationModel = "nano-banana";
+const AUDIO_TRANSCRIPTION_MAX_BYTES = 25 * 1024 * 1024;
+const AUDIO_TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
 
 loadBackendEnv();
 
@@ -81,6 +83,11 @@ export const backendConfig = {
   },
   media: {
     imageModel: normalizeImageModel(readEnv("LILO_IMAGE_MODEL")),
+    audioTranscription: {
+      openaiApiKey: readEnv("OPENAI_API_KEY"),
+      model: AUDIO_TRANSCRIPTION_MODEL,
+      maxBytes: AUDIO_TRANSCRIPTION_MAX_BYTES,
+    },
   },
   channels: {
     email: {

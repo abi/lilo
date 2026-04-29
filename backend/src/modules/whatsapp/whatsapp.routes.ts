@@ -5,6 +5,12 @@ import type { UploadedChatFile } from "../chat/chat.request.js";
 import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
 import { backendConfig, requireConfigValue } from "../../shared/config/config.js";
 import { WORKSPACE_ROOT } from "../../shared/config/paths.js";
+import {
+  AudioTranscriptionUnavailableError,
+  isAudioMimeType,
+  normalizeMediaMimeType,
+  transcribeAudioWithOpenAi,
+} from "../../shared/audio/transcription.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
 import { ASK_USER_QUESTION_TOOL_NAME } from "../../shared/tools/askUserQuestionTool.js";
 import { readWorkspaceAppPrefs } from "../../shared/workspace/appPrefs.js";
@@ -86,7 +92,7 @@ const resolveExternalRequestUrl = (requestUrl: string, headers: Headers): string
 const MAX_WHATSAPP_REPLY_CHARS = 1_500;
 
 const isImageMimeType = (value: string): boolean =>
-  value.trim().toLowerCase().startsWith("image/");
+  normalizeMediaMimeType(value).startsWith("image/");
 
 const MEDIA_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
   "application/pdf": ".pdf",
@@ -111,12 +117,20 @@ const MEDIA_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
 };
 
 const getMediaExtension = (mimeType: string): string =>
-  MEDIA_EXTENSION_BY_MIME_TYPE[mimeType.trim().toLowerCase()] ?? ".bin";
+  MEDIA_EXTENSION_BY_MIME_TYPE[normalizeMediaMimeType(mimeType)] ?? ".bin";
 
 type AskUserQuestionDetails = {
   question: string;
   options: string[];
   allowSkip: boolean;
+};
+
+type WhatsAppVoiceNoteTranscript = {
+  name: string;
+  mimeType: string;
+  transcript?: string;
+  error?: string;
+  model?: string;
 };
 
 interface TwilioErrorResponse {
@@ -509,13 +523,31 @@ const parseNumMedia = (value: FormDataEntryValue | undefined): number => {
 
 type TwilioWebhookBody = Record<string, string | File>;
 
-const buildInboundWhatsAppPrompt = (body: string): string =>
-  [
+const buildInboundWhatsAppPrompt = (
+  body: string,
+  voiceNoteTranscripts: WhatsAppVoiceNoteTranscript[] = [],
+): string => {
+  const parts = [
     "Channel: WhatsApp",
     "If you need a follow-up answer, ask it in plain WhatsApp prose. Number any options so the user can reply by number or text.",
     "",
     `WhatsApp message from user: ${body || "(empty message)"}`,
-  ].join("\n");
+  ];
+
+  if (voiceNoteTranscripts.length > 0) {
+    parts.push("", "Voice note transcript(s):");
+    for (const [index, voiceNote] of voiceNoteTranscripts.entries()) {
+      const label = `Voice note ${index + 1} (${voiceNote.name}, ${voiceNote.mimeType})`;
+      if (voiceNote.transcript) {
+        parts.push(`${label}: ${voiceNote.transcript}`);
+      } else {
+        parts.push(`${label}: transcription unavailable`);
+      }
+    }
+  }
+
+  return parts.join("\n");
+};
 
 const getInboundMessageSid = (form: TwilioWebhookBody): string | null => {
   const candidates = [form.MessageSid, form.SmsMessageSid, form.SmsSid];
@@ -592,6 +624,68 @@ const loadInboundMedia = async (form: TwilioWebhookBody): Promise<UploadedChatFi
   }
 
   return uploads;
+};
+
+const transcribeInboundVoiceNotes = async (
+  uploads: UploadedChatFile[],
+): Promise<WhatsAppVoiceNoteTranscript[]> => {
+  const voiceNotes = uploads.filter((upload) => isAudioMimeType(upload.mimeType));
+  const transcripts: WhatsAppVoiceNoteTranscript[] = [];
+
+  for (const upload of voiceNotes) {
+    const mimeType = normalizeMediaMimeType(upload.mimeType);
+    try {
+      const result = await transcribeAudioWithOpenAi({
+        bytes: upload.bytes,
+        fileName: upload.originalName,
+        mimeType,
+        prompt: "This is a short WhatsApp voice note to a personal assistant named Lilo.",
+      });
+
+      transcripts.push({
+        name: upload.originalName,
+        mimeType,
+        transcript: result.text,
+        model: result.model,
+      });
+      console.log(
+        `[whatsapp] transcribed voice note name=${upload.originalName} mimeType=${mimeType} model=${result.model} transcriptLength=${result.text.length}`,
+      );
+    } catch (error) {
+      const unavailable = error instanceof AudioTranscriptionUnavailableError;
+      transcripts.push({
+        name: upload.originalName,
+        mimeType,
+        error: unavailable ? "not_configured" : "failed",
+      });
+
+      if (!unavailable) {
+        captureBackendException(error, {
+          tags: {
+            area: "whatsapp",
+            provider: "openai",
+            operation: "transcribe_voice_note",
+            mime_type: mimeType,
+          },
+          extras: {
+            fileName: upload.originalName,
+            fileSize: upload.size,
+          },
+          level: "error",
+          fingerprint: ["whatsapp", "voice_note", "transcription"],
+        });
+      }
+
+      console.warn("[whatsapp] failed to transcribe voice note", {
+        fileName: upload.originalName,
+        mimeType,
+        unavailable,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return transcripts;
 };
 
 const getAskUserQuestionDetails = (value: unknown): AskUserQuestionDetails | null => {
@@ -738,8 +832,10 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
         const now = new Date();
         const timezone = await getWhatsAppThreadTimezone();
         const inboundMedia = await loadInboundMedia(form);
+        const voiceNoteTranscripts = await transcribeInboundVoiceNotes(inboundMedia);
+        const inboundPrompt = buildInboundWhatsAppPrompt(body, voiceNoteTranscripts);
         console.log(
-          `[whatsapp] inbound from=${from} bodyLength=${body.length} mediaCount=${inboundMedia.length} timezone=${timezone}`,
+          `[whatsapp] inbound from=${from} bodyLength=${body.length} mediaCount=${inboundMedia.length} voiceNoteCount=${voiceNoteTranscripts.length} timezone=${timezone}`,
         );
 
         let chatId = await resolveDailyWhatsAppChatId(from, now, timezone);
@@ -764,7 +860,7 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
         if (currentChat?.status === "streaming") {
           console.log(`[whatsapp] steering active chat=${chatId} from=${from}`);
           await chatService.steerChat(chatId, {
-            message: buildInboundWhatsAppPrompt(body),
+            message: inboundPrompt,
             images: resolvedUploads.images,
             attachments: resolvedUploads.attachments,
             context: {},
@@ -809,7 +905,7 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
         await chatService.promptChat(
           chatId,
           {
-            message: buildInboundWhatsAppPrompt(body),
+            message: inboundPrompt,
             images: resolvedUploads.images,
             attachments: resolvedUploads.attachments,
             context: {},
@@ -887,6 +983,8 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
               sentMessageCount,
               imageCount: resolvedUploads.images.length,
               attachmentCount: resolvedUploads.attachments.length,
+              voiceNoteCount: voiceNoteTranscripts.length,
+              voiceNoteTranscriptCount: voiceNoteTranscripts.filter((item) => item.transcript).length,
               bodyLength: body.length,
             },
             level: severity,
