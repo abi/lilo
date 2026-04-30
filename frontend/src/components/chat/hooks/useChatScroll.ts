@@ -36,6 +36,7 @@ export function useChatScroll({
     if (isProgrammaticScrollRef.current) {
       isProgrammaticScrollRef.current = false;
       const nearBottom = isNearBottom(container);
+      isNearBottomRef.current = nearBottom;
       setShowScrollToBottom(!nearBottom);
       return;
     }
