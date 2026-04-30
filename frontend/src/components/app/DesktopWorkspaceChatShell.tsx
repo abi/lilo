@@ -142,7 +142,7 @@ export function DesktopWorkspaceChatShell({
         id="viewer"
         defaultSize="65%"
         minSize="30%"
-        className="flex min-h-0 min-w-0"
+        className="relative z-0 flex min-h-0 min-w-0"
       >
         <ViewerPane
           selectedViewerPath={selectedViewerPath}
@@ -177,7 +177,7 @@ export function DesktopWorkspaceChatShell({
         defaultSize="35%"
         minSize="20%"
         maxSize="60%"
-        className="flex min-h-0"
+        className="relative z-20 flex min-h-0"
       >
         {activeAppChat ? (
           <AppChatPane
