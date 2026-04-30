@@ -12,7 +12,7 @@ export function AssistantSelectionToolbar({
 }: AssistantSelectionToolbarProps) {
   return (
     <div
-      className="fixed z-[80] -translate-x-1/2"
+      className="fixed z-[80]"
       style={{
         left: position.left,
         top: position.top,

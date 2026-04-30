@@ -37,6 +37,10 @@ const getAssistantMessageElement = (node: Node | null): HTMLElement | null =>
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
 
+const TOOLBAR_HEIGHT_ESTIMATE = 44;
+const TOOLBAR_WIDTH_ESTIMATE = 180;
+const TOOLBAR_OFFSET = 8;
+
 const getSelectionRect = (range: Range): DOMRect | null => {
   const rect = range.getBoundingClientRect();
   if (rect.width > 0 || rect.height > 0) {
@@ -95,8 +99,15 @@ export function AssistantSelectionController({
     setAssistantSelection({
       html: getSelectionHtml(selection) || text,
       position: {
-        left: clamp(rect.left + rect.width / 2, 92, window.innerWidth - 92),
-        top: Math.max(8, rect.top - 48),
+        left: clamp(
+          rect.right + TOOLBAR_OFFSET,
+          TOOLBAR_OFFSET,
+          window.innerWidth - TOOLBAR_WIDTH_ESTIMATE - TOOLBAR_OFFSET,
+        ),
+        top:
+          rect.bottom + TOOLBAR_OFFSET + TOOLBAR_HEIGHT_ESTIMATE > window.innerHeight
+            ? Math.max(8, rect.top - TOOLBAR_HEIGHT_ESTIMATE - TOOLBAR_OFFSET)
+            : rect.bottom + TOOLBAR_OFFSET,
       },
       text,
     });
