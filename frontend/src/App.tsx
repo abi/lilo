@@ -524,7 +524,8 @@ function App() {
 
           <DesktopSidebarResizeHandle
             hidden={shell.hiddenDesktopSidebar}
-            onMouseDown={shell.startResizeLeft}
+            isResizing={shell.isResizing}
+            onPointerDown={shell.startResizeLeft}
           />
         </>
       ) : null}

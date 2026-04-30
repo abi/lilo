@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { MobileChatMode, MobileView } from "../components/app/types";
 
 const LEFT_PANE_DEFAULT_WIDTH = 288;
@@ -16,43 +16,78 @@ export function useShellNavigation() {
   const [mobileChatMode, setMobileChatMode] = useState<MobileChatMode>("list");
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const resizeRef = useRef<{
+    startX: number;
+    startWidth: number;
+    pointerId: number;
+    frameId: number | null;
+    nextWidth: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!isResizing) {
       return;
     }
 
-    const onMouseMove = (event: MouseEvent) => {
-      if (!resizeRef.current) {
+    const commitPendingWidth = () => {
+      const resizeState = resizeRef.current;
+      if (!resizeState) {
         return;
       }
 
-      const { startX, startWidth } = resizeRef.current;
-      setLeftPaneWidth(
-        clamp(
-          startWidth + (event.clientX - startX),
-          LEFT_PANE_MIN_WIDTH,
-          LEFT_PANE_MAX_WIDTH,
-        ),
-      );
+      resizeState.frameId = null;
+      setLeftPaneWidth(resizeState.nextWidth);
     };
 
-    const onMouseUp = () => {
+    const onPointerMove = (event: PointerEvent) => {
+      const resizeState = resizeRef.current;
+      if (!resizeState || event.pointerId !== resizeState.pointerId) {
+        return;
+      }
+
+      event.preventDefault();
+      resizeState.nextWidth = clamp(
+        resizeState.startWidth + (event.clientX - resizeState.startX),
+        LEFT_PANE_MIN_WIDTH,
+        LEFT_PANE_MAX_WIDTH,
+      );
+
+      if (resizeState.frameId === null) {
+        resizeState.frameId = window.requestAnimationFrame(commitPendingWidth);
+      }
+    };
+
+    const finishResize = () => {
+      const resizeState = resizeRef.current;
+      if (resizeState && resizeState.frameId !== null) {
+        window.cancelAnimationFrame(resizeState.frameId);
+        setLeftPaneWidth(resizeState.nextWidth);
+      }
       setIsResizing(false);
       resizeRef.current = null;
     };
 
     document.body.style.userSelect = "none";
     document.body.style.cursor = "col-resize";
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
+    document.documentElement.style.cursor = "col-resize";
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", finishResize);
+    window.addEventListener("pointercancel", finishResize);
+    window.addEventListener("blur", finishResize);
 
     return () => {
       document.body.style.removeProperty("user-select");
       document.body.style.removeProperty("cursor");
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
+      document.documentElement.style.removeProperty("cursor");
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", finishResize);
+      window.removeEventListener("pointercancel", finishResize);
+      window.removeEventListener("blur", finishResize);
+
+      const resizeState = resizeRef.current;
+      if (resizeState && resizeState.frameId !== null) {
+        window.cancelAnimationFrame(resizeState.frameId);
+      }
     };
   }, [isResizing]);
 
@@ -105,17 +140,26 @@ export function useShellNavigation() {
     setShowArchivedInStrip((value) => !value);
   }, []);
 
-  const startResizeLeft = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+  const startResizeLeft = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
     event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
     resizeRef.current = {
       startX: event.clientX,
       startWidth: leftPaneWidth,
+      pointerId: event.pointerId,
+      frameId: null,
+      nextWidth: leftPaneWidth,
     };
     setIsResizing(true);
   }, [leftPaneWidth]);
 
   return {
     leftPaneWidth,
+    isResizing,
     showArchivedInStrip,
     mobileView,
     mobileChatMode,
