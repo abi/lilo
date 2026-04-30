@@ -20,6 +20,7 @@ export function useChatScroll({
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const isProgrammaticScrollRef = useRef(false);
   const isNearBottomRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
 
   const isNearBottom = useCallback((container: HTMLDivElement) => {
     const distanceFromBottom =
@@ -33,17 +34,24 @@ export function useChatScroll({
       return;
     }
 
+    const currentScrollTop = container.scrollTop;
+    const scrolledUp = currentScrollTop < lastScrollTopRef.current - 2;
+
     if (isProgrammaticScrollRef.current) {
       isProgrammaticScrollRef.current = false;
       const nearBottom = isNearBottom(container);
-      isNearBottomRef.current = nearBottom;
-      setShowScrollToBottom(!nearBottom);
+      const shouldStickToBottom = !scrolledUp && nearBottom;
+      isNearBottomRef.current = shouldStickToBottom;
+      lastScrollTopRef.current = currentScrollTop;
+      setShowScrollToBottom(!shouldStickToBottom);
       return;
     }
 
     const nearBottom = isNearBottom(container);
-    isNearBottomRef.current = nearBottom;
-    setShowScrollToBottom(!nearBottom);
+    const shouldStickToBottom = !scrolledUp && nearBottom;
+    isNearBottomRef.current = shouldStickToBottom;
+    lastScrollTopRef.current = currentScrollTop;
+    setShowScrollToBottom(!shouldStickToBottom);
   }, [isNearBottom]);
 
   const scrollChatToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
@@ -58,11 +66,13 @@ export function useChatScroll({
       behavior,
     });
     isNearBottomRef.current = true;
+    lastScrollTopRef.current = container.scrollTop;
     setShowScrollToBottom(false);
   }, []);
 
   useEffect(() => {
     isNearBottomRef.current = true;
+    lastScrollTopRef.current = 0;
     setShowScrollToBottom(false);
     scrollChatToBottom("auto");
     requestAnimationFrame(() => {
@@ -74,7 +84,11 @@ export function useChatScroll({
 
   useEffect(() => {
     if (isNearBottomRef.current) {
-      requestAnimationFrame(() => scrollChatToBottom("auto"));
+      requestAnimationFrame(() => {
+        if (isNearBottomRef.current) {
+          scrollChatToBottom("auto");
+        }
+      });
       return;
     }
 
