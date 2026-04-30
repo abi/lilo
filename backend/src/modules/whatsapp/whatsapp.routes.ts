@@ -421,7 +421,7 @@ const sendWhatsAppReply = async (
     : new Error("Twilio WhatsApp send failed for an unknown reason"));
 };
 
-const sendWhatsAppReplyChunked = async (
+export const sendWhatsAppReplyChunked = async (
   to: string,
   body: string,
 ): Promise<Array<{ sid: string | null; status: string | null }>> => {
@@ -438,6 +438,17 @@ const sendWhatsAppReplyChunked = async (
   }
 
   return results;
+};
+
+export const sendWhatsAppAutomationMessage = async (
+  body: string,
+): Promise<Array<{ sid: string | null; status: string | null }>> => {
+  const [to] = getAllowedWhatsAppSenders();
+  if (!to) {
+    throw new Error("LILO_WHATSAPP_ALLOWED_SENDERS is not configured");
+  }
+
+  return sendWhatsAppReplyChunked(to, body);
 };
 
 const sendWhatsAppTypingIndicator = async (messageId: string): Promise<void> => {

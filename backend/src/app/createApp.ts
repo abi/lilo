@@ -5,6 +5,9 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { registerAppAgentRoutes } from "../modules/app-agent/appAgent.routes.js";
 import { PiAppAgentService } from "../modules/app-agent/appAgent.service.js";
+import { registerAutomationRoutes } from "../modules/automations/automation.routes.js";
+import { registerAutomationService } from "../modules/automations/automation.registry.js";
+import { AutomationService } from "../modules/automations/automation.service.js";
 import { registerChannelStatusRoutes } from "../modules/channels/channelStatus.routes.js";
 import { registerChatRoutes } from "../modules/chat/chat.routes.js";
 import { PiSdkChatService } from "../modules/chat/chat.service.js";
@@ -26,6 +29,7 @@ import { captureBackendException } from "../shared/observability/sentry.js";
 interface CreateAppOptions {
   chatService?: PiSdkChatService;
   appAgentService?: PiAppAgentService;
+  automationService?: AutomationService;
 }
 
 const shouldLogBackendRequest = (path: string): boolean =>
@@ -40,8 +44,11 @@ const shouldLogBackendRequest = (path: string): boolean =>
 export const createApp = ({
   chatService = new PiSdkChatService(),
   appAgentService = new PiAppAgentService(),
+  automationService = new AutomationService(chatService),
 }: CreateAppOptions = {}): Hono => {
   const app = new Hono();
+  registerAutomationService(automationService);
+  automationService.start();
 
   app.use("*", async (c, next) => {
     const path = c.req.path;
@@ -93,7 +100,7 @@ export const createApp = ({
     cors({
       origin: ["http://localhost:5800", "http://127.0.0.1:5800"],
       allowHeaders: ["Content-Type", "Authorization"],
-      allowMethods: ["GET", "POST", "PUT", "OPTIONS"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       credentials: true,
     }),
   );
@@ -149,6 +156,7 @@ export const createApp = ({
   }
 
   registerChannelStatusRoutes(app);
+  registerAutomationRoutes(app, automationService);
   registerWorkspaceRoutes(app);
   registerAppAgentRoutes(app, appAgentService);
   registerChatRoutes(app, chatService);

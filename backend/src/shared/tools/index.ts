@@ -5,6 +5,7 @@ import { webScrapeTool, webSearchTool } from "./firecrawlTools.js";
 import { generateImagesTool, removeBackgroundTool } from "./imageTools.js";
 import { openAppTool } from "./openAppTool.js";
 import { templateAppListTool, templateAppReadTool } from "./templateAppTools.js";
+import { AUTOMATION_TOOLS } from "../../modules/automations/automation.tools.js";
 
 export const CUSTOM_TOOLS: ToolDefinition[] = [
   askUserQuestionTool,
@@ -16,4 +17,5 @@ export const CUSTOM_TOOLS: ToolDefinition[] = [
   removeBackgroundTool,
   templateAppListTool,
   templateAppReadTool,
+  ...AUTOMATION_TOOLS,
 ];
