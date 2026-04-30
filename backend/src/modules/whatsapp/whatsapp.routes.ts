@@ -42,14 +42,34 @@ const secureCompare = (left: string, right: string): boolean => {
   return timingSafeEqual(leftBuffer, rightBuffer);
 };
 
-const validateTwilioSignature = (url: string, form: TwilioWebhookBody, signature: string): boolean => {
+interface TwilioSignatureValidationResult {
+  isValid: boolean;
+  expectedSignature: string;
+}
+
+const compareTwilioNames = (left: string, right: string): number => {
+  if (left === right) {
+    return 0;
+  }
+
+  return left < right ? -1 : 1;
+};
+
+const compareTwilioParamNames = ([left]: [string, unknown], [right]: [string, unknown]): number =>
+  compareTwilioNames(left, right);
+
+const validateTwilioSignature = (
+  url: string,
+  form: TwilioWebhookBody,
+  signature: string,
+): TwilioSignatureValidationResult => {
   const authToken = requireConfigValue(
     backendConfig.channels.whatsapp.twilioAuthToken,
     "TWILIO_AUTH_TOKEN",
   );
   const sortedEntries = Object.entries(form)
     .filter(([, value]) => typeof value === "string")
-    .sort(([left], [right]) => left.localeCompare(right));
+    .sort(compareTwilioParamNames);
   const signedPayload = sortedEntries.reduce(
     (accumulator, [key, value]) => accumulator + key + value,
     url,
@@ -58,7 +78,10 @@ const validateTwilioSignature = (url: string, form: TwilioWebhookBody, signature
     .update(signedPayload)
     .digest("base64");
 
-  return secureCompare(signature, expectedSignature);
+  return {
+    isValid: secureCompare(signature, expectedSignature),
+    expectedSignature,
+  };
 };
 
 const getAllowedWhatsAppSenders = (): string[] => {
@@ -76,6 +99,21 @@ const getAllowedWhatsAppSenders = (): string[] => {
 const twimlOk = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
 
 const resolveExternalRequestUrl = (requestUrl: string, headers: Headers): string => {
+  const publicAppUrl = backendConfig.server.publicAppUrl;
+  if (publicAppUrl) {
+    try {
+      const request = new URL(requestUrl);
+      const url = new URL(publicAppUrl);
+      url.pathname = request.pathname;
+      url.search = request.search;
+      return url.toString();
+    } catch {
+      console.warn("[whatsapp] Ignoring invalid LILO_PUBLIC_APP_URL for signature validation", {
+        publicAppUrl,
+      });
+    }
+  }
+
   const forwardedProto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
   const forwardedHost = headers.get("x-forwarded-host")?.split(",")[0]?.trim();
 
@@ -88,6 +126,11 @@ const resolveExternalRequestUrl = (requestUrl: string, headers: Headers): string
   url.host = forwardedHost;
   return url.toString();
 };
+
+const maskSignature = (signature: string): string =>
+  signature.length <= 8
+    ? "[redacted]"
+    : `${signature.slice(0, 4)}...${signature.slice(-4)}`;
 
 const MAX_WHATSAPP_REPLY_CHARS = 1_500;
 
@@ -761,7 +804,10 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
     }
 
     try {
-      if (!signature || !validateTwilioSignature(externalUrl, form, signature)) {
+      const validation = signature
+        ? validateTwilioSignature(externalUrl, form, signature)
+        : null;
+      if (!validation?.isValid) {
         captureBackendException(new Error("Inbound WhatsApp rejected due to invalid Twilio signature"), {
           tags: {
             area: "whatsapp",
@@ -773,6 +819,12 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
             hasSignature: Boolean(signature),
             requestUrl: c.req.url,
             externalUrl,
+            expectedSignature: validation ? maskSignature(validation.expectedSignature) : null,
+            receivedSignature: signature ? maskSignature(signature) : null,
+            publicAppUrl: backendConfig.server.publicAppUrl,
+            forwardedProto: c.req.raw.headers.get("x-forwarded-proto"),
+            forwardedHost: c.req.raw.headers.get("x-forwarded-host"),
+            formKeys: Object.keys(form).sort(compareTwilioNames),
           },
           level: "error",
           fingerprint: ["whatsapp", "twilio", "reject_inbound", "signature"],
