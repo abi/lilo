@@ -86,6 +86,11 @@ export const CHAT_MODEL_OPTIONS: ChatModelOption[] = [
 
 const PROMPT_TIMEOUT_MS = 600000;
 const PROMPT_FIRST_EVENT_TIMEOUT_MS = 30000;
+const OPENROUTER_ATTRIBUTION_HEADERS = {
+  "HTTP-Referer": "https://github.com/abi/lilo",
+  "X-OpenRouter-Title": "Lilo",
+  "X-OpenRouter-Categories": "personal-agent,cloud-agent",
+} as const;
 
 export const getPromptTimeoutMs = (): number => PROMPT_TIMEOUT_MS;
 
@@ -213,6 +218,16 @@ export const resolvePiModel = (
 
   if (!model) {
     throw new Error(`Unable to resolve model "${provider}/${modelId}" from the Pi SDK`);
+  }
+
+  if (model.provider === "openrouter") {
+    return {
+      ...model,
+      headers: {
+        ...model.headers,
+        ...OPENROUTER_ATTRIBUTION_HEADERS,
+      },
+    };
   }
 
   return model;
