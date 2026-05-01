@@ -620,5 +620,26 @@ const readWorkspaceSoulPrompt = async (workspaceDir: string): Promise<string> =>
   }
 };
 
-export const buildPiSystemPrompt = async (workspaceDir: string): Promise<string> =>
-  `${await readWorkspaceSoulPrompt(workspaceDir)}${BASE_PI_SYSTEM_PROMPT}${readDesignSystemPrompt()}`;
+interface PiSystemPromptOptions {
+  publicAppUrl?: string | null;
+}
+
+const buildDeploymentPrompt = ({ publicAppUrl }: PiSystemPromptOptions): string => {
+  const normalizedPublicAppUrl = publicAppUrl?.trim();
+  if (!normalizedPublicAppUrl) {
+    return "";
+  }
+
+  return `# Deployment
+
+- Lilo's public URL for this deployment is ${normalizedPublicAppUrl}.
+- Use this public URL when the user asks for webhook, callback, or external service configuration URLs.
+
+`;
+};
+
+export const buildPiSystemPrompt = async (
+  workspaceDir: string,
+  options: PiSystemPromptOptions = {},
+): Promise<string> =>
+  `${await readWorkspaceSoulPrompt(workspaceDir)}${BASE_PI_SYSTEM_PROMPT}${buildDeploymentPrompt(options)}${readDesignSystemPrompt()}`;

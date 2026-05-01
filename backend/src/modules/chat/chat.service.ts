@@ -19,6 +19,7 @@ import {
   isOpenAppDetails,
 } from "../../shared/tools/openAppTool.js";
 import { buildPiSystemPrompt } from "../../shared/prompts/piSystemPrompt.js";
+import { backendConfig } from "../../shared/config/config.js";
 import { WORKSPACE_ROOT } from "../../shared/config/paths.js";
 import { resolveSessionSubdir } from "../../shared/config/sessions.js";
 import {
@@ -799,7 +800,9 @@ export class PiSdkChatService {
   }
 
   async getSystemPrompt(): Promise<string> {
-    return buildPiSystemPrompt(this.workspaceDir);
+    return buildPiSystemPrompt(this.workspaceDir, {
+      publicAppUrl: backendConfig.server.publicAppUrl,
+    });
   }
 
   async getChat(chatId: string): Promise<ChatDetail | null> {
@@ -1681,7 +1684,9 @@ export class PiSdkChatService {
     }
 
     const sessionManager = SessionManager.open(sessionInfo.path, this.sessionDir);
-    const systemPrompt = await buildPiSystemPrompt(this.workspaceDir);
+    const systemPrompt = await buildPiSystemPrompt(this.workspaceDir, {
+      publicAppUrl: backendConfig.server.publicAppUrl,
+    });
     const resourceLoader = await createSystemPromptResourceLoader(
       this.workspaceDir,
       systemPrompt,
