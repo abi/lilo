@@ -816,15 +816,16 @@ export class PiSdkChatService {
   }
 
   async getChat(chatId: string): Promise<ChatDetail | null> {
-    const summary = await this.getChatSummary(chatId);
-    if (!summary) {
+    const sessionInfo = await this.findSessionInfo(chatId);
+    if (!sessionInfo) {
       return null;
     }
 
+    const summary = await this.toSummary(sessionInfo);
     const live = this.liveChats.get(chatId);
     const messages = live
       ? serializeAgentMessages(live.session.messages)
-      : await this.loadSerializedMessages(chatId);
+      : this.loadSerializedMessagesFromSessionInfo(sessionInfo);
 
     return {
       ...summary,
@@ -1724,12 +1725,9 @@ export class PiSdkChatService {
     return live;
   }
 
-  private async loadSerializedMessages(chatId: string): Promise<ChatMessage[]> {
-    const sessionInfo = await this.findSessionInfo(chatId);
-    if (!sessionInfo) {
-      throw new ChatNotFoundError(chatId);
-    }
-
+  private loadSerializedMessagesFromSessionInfo(
+    sessionInfo: Awaited<ReturnType<typeof SessionManager.list>>[number],
+  ): ChatMessage[] {
     const sessionManager = SessionManager.open(sessionInfo.path, this.sessionDir);
     return serializeAgentMessages(sessionManager.buildSessionContext().messages);
   }

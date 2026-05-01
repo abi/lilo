@@ -8,7 +8,6 @@ interface MobileChatListScreenProps {
   loading: boolean;
   onCreateChat: () => void;
   onSelectChat: (chatId: string) => void;
-  onPrefetchChat?: (chatId: string) => void;
 }
 
 export function MobileChatListScreen({
@@ -17,7 +16,6 @@ export function MobileChatListScreen({
   loading,
   onCreateChat,
   onSelectChat,
-  onPrefetchChat,
 }: MobileChatListScreenProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-white dark:bg-neutral-900 md:hidden">
@@ -36,7 +34,6 @@ export function MobileChatListScreen({
           loading={loading}
           variant="mobile"
           onSelectChat={onSelectChat}
-          onPrefetchChat={onPrefetchChat}
         />
       </div>
     </div>

@@ -64,7 +64,6 @@ function App() {
     initialize,
     createChat,
     selectChat,
-    prefetchChat,
     setDraft,
     addDraftSelectedElement,
     removeDraftSelectedElement,
@@ -151,50 +150,6 @@ function App() {
       setActiveAppChatId(null);
     }
   }, [showAppChats, setActiveAppChatId]);
-
-  // Prefetch the most recent chats so opening one feels instant. The store
-  // dedupes already-loaded chats and in-flight prefetches, so this can
-  // re-run cheaply whenever the chat list updates. Idle-time scheduling
-  // keeps the warm-up off the critical-path render.
-  useEffect(() => {
-    if (loadingInitial) return;
-    if (orderedChats.length === 0) return;
-
-    const PREFETCH_RECENT_COUNT = 8;
-    const targets = orderedChats
-      .filter((chat) => chat.messageCount > 0 && !chat.isLoaded)
-      .slice(0, PREFETCH_RECENT_COUNT)
-      .map((chat) => chat.id);
-    if (targets.length === 0) return;
-
-    const schedule =
-      typeof window !== "undefined" && "requestIdleCallback" in window
-        ? (cb: () => void) =>
-            (
-              window as unknown as {
-                requestIdleCallback: (cb: () => void) => number;
-              }
-            ).requestIdleCallback(cb)
-        : (cb: () => void) => window.setTimeout(cb, 0);
-
-    const handle = schedule(() => {
-      for (const chatId of targets) {
-        void prefetchChat(chatId);
-      }
-    });
-
-    return () => {
-      if (
-        typeof window !== "undefined" &&
-        "cancelIdleCallback" in window &&
-        typeof handle === "number"
-      ) {
-        (
-          window as unknown as { cancelIdleCallback: (h: number) => void }
-        ).cancelIdleCallback(handle);
-      }
-    };
-  }, [loadingInitial, orderedChats, prefetchChat]);
 
   const handleSelectChat = useCallback(
     (chatId: string) => {
@@ -541,7 +496,6 @@ function App() {
           loading={loadingInitial}
           onCreateChat={() => void handleCreateChat()}
           onSelectChat={(chatId) => void handleSelectChat(chatId)}
-          onPrefetchChat={(chatId) => void prefetchChat(chatId)}
         />
       ) : null}
 
@@ -611,7 +565,6 @@ function App() {
           loadingChats={loadingInitial || loadingAppChats}
           showAppChats={showAppChats}
           onSelectChat={(chatId) => void handleSelectChat(chatId)}
-          onPrefetchChat={(chatId) => void prefetchChat(chatId)}
           onSelectAppChat={(chat) => {
             shell.openConversation();
             startTransition(() => {

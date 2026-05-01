@@ -23,7 +23,6 @@ interface ChatHistoryDropdownProps {
   loadingChats: boolean;
   showAppChats: boolean;
   onSelectChat: (chatId: string) => void;
-  onPrefetchChat?: (chatId: string) => void;
   onSelectAppChat: (chat: AppChatSummary) => void;
   onToggleShowAppChats: () => void;
 }
@@ -36,7 +35,6 @@ export function ChatHistoryDropdown({
   loadingChats,
   showAppChats,
   onSelectChat,
-  onPrefetchChat,
   onSelectAppChat,
   onToggleShowAppChats,
 }: ChatHistoryDropdownProps) {
@@ -217,7 +215,6 @@ export function ChatHistoryDropdown({
                   activeAppChatId={activeAppChatId}
                   loading={loadingChats}
                   onSelectChat={handleSelectChat}
-                  onPrefetchChat={onPrefetchChat}
                   onSelectAppChat={handleSelectAppChat}
                 />
               </div>

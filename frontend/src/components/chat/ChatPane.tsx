@@ -41,7 +41,6 @@ interface ChatPaneHistory {
   loadingChats: boolean;
   showAppChats: boolean;
   onSelectChat: (chatId: string) => void;
-  onPrefetchChat?: (chatId: string) => void;
   onSelectAppChat: (chat: AppChatSummary) => void;
   onToggleShowAppChats: () => void;
 }
