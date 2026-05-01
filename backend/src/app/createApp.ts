@@ -164,6 +164,16 @@ export const createApp = ({
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const frontendDir = resolve(__dirname, "../../../frontend/dist");
 
+  app.use("/assets/*", async (c, next) => {
+    c.header("Cache-Control", "public, max-age=31536000, immutable");
+    await next();
+  });
+
+  app.use("/favicon.svg", async (c, next) => {
+    c.header("Cache-Control", "public, max-age=86400");
+    await next();
+  });
+
   app.use("*", serveStatic({ root: frontendDir, rewriteRequestPath: (path) => path }));
   app.use("*", serveStatic({ root: frontendDir, rewriteRequestPath: () => "/index.html" }));
 

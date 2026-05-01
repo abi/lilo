@@ -11,6 +11,7 @@ import {
   unlink,
   writeFile,
 } from "node:fs/promises";
+import type { Stats } from "node:fs";
 import { basename, extname, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import type { Hono } from "hono";
@@ -280,17 +281,48 @@ const mimeTypeForPath = (path: string): string => {
   return "application/octet-stream";
 };
 
-const workspaceFileHeaders = (absolutePath: string): Record<string, string> => {
+const workspaceFileHeaders = (
+  absolutePath: string,
+  info?: Pick<Stats, "mtime" | "size">,
+): Record<string, string> => {
   const headers: Record<string, string> = {
     "Content-Type": mimeTypeForPath(absolutePath),
     "Cache-Control": "no-cache",
   };
+
+  if (info) {
+    headers.ETag = workspaceFileEtag(info);
+    headers["Last-Modified"] = info.mtime.toUTCString();
+  }
 
   if (extname(absolutePath).toLowerCase() === ".pdf") {
     headers["Content-Disposition"] = "inline";
   }
 
   return headers;
+};
+
+const workspaceFileEtag = (info: Pick<Stats, "mtime" | "size">): string =>
+  `"${Math.floor(info.mtime.getTime())}-${info.size}"`;
+
+const isWorkspaceFileNotModified = (
+  request: Request,
+  info: Pick<Stats, "mtime" | "size">,
+): boolean => {
+  const etag = workspaceFileEtag(info);
+  const ifNoneMatch = request.headers.get("if-none-match");
+  if (ifNoneMatch?.split(",").map((value) => value.trim()).includes(etag)) {
+    return true;
+  }
+
+  const ifModifiedSince = request.headers.get("if-modified-since");
+  if (!ifModifiedSince) {
+    return false;
+  }
+
+  const modifiedSinceMs = Date.parse(ifModifiedSince);
+  const modifiedMs = Math.floor(info.mtime.getTime() / 1000) * 1000;
+  return Number.isFinite(modifiedSinceMs) && modifiedMs <= modifiedSinceMs;
 };
 
 const shouldSkipWorkspaceEntry = (name: string, isDirectory: boolean): boolean =>
@@ -1829,10 +1861,18 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
         return c.json({ error: "Not a file" }, 404);
       }
 
+      const headers = workspaceFileHeaders(absolutePath, info);
+      if (isWorkspaceFileNotModified(c.req.raw, info)) {
+        return new Response(null, {
+          status: 304,
+          headers,
+        });
+      }
+
       const content = await readFile(absolutePath);
       return new Response(content, {
         status: 200,
-        headers: workspaceFileHeaders(absolutePath),
+        headers,
       });
     } catch {
       return c.json({ error: "File not found" }, 404);
@@ -2484,18 +2524,26 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
         return c.json({ error: "Not a file" }, 404);
       }
 
+      const headers = workspaceFileHeaders(absolutePath, info);
+      if (isWorkspaceFileNotModified(c.req.raw, info)) {
+        return new Response(null, {
+          status: 304,
+          headers,
+        });
+      }
+
       if (extname(absolutePath).toLowerCase() === ".html") {
         const content = await readFile(absolutePath, "utf8");
         return new Response(injectRuntimeIntoHtml(content, appName), {
           status: 200,
-          headers: workspaceFileHeaders(absolutePath),
+          headers,
         });
       }
 
       const content = await readFile(absolutePath);
       return new Response(content, {
         status: 200,
-        headers: workspaceFileHeaders(absolutePath),
+        headers,
       });
     } catch {
       return c.json({ error: "File not found" }, 404);
