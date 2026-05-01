@@ -798,6 +798,10 @@ export class PiSdkChatService {
     return Boolean(info);
   }
 
+  async getSystemPrompt(): Promise<string> {
+    return buildPiSystemPrompt(this.workspaceDir);
+  }
+
   async getChat(chatId: string): Promise<ChatDetail | null> {
     const summary = await this.getChatSummary(chatId);
     if (!summary) {

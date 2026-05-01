@@ -41,6 +41,10 @@ export const registerChatRoutes = (
     return c.json({ models: getAllowedChatModelOptions() });
   });
 
+  app.get("/chats/system-prompt", async (c) => {
+    return c.json({ systemPrompt: await chatService.getSystemPrompt() });
+  });
+
   app.get("/chats/:chatId", async (c) => {
     const chat = await chatService.getChat(c.req.param("chatId"));
     if (!chat) {
