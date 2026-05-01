@@ -534,7 +534,11 @@ function App() {
       ) : null}
 
       {!isDesktop && shell.mobileView === "automations" ? (
-        <AutomationsScreen mobile />
+        <AutomationsScreen
+          mobile
+          automationOutputChannel={workspace.workspacePreferences.automationOutputChannel}
+          onAutomationOutputChannelChange={workspace.saveAutomationOutputChannel}
+        />
       ) : null}
 
       {isDesktop ? (
@@ -543,6 +547,7 @@ function App() {
           activeChat={activeChat}
           activeAppChat={activeAppChat}
           mainView={shell.desktopMainView}
+          automationOutputChannel={workspace.workspacePreferences.automationOutputChannel}
           selectedViewerPath={workspace.selectedViewerPath}
           selectedViewerUrl={workspace.selectedViewerUrl}
           selectedWorkspaceEntry={workspace.selectedWorkspaceEntry}
@@ -587,6 +592,7 @@ function App() {
             });
           }}
           onToggleShowAppChats={() => setShowAppChats((value) => !value)}
+          onAutomationOutputChannelChange={workspace.saveAutomationOutputChannel}
           pickerInjection={pickerInjection}
         />
       </div>

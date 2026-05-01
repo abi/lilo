@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { config } from "../../config/config";
 import { authFetch } from "../../lib/auth";
+import type { AutomationOutputChannel } from "./types";
 
 type AutomationSchedule =
   | { type: "cron"; expression: string; timezone?: string }
@@ -37,9 +38,27 @@ interface WorkspaceAutomationsSectionProps {
   isOpen: boolean;
   className?: string;
   showHeader?: boolean;
+  automationOutputChannel: AutomationOutputChannel;
+  onAutomationOutputChannelChange: (channel: AutomationOutputChannel) => Promise<void> | void;
 }
 
 type AutomationTab = "active" | "inactive" | "errored";
+
+interface ChannelStatus {
+  id: AutomationOutputChannel;
+  label: string;
+  configured: boolean;
+}
+
+interface ChannelStatusResponse {
+  channels: ChannelStatus[];
+}
+
+const AUTOMATION_CHANNEL_LABELS: Record<AutomationOutputChannel, string> = {
+  email: "Email",
+  telegram: "Telegram",
+  whatsapp: "WhatsApp",
+};
 
 const WEEKDAY_LABELS: Record<string, string> = {
   "0": "Sunday",
@@ -153,13 +172,19 @@ export function WorkspaceAutomationsSection({
   isOpen,
   className = "",
   showHeader = true,
+  automationOutputChannel,
+  onAutomationOutputChannelChange,
 }: WorkspaceAutomationsSectionProps) {
   const [jobs, setJobs] = useState<AutomationJob[]>([]);
   const [runs, setRuns] = useState<AutomationRun[]>([]);
   const [selectedTab, setSelectedTab] = useState<AutomationTab>("active");
+  const [channels, setChannels] = useState<ChannelStatus[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingChannels, setIsLoadingChannels] = useState(false);
+  const [isSavingChannel, setIsSavingChannel] = useState(false);
   const [isMutatingId, setIsMutatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [channelError, setChannelError] = useState<string | null>(null);
 
   const { activeJobs, inactiveJobs, erroredJobs } = useMemo(
     () => ({
@@ -175,6 +200,10 @@ export function WorkspaceAutomationsSection({
       : selectedTab === "inactive"
         ? inactiveJobs
         : erroredJobs;
+  const configuredChannels = channels.filter((channel) => channel.configured);
+  const selectedChannelConfigured = configuredChannels.some(
+    (channel) => channel.id === automationOutputChannel,
+  );
 
   const loadAutomations = async () => {
     setIsLoading(true);
@@ -194,9 +223,27 @@ export function WorkspaceAutomationsSection({
     }
   };
 
+  const loadChannels = async () => {
+    setIsLoadingChannels(true);
+    setChannelError(null);
+    try {
+      const response = await authFetch(`${config.apiBaseUrl}/api/channels/status`);
+      if (!response.ok) {
+        throw new Error(`Failed to load channels (${response.status})`);
+      }
+      const body = (await response.json()) as ChannelStatusResponse;
+      setChannels(body.channels ?? []);
+    } catch (loadError) {
+      setChannelError(loadError instanceof Error ? loadError.message : "Failed to load channels");
+    } finally {
+      setIsLoadingChannels(false);
+    }
+  };
+
   useEffect(() => {
     if (!isOpen) return;
     void loadAutomations();
+    void loadChannels();
   }, [isOpen]);
 
   useEffect(() => {
@@ -274,6 +321,18 @@ export function WorkspaceAutomationsSection({
     }
   };
 
+  const saveAutomationChannel = async (channel: AutomationOutputChannel) => {
+    setIsSavingChannel(true);
+    setChannelError(null);
+    try {
+      await onAutomationOutputChannelChange(channel);
+    } catch (saveError) {
+      setChannelError(saveError instanceof Error ? saveError.message : "Failed to save automation channel");
+    } finally {
+      setIsSavingChannel(false);
+    }
+  };
+
   return (
     <section className={`border-b border-neutral-200 px-4 py-4 dark:border-neutral-700 ${className}`}>
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -283,7 +342,7 @@ export function WorkspaceAutomationsSection({
               Automations
             </p>
             <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-              Agent-created prompts that run on a schedule and send results to WhatsApp.
+              Agent-created prompts that run on a schedule and send results to your chosen channel.
             </p>
           </div>
         ) : (
@@ -304,6 +363,52 @@ export function WorkspaceAutomationsSection({
           {error}
         </div>
       ) : null}
+
+      <section className="mb-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-800/60">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
+              Send automation replies to
+            </p>
+            <p className="mt-0.5 text-[11px] text-neutral-500 dark:text-neutral-400">
+              Applies to every automation run.
+            </p>
+          </div>
+          <select
+            value={automationOutputChannel}
+            disabled={isLoadingChannels || isSavingChannel || configuredChannels.length === 0}
+            onChange={(event) =>
+              void saveAutomationChannel(event.currentTarget.value as AutomationOutputChannel)
+            }
+            className="min-w-36 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-900 outline-none transition focus:border-neutral-400 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-neutral-500"
+          >
+            {!selectedChannelConfigured ? (
+              <option value={automationOutputChannel}>
+                {AUTOMATION_CHANNEL_LABELS[automationOutputChannel]}
+              </option>
+            ) : null}
+            {configuredChannels.map((channel) => (
+              <option key={channel.id} value={channel.id}>
+                {channel.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {channelError ? (
+          <p className="mt-2 text-[11px] text-red-600 dark:text-red-300">
+            {channelError}
+          </p>
+        ) : null}
+        {!isLoadingChannels && configuredChannels.length === 0 ? (
+          <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300">
+            No configured messaging channels are available.
+          </p>
+        ) : !selectedChannelConfigured ? (
+          <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300">
+            {AUTOMATION_CHANNEL_LABELS[automationOutputChannel]} is selected but is not configured.
+          </p>
+        ) : null}
+      </section>
 
       {jobs.length > 0 ? (
         <div className="mb-3 grid grid-cols-3 rounded-xl bg-neutral-100 p-1 text-xs font-semibold text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">

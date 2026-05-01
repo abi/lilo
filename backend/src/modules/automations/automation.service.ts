@@ -4,6 +4,12 @@ import { dirname, resolve } from "node:path";
 import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
 import { WORKSPACE_ROOT } from "../../shared/config/paths.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
+import {
+  readWorkspaceAppPrefs,
+  type AutomationOutputChannel,
+} from "../../shared/workspace/appPrefs.js";
+import { sendEmailAutomationMessage } from "../email/email.routes.js";
+import { sendTelegramAutomationMessage } from "../telegram/telegram.routes.js";
 import { sendWhatsAppAutomationMessage } from "../whatsapp/whatsapp.routes.js";
 import { getNextRunAt } from "./automation.schedule.js";
 import type {
@@ -19,6 +25,12 @@ const AUTOMATION_STORE_PATH = resolve(AUTOMATION_DIR, "automations.json");
 const AUTOMATION_RUN_STORE_PATH = resolve(AUTOMATION_DIR, "automation-runs.json");
 const POLL_INTERVAL_MS = 30_000;
 const MAX_RUN_HISTORY = 100;
+
+const AUTOMATION_OUTPUT_CHANNEL_LABELS: Record<AutomationOutputChannel, string> = {
+  email: "Email",
+  telegram: "Telegram",
+  whatsapp: "WhatsApp",
+};
 
 interface AutomationMutationInput {
   name?: string;
@@ -400,6 +412,8 @@ export class AutomationService {
       };
       await this.appendRun(runRecord);
       await this.patchJobAfterRunStart(job.id, chatId);
+      const outputChannel = (await readWorkspaceAppPrefs(WORKSPACE_ROOT)).automationOutputChannel;
+      const outputChannelLabel = AUTOMATION_OUTPUT_CHANNEL_LABELS[outputChannel];
 
       let finalText = "";
       await this.chatService.promptChat(chatId, {
@@ -409,7 +423,7 @@ export class AutomationService {
           "",
           job.prompt,
           "",
-          "Return the final result as a concise plain-text message suitable for WhatsApp.",
+          `Return the final result as a concise plain-text message suitable for ${outputChannelLabel}.`,
         ].join("\n"),
         images: [],
         attachments: [],
@@ -419,7 +433,7 @@ export class AutomationService {
       });
 
       const message = finalText.trim() || `Automation "${job.name}" completed.`;
-      await sendWhatsAppAutomationMessage(message);
+      await this.sendAutomationMessage(outputChannel, message);
 
       const finished: AutomationRunRecord = {
         ...runRecord,
@@ -460,6 +474,23 @@ export class AutomationService {
     } finally {
       this.runningJobIds.delete(job.id);
     }
+  }
+
+  private async sendAutomationMessage(
+    channel: AutomationOutputChannel,
+    message: string,
+  ): Promise<void> {
+    if (channel === "email") {
+      await sendEmailAutomationMessage(message);
+      return;
+    }
+
+    if (channel === "telegram") {
+      await sendTelegramAutomationMessage(message);
+      return;
+    }
+
+    await sendWhatsAppAutomationMessage(message);
   }
 
   private extractAssistantText(event: SseEvent): string {

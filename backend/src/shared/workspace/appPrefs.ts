@@ -11,7 +11,17 @@ export interface WorkspaceAppPrefs {
   archivedAppNames: string[];
   timeZone: string | null;
   defaultChatModelSelection: ChatModelSelection | null;
+  automationOutputChannel: AutomationOutputChannel;
 }
+
+export type AutomationOutputChannel = "email" | "telegram" | "whatsapp";
+
+export const DEFAULT_AUTOMATION_OUTPUT_CHANNEL: AutomationOutputChannel = "whatsapp";
+
+export const isAutomationOutputChannel = (
+  value: unknown,
+): value is AutomationOutputChannel =>
+  value === "email" || value === "telegram" || value === "whatsapp";
 
 const isValidTimeZone = (value: unknown): value is string => {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -81,6 +91,7 @@ export const readWorkspaceAppPrefs = async (
       archivedAppNames?: unknown;
       timeZone?: unknown;
       defaultChatModelSelection?: unknown;
+      automationOutputChannel?: unknown;
     };
 
     return {
@@ -96,6 +107,9 @@ export const readWorkspaceAppPrefs = async (
       )
         ? parsed.defaultChatModelSelection
         : null,
+      automationOutputChannel: isAutomationOutputChannel(parsed.automationOutputChannel)
+        ? parsed.automationOutputChannel
+        : DEFAULT_AUTOMATION_OUTPUT_CHANNEL,
     };
   } catch {
     return {
@@ -103,6 +117,7 @@ export const readWorkspaceAppPrefs = async (
       archivedAppNames: [],
       timeZone: null,
       defaultChatModelSelection: null,
+      automationOutputChannel: DEFAULT_AUTOMATION_OUTPUT_CHANNEL,
     };
   }
 };

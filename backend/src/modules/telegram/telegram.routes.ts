@@ -199,6 +199,20 @@ const sendTelegramReply = async (chatId: number, body: string): Promise<void> =>
   }
 };
 
+export const sendTelegramAutomationMessage = async (body: string): Promise<void> => {
+  const [allowedUserId] = backendConfig.channels.telegram.allowedUserIds;
+  if (!allowedUserId) {
+    throw new Error("LILO_TELEGRAM_ALLOWED_USER_IDS is not configured");
+  }
+
+  const chatId = Number(allowedUserId);
+  if (!Number.isFinite(chatId)) {
+    throw new Error("LILO_TELEGRAM_ALLOWED_USER_IDS must contain numeric Telegram user IDs");
+  }
+
+  await sendTelegramReply(chatId, body);
+};
+
 const downloadTelegramFile = async (botToken: string, fileId: string): Promise<ImageContent | null> => {
   const file = await telegramApiFetch<TelegramGetFileResult>(botToken, "getFile", {
     file_id: fileId,

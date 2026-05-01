@@ -55,7 +55,7 @@ export const automationCreateTool: ToolDefinition = {
   name: "automation_create",
   label: "Create Automation",
   description:
-    "Create a scheduled automation. Automations run the prompt in a new chat and send the result to WhatsApp.",
+    "Create a scheduled automation. Automations run the prompt in a new chat and send the result to the configured automation channel.",
   parameters: Type.Object({
     name: Type.String({ description: "Short automation name.", minLength: 1 }),
     prompt: Type.String({

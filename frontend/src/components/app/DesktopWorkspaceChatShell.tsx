@@ -10,7 +10,11 @@ import { AppChatPane } from "../chat/AppChatPane";
 import { ChatPane } from "../chat/ChatPane";
 import { ViewerPane } from "../workspace/ViewerPane";
 import type { ViewerPickerInjection } from "../workspace/ViewerPane";
-import type { WorkspaceAppLink, WorkspaceEntry } from "../workspace/types";
+import type {
+  AutomationOutputChannel,
+  WorkspaceAppLink,
+  WorkspaceEntry,
+} from "../workspace/types";
 import { AutomationsScreen } from "./AutomationsScreen";
 import type { DesktopMainView } from "./types";
 
@@ -18,6 +22,7 @@ interface DesktopWorkspaceChatShellProps {
   activeChat: ChatSessionState | null;
   activeAppChat?: ChatSessionState | null;
   mainView: DesktopMainView;
+  automationOutputChannel?: AutomationOutputChannel;
   selectedViewerPath: string | null;
   selectedViewerUrl: string | null;
   selectedWorkspaceEntry: WorkspaceEntry | null;
@@ -79,6 +84,7 @@ interface DesktopWorkspaceChatShellProps {
   onSelectChat: (chatId: string) => void;
   onSelectAppChat: (chat: AppChatSummary) => void;
   onToggleShowAppChats: () => void;
+  onAutomationOutputChannelChange: (channel: AutomationOutputChannel) => Promise<void> | void;
   pickerInjection: ViewerPickerInjection;
 }
 
@@ -86,6 +92,7 @@ export function DesktopWorkspaceChatShell({
   activeChat,
   activeAppChat = null,
   mainView,
+  automationOutputChannel,
   selectedViewerPath,
   selectedViewerUrl,
   selectedWorkspaceEntry,
@@ -125,6 +132,7 @@ export function DesktopWorkspaceChatShell({
   onSelectChat,
   onSelectAppChat,
   onToggleShowAppChats,
+  onAutomationOutputChannelChange,
   pickerInjection,
 }: DesktopWorkspaceChatShellProps) {
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
@@ -147,7 +155,10 @@ export function DesktopWorkspaceChatShell({
         className="relative z-0 flex min-h-0 min-w-0"
       >
         {mainView === "automations" ? (
-          <AutomationsScreen />
+          <AutomationsScreen
+            automationOutputChannel={automationOutputChannel}
+            onAutomationOutputChannelChange={onAutomationOutputChannelChange}
+          />
         ) : (
           <ViewerPane
             selectedViewerPath={selectedViewerPath}

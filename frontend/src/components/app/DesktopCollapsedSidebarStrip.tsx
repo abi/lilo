@@ -403,6 +403,7 @@ export function DesktopCollapsedSidebarStrip({
           templateUpdates={templateUpdates}
           onRequestTemplateUpdate={onRequestTemplateUpdate}
           onDismissTemplateUpdate={onDismissTemplateUpdate}
+          onOpenAutomations={onOpenAutomations}
           onTimeZoneChange={onSaveWorkspaceTimeZone}
           onDefaultChatModelChange={onDefaultChatModelChange}
           theme={theme}

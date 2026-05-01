@@ -513,6 +513,20 @@ const sendReply = async (
   }
 };
 
+export const sendEmailAutomationMessage = async (body: string): Promise<void> => {
+  const from = getLiloEmailFrom();
+  if (!from) {
+    throw new Error("LILO_EMAIL_REPLY_FROM is not configured");
+  }
+
+  const [to] = getAllowedEmails();
+  if (!to) {
+    throw new Error("LILO_EMAIL_ALLOWED_SENDERS is not configured");
+  }
+
+  await sendReply(to, "Lilo automation", body);
+};
+
 export const registerEmailRoutes = (
   app: Hono,
   chatService: PiSdkChatService,

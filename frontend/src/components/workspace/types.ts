@@ -36,9 +36,12 @@ export type WorkspacePreferences = {
     provider: ChatModelProvider;
     modelId: ChatModelId;
   };
+  automationOutputChannel?: AutomationOutputChannel;
   gitRemoteUrl?: string;
   gitBrowserUrl?: string;
 };
+
+export type AutomationOutputChannel = "email" | "telegram" | "whatsapp";
 
 export type WorkspaceTemplateUpdate = {
   appName: string;

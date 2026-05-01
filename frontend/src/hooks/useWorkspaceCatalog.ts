@@ -150,6 +150,7 @@ export function useWorkspaceCatalog({
       setWorkspacePreferences({
         timeZone: payload.preferences?.timeZone ?? DEFAULT_WORKSPACE_TIME_ZONE,
         defaultChatModelSelection: payload.preferences?.defaultChatModelSelection,
+        automationOutputChannel: payload.preferences?.automationOutputChannel ?? "whatsapp",
         gitRemoteUrl: payload.preferences?.gitRemoteUrl,
         gitBrowserUrl: payload.preferences?.gitBrowserUrl,
       });
@@ -365,6 +366,38 @@ export function useWorkspaceCatalog({
     [workspacePreferences],
   );
 
+  const saveAutomationOutputChannel = useCallback(
+    async (
+      automationOutputChannel: NonNullable<
+        WorkspacePreferences["automationOutputChannel"]
+      >,
+    ) => {
+      const previous = workspacePreferences;
+      setWorkspacePreferences((current) => ({
+        ...current,
+        automationOutputChannel,
+      }));
+
+      try {
+        const response = await authFetch(`${config.apiBaseUrl}/workspace/preferences`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ automationOutputChannel }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to save workspace preferences");
+        }
+      } catch {
+        setWorkspacePreferences(previous);
+        throw new Error("Failed to save automation channel");
+      }
+    },
+    [workspacePreferences],
+  );
+
   const dismissTemplateUpdate = useCallback(
     async (update: WorkspaceTemplateUpdate) => {
       const previousUpdates = templateUpdates;
@@ -459,6 +492,7 @@ export function useWorkspaceCatalog({
     saveArchivedApps,
     saveWorkspaceTimeZone,
     saveDefaultChatModelSelection,
+    saveAutomationOutputChannel,
     dismissTemplateUpdate,
     retryStartup,
   };

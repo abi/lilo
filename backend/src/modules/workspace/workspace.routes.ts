@@ -32,6 +32,7 @@ import {
   getWorkspaceConfigDir,
   getWorkspaceConfigPath,
   readWorkspaceAppPrefs,
+  isAutomationOutputChannel,
 } from "../../shared/workspace/appPrefs.js";
 import {
   dismissWorkspaceTemplateUpdate,
@@ -85,6 +86,7 @@ const writeWorkspaceConfig = async (config: {
   archivedAppNames: string[];
   timeZone: string | null;
   defaultChatModelSelection: unknown;
+  automationOutputChannel: unknown;
 }): Promise<void> => {
   await mkdir(WORKSPACE_CONFIG_DIR, { recursive: true });
   const sanitized = {
@@ -98,6 +100,9 @@ const writeWorkspaceConfig = async (config: {
     )
       ? config.defaultChatModelSelection
       : null,
+    automationOutputChannel: isAutomationOutputChannel(config.automationOutputChannel)
+      ? config.automationOutputChannel
+      : "whatsapp",
   };
   await writeFile(WORKSPACE_CONFIG_PATH, JSON.stringify(sanitized, null, 2), "utf8");
 };
@@ -1826,6 +1831,7 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
         ...(prefs.defaultChatModelSelection
           ? { defaultChatModelSelection: prefs.defaultChatModelSelection }
           : {}),
+        automationOutputChannel: prefs.automationOutputChannel,
         ...(workspaceGitUrl ? { gitRemoteUrl: workspaceGitUrl } : {}),
         ...(workspaceGitBrowserUrl ? { gitBrowserUrl: workspaceGitBrowserUrl } : {}),
       },
@@ -1933,6 +1939,7 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
         archivedAppNames: prefs.archivedAppNames.filter((name) => validApps.includes(name)),
         timeZone: prefs.timeZone,
         defaultChatModelSelection: prefs.defaultChatModelSelection,
+        automationOutputChannel: prefs.automationOutputChannel,
       });
       return c.json({ ok: true, appNames });
     } catch (error) {
@@ -1965,6 +1972,7 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
         archivedAppNames,
         timeZone: prefs.timeZone,
         defaultChatModelSelection: prefs.defaultChatModelSelection,
+        automationOutputChannel: prefs.automationOutputChannel,
       });
 
       return c.json({ ok: true, archivedAppNames });
@@ -1984,6 +1992,7 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
       const body = (await c.req.json()) as {
         timeZone?: unknown;
         defaultChatModelSelection?: unknown;
+        automationOutputChannel?: unknown;
       };
       const prefs = await readWorkspaceAppPrefs(WORKSPACE_ROOT);
 
@@ -2011,14 +2020,29 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
         defaultChatModelSelection = body.defaultChatModelSelection;
       }
 
+      let automationOutputChannel = prefs.automationOutputChannel;
+      if (body.automationOutputChannel !== undefined) {
+        if (!isAutomationOutputChannel(body.automationOutputChannel)) {
+          return c.json({ error: "Invalid automation output channel" }, 400);
+        }
+
+        automationOutputChannel = body.automationOutputChannel;
+      }
+
       await writeWorkspaceConfig({
         appNames: prefs.appNames,
         archivedAppNames: prefs.archivedAppNames,
         timeZone,
         defaultChatModelSelection,
+        automationOutputChannel,
       });
 
-      return c.json({ ok: true, timeZone, defaultChatModelSelection });
+      return c.json({
+        ok: true,
+        timeZone,
+        defaultChatModelSelection,
+        automationOutputChannel,
+      });
     } catch (error) {
       return c.json(
         {
