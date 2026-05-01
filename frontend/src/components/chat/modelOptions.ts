@@ -14,6 +14,12 @@ export const ALL_CHAT_MODEL_OPTIONS: ChatModelOption[] = [
     modelId: "gpt-5.5",
   },
   {
+    label: "GPT 5.5",
+    provider: "openrouter",
+    modelId: "openai/gpt-5.5",
+    routingProvider: "openrouter",
+  },
+  {
     label: "GPT 5.4 Mini",
     provider: "openai",
     modelId: "gpt-5.4-mini",

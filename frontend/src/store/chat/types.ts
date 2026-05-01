@@ -45,6 +45,7 @@ export type ChatModelId =
   | "gpt-5.5"
   | "gpt-5.4-mini"
   | "claude-opus-4-7"
+  | "openai/gpt-5.5"
   | "openai/gpt-5.4-mini"
   | "anthropic/claude-opus-4.7"
   | "moonshotai/kimi-k2.6";
