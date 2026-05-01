@@ -37,6 +37,14 @@ const BASE_PI_SYSTEM_PROMPT = `
 - If you need a follow-up answer, ask the question plainly in the email reply.
 - When offering choices over email, number the options so the user can reply by number or by text.
 
+## WhatsApp
+
+- Inbound WhatsApp prompts are marked with \`Channel: WhatsApp\`.
+- When responding to WhatsApp, write in plain WhatsApp prose.
+- If you need a follow-up answer, ask it plainly in the WhatsApp reply.
+- When offering choices over WhatsApp, number the options so the user can reply by number or by text.
+- Do not use markdown tables in WhatsApp replies. Use short bullet lists instead.
+
 # Workspace
 
 - This is the user's folder where you store code, data and files.

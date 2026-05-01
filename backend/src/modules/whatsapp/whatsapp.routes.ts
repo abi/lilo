@@ -14,6 +14,7 @@ import {
 import { captureBackendException } from "../../shared/observability/sentry.js";
 import { ASK_USER_QUESTION_TOOL_NAME } from "../../shared/tools/askUserQuestionTool.js";
 import { readWorkspaceAppPrefs } from "../../shared/workspace/appPrefs.js";
+import { formatWhatsAppOutput } from "./whatsapp.format.js";
 import { resolveDailyWhatsAppChatId, storeDailyWhatsAppChatId } from "./threadStore.js";
 
 const getWhatsAppThreadTimezone = async (): Promise<string> => {
@@ -468,7 +469,10 @@ export const sendWhatsAppReplyChunked = async (
   to: string,
   body: string,
 ): Promise<Array<{ sid: string | null; status: string | null }>> => {
-  const chunks = splitWhatsAppReply(body);
+  const formattedBody = formatWhatsAppOutput(body, {
+    publicAppUrl: backendConfig.server.publicAppUrl,
+  });
+  const chunks = splitWhatsAppReply(formattedBody);
   const results: Array<{ sid: string | null; status: string | null }> = [];
 
   for (const [index, chunk] of chunks.entries()) {
@@ -583,7 +587,6 @@ const buildInboundWhatsAppPrompt = (
 ): string => {
   const parts = [
     "Channel: WhatsApp",
-    "If you need a follow-up answer, ask it in plain WhatsApp prose. Number any options so the user can reply by number or text.",
     "",
     `WhatsApp message from user: ${body || "(empty message)"}`,
   ];
