@@ -5,10 +5,11 @@ import type {
   WorkspaceTemplateUpdate,
 } from "../workspace/types";
 import { ChatSidebar } from "../chat/ChatSidebar";
+import type { DesktopSidebarPanelKind } from "./types";
 
 interface DesktopSidebarPanelProps {
   width: number;
-  hidden: boolean;
+  panel: DesktopSidebarPanelKind | null;
   selectedViewerPath: string | null;
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
@@ -30,7 +31,7 @@ interface DesktopSidebarPanelProps {
 
 export function DesktopSidebarPanel({
   width,
-  hidden,
+  panel,
   selectedViewerPath,
   workspaceTimeZone,
   workspaceGitRemoteUrl,
@@ -49,7 +50,7 @@ export function DesktopSidebarPanel({
 }: DesktopSidebarPanelProps) {
   return (
     <div
-      className={`shrink-0 transition-all ${hidden ? "hidden" : "hidden md:block"}`}
+      className={`shrink-0 transition-all ${panel ? "hidden md:block" : "hidden"}`}
       style={{ width: `${width}px` }}
     >
       <ChatSidebar

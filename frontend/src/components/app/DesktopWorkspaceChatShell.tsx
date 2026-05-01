@@ -11,10 +11,13 @@ import { ChatPane } from "../chat/ChatPane";
 import { ViewerPane } from "../workspace/ViewerPane";
 import type { ViewerPickerInjection } from "../workspace/ViewerPane";
 import type { WorkspaceAppLink, WorkspaceEntry } from "../workspace/types";
+import { AutomationsScreen } from "./AutomationsScreen";
+import type { DesktopMainView } from "./types";
 
 interface DesktopWorkspaceChatShellProps {
   activeChat: ChatSessionState | null;
   activeAppChat?: ChatSessionState | null;
+  mainView: DesktopMainView;
   selectedViewerPath: string | null;
   selectedViewerUrl: string | null;
   selectedWorkspaceEntry: WorkspaceEntry | null;
@@ -82,6 +85,7 @@ interface DesktopWorkspaceChatShellProps {
 export function DesktopWorkspaceChatShell({
   activeChat,
   activeAppChat = null,
+  mainView,
   selectedViewerPath,
   selectedViewerUrl,
   selectedWorkspaceEntry,
@@ -142,20 +146,24 @@ export function DesktopWorkspaceChatShell({
         minSize="30%"
         className="relative z-0 flex min-h-0 min-w-0"
       >
-        <ViewerPane
-          selectedViewerPath={selectedViewerPath}
-          selectedViewerUrl={selectedViewerUrl}
-          selectedEntry={selectedWorkspaceEntry}
-          workspaceEntries={workspaceEntries}
-          fileViewerText={fileViewerText}
-          fileViewerError={fileViewerError}
-          isLoadingFileViewer={isLoadingFileViewer}
-          viewerRefreshKey={viewerRefreshKey}
-          onSelectElement={onSelectElement}
-          onOpenViewerPath={onOpenViewerPath}
-          onRefresh={onRefreshViewer}
-          pickerInjection={pickerInjection}
-        />
+        {mainView === "automations" ? (
+          <AutomationsScreen />
+        ) : (
+          <ViewerPane
+            selectedViewerPath={selectedViewerPath}
+            selectedViewerUrl={selectedViewerUrl}
+            selectedEntry={selectedWorkspaceEntry}
+            workspaceEntries={workspaceEntries}
+            fileViewerText={fileViewerText}
+            fileViewerError={fileViewerError}
+            isLoadingFileViewer={isLoadingFileViewer}
+            viewerRefreshKey={viewerRefreshKey}
+            onSelectElement={onSelectElement}
+            onOpenViewerPath={onOpenViewerPath}
+            onRefresh={onRefreshViewer}
+            pickerInjection={pickerInjection}
+          />
+        )}
       </Panel>
 
       <Separator className="group relative flex w-1.5 shrink-0 items-center justify-center bg-neutral-100 outline-none transition-colors hover:bg-neutral-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 data-[resize-handle-state=drag]:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:focus-visible:ring-blue-500 dark:data-[resize-handle-state=drag]:bg-neutral-600">

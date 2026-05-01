@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { logout, notifyAuthRequired } from "../../lib/auth";
-import { WorkspaceAutomationsSection } from "./WorkspaceAutomationsSection";
 import { WorkspaceAppUpdatesSection } from "./WorkspaceAppUpdatesSection";
 import { WorkspaceDefaultModelSection } from "./WorkspaceDefaultModelSection";
 import { TIMEZONE_META } from "./timezoneMeta";
@@ -376,8 +375,6 @@ export function WorkspaceSettingsButton({
                       onDismissTemplateUpdate?.(update)
                     }
                   />
-
-                  <WorkspaceAutomationsSection isOpen={isOpen} />
 
                   <section className="flex min-h-0 flex-1 flex-col border-b border-neutral-200 dark:border-neutral-700">
                     <div className="px-4 pt-4">

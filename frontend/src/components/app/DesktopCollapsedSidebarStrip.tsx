@@ -6,19 +6,22 @@ import type {
   WorkspacePreferences,
   WorkspaceTemplateUpdate,
 } from "../workspace/types";
+import type { DesktopMainView, DesktopSidebarPanelKind } from "./types";
 
 interface DesktopCollapsedSidebarStripProps {
   workspaceApps: WorkspaceAppLink[];
   selectedViewerPath: string | null;
   showArchived: boolean;
-  sidebarOpen: boolean;
+  desktopMainView: DesktopMainView;
+  desktopSidebarPanel: DesktopSidebarPanelKind | null;
   theme: "light" | "dark" | "system";
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
   workspaceGitBrowserUrl?: string;
   defaultChatModelSelection?: WorkspacePreferences["defaultChatModelSelection"];
   templateUpdates: WorkspaceTemplateUpdate[];
-  onToggleSidebar: () => void;
+  onToggleWorkspacePanel: () => void;
+  onOpenAutomations: () => void;
   onToggleArchived: () => void;
   onSelectApp: (href: string) => void;
   onReorderApps: (appNames: string[]) => void;
@@ -162,14 +165,16 @@ export function DesktopCollapsedSidebarStrip({
   workspaceApps,
   selectedViewerPath,
   showArchived,
-  sidebarOpen,
+  desktopMainView,
+  desktopSidebarPanel,
   theme,
   workspaceTimeZone,
   workspaceGitRemoteUrl,
   workspaceGitBrowserUrl,
   defaultChatModelSelection,
   templateUpdates,
-  onToggleSidebar,
+  onToggleWorkspacePanel,
+  onOpenAutomations,
   onToggleArchived,
   onSelectApp,
   onReorderApps,
@@ -223,6 +228,8 @@ export function DesktopCollapsedSidebarStrip({
 
   const isDesktopActive =
     desktopApp && selectedViewerPath?.startsWith(desktopApp.href);
+  const isWorkspacePanelActive = desktopSidebarPanel === "workspace";
+  const isAutomationsActive = desktopMainView === "automations";
 
   return (
     <div className="hidden min-h-0 w-24 shrink-0 flex-col items-center gap-2 border-r border-neutral-200 bg-white px-2 py-3 dark:border-neutral-700 dark:bg-neutral-900 md:flex">
@@ -253,18 +260,38 @@ export function DesktopCollapsedSidebarStrip({
       </button>
       <button
         type="button"
-        onClick={onToggleSidebar}
+        onClick={onToggleWorkspacePanel}
         className={`flex flex-col items-center gap-1 rounded-lg px-1 py-1.5 transition ${
-          sidebarOpen
+          isWorkspacePanelActive
             ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
             : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
         }`}
-        title={sidebarOpen ? "Hide workspace" : "Show workspace"}
+        title={isWorkspacePanelActive ? "Hide workspace" : "Show workspace"}
       >
         <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
         </svg>
         <span className="text-[10px] font-medium">Workspace</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={onOpenAutomations}
+        className={`flex flex-col items-center gap-1 rounded-lg px-1 py-1.5 transition ${
+          isAutomationsActive
+            ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
+            : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
+        }`}
+        title="Open automations"
+      >
+        <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 2v4" />
+          <path d="M16 2v4" />
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M3 10h18" />
+          <path d="M12 14v3l2 1" />
+        </svg>
+        <span className="text-[10px] font-medium">Automations</span>
       </button>
 
       <button

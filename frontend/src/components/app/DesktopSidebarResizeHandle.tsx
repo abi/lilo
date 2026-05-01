@@ -19,7 +19,7 @@ export function DesktopSidebarResizeHandle({
       onPointerDown={onPointerDown}
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize workspace sidebar"
+      aria-label="Resize sidebar"
     >
       <div className="absolute inset-y-0 -left-1.5 -right-1.5 z-10 cursor-col-resize" />
       <div

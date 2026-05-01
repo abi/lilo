@@ -35,6 +35,8 @@ interface AutomationsResponse {
 
 interface WorkspaceAutomationsSectionProps {
   isOpen: boolean;
+  className?: string;
+  showHeader?: boolean;
 }
 
 const formatSchedule = (schedule: AutomationSchedule): string => {
@@ -66,6 +68,8 @@ const statusClassName = (status?: AutomationJob["lastStatus"]): string => {
 
 export function WorkspaceAutomationsSection({
   isOpen,
+  className = "",
+  showHeader = true,
 }: WorkspaceAutomationsSectionProps) {
   const [jobs, setJobs] = useState<AutomationJob[]>([]);
   const [runs, setRuns] = useState<AutomationRun[]>([]);
@@ -156,16 +160,20 @@ export function WorkspaceAutomationsSection({
   };
 
   return (
-    <section className="border-b border-neutral-200 px-4 py-4 dark:border-neutral-700">
+    <section className={`border-b border-neutral-200 px-4 py-4 dark:border-neutral-700 ${className}`}>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
-            Automations
-          </p>
-          <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-            Agent-created prompts that run on a schedule and send results to WhatsApp.
-          </p>
-        </div>
+        {showHeader ? (
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+              Automations
+            </p>
+            <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+              Agent-created prompts that run on a schedule and send results to WhatsApp.
+            </p>
+          </div>
+        ) : (
+          <div />
+        )}
         <button
           type="button"
           className="rounded-lg border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"

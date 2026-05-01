@@ -1,5 +1,6 @@
 import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import { CommandPalette } from "./components/app/CommandPalette";
+import { AutomationsScreen } from "./components/app/AutomationsScreen";
 import { DesktopCollapsedSidebarStrip } from "./components/app/DesktopCollapsedSidebarStrip";
 import { DesktopSidebarPanel } from "./components/app/DesktopSidebarPanel";
 import { DesktopSidebarResizeHandle } from "./components/app/DesktopSidebarResizeHandle";
@@ -334,6 +335,7 @@ function App() {
       }
 
       if (data.type === "lilo:open-viewer" && typeof data.viewerPath === "string") {
+        shell.openDesktopViewer();
         workspace.setSelectedViewerPath(data.viewerPath);
         workspace.refreshViewer();
       }
@@ -345,10 +347,11 @@ function App() {
 
   const handleOpenViewerApp = useCallback(
     (viewerPath: string) => {
+      shell.openDesktopViewer();
       workspace.setSelectedViewerPath(viewerPath);
       workspace.refreshViewer();
     },
-    [workspace],
+    [workspace, shell],
   );
 
   const handleOpenMobileViewerApp = useCallback(
@@ -382,6 +385,7 @@ function App() {
     (app: WorkspaceAppLink) => {
       workspace.setSelectedViewerPath(app.viewerPath);
       workspace.refreshViewer();
+      shell.openDesktopViewer();
       // Also switch the mobile view — harmless on desktop.
       shell.openMobileViewer();
       setIsCommandPaletteOpen(false);
@@ -397,6 +401,7 @@ function App() {
 
       workspace.setSelectedViewerPath(entry.viewerPath);
       workspace.refreshViewer();
+      shell.openDesktopViewer();
       shell.showSidebarPanel();
       // Also switch the mobile view — harmless on desktop.
       shell.openMobileViewer();
@@ -438,14 +443,16 @@ function App() {
             workspaceApps={workspace.workspaceApps}
             selectedViewerPath={workspace.selectedViewerPath}
             showArchived={shell.showArchivedInStrip}
-            sidebarOpen={shell.sidebarOpen}
+            desktopMainView={shell.desktopMainView}
+            desktopSidebarPanel={shell.desktopSidebarPanel}
             theme={theme}
             workspaceTimeZone={workspace.workspacePreferences.timeZone}
             workspaceGitRemoteUrl={workspace.workspacePreferences.gitRemoteUrl}
             workspaceGitBrowserUrl={workspace.workspacePreferences.gitBrowserUrl}
             defaultChatModelSelection={workspace.workspacePreferences.defaultChatModelSelection}
             templateUpdates={workspace.templateUpdates}
-            onToggleSidebar={shell.sidebarOpen ? shell.hideSidebarPanel : shell.showSidebarPanel}
+            onToggleWorkspacePanel={shell.toggleWorkspacePanel}
+            onOpenAutomations={shell.openDesktopAutomations}
             onToggleArchived={shell.toggleArchivedInStrip}
             onSelectApp={handleOpenViewerApp}
             onReorderApps={workspace.saveAppOrder}
@@ -463,7 +470,7 @@ function App() {
 
           <DesktopSidebarPanel
             width={shell.leftPaneWidth}
-            hidden={shell.hiddenDesktopSidebar}
+            panel={shell.desktopSidebarPanel}
             selectedViewerPath={workspace.selectedViewerPath}
             workspaceTimeZone={workspace.workspacePreferences.timeZone}
             workspaceGitRemoteUrl={workspace.workspacePreferences.gitRemoteUrl}
@@ -472,7 +479,10 @@ function App() {
             workspaceApps={workspace.workspaceApps}
             workspaceEntries={workspace.workspaceEntries}
             templateUpdates={workspace.templateUpdates}
-            onSelectApp={workspace.setSelectedViewerPath}
+            onSelectApp={(viewerPath) => {
+              shell.openDesktopViewer();
+              workspace.setSelectedViewerPath(viewerPath);
+            }}
             onRefreshWorkspace={() => void workspace.loadWorkspace()}
             onSaveWorkspaceTimeZone={workspace.saveWorkspaceTimeZone}
             onDefaultChatModelChange={workspace.saveDefaultChatModelSelection}
@@ -523,11 +533,16 @@ function App() {
         />
       ) : null}
 
+      {!isDesktop && shell.mobileView === "automations" ? (
+        <AutomationsScreen mobile />
+      ) : null}
+
       {isDesktop ? (
       <div className="min-h-0 min-w-0 flex-1 flex">
         <DesktopWorkspaceChatShell
           activeChat={activeChat}
           activeAppChat={activeAppChat}
+          mainView={shell.desktopMainView}
           selectedViewerPath={workspace.selectedViewerPath}
           selectedViewerUrl={workspace.selectedViewerUrl}
           selectedWorkspaceEntry={workspace.selectedWorkspaceEntry}
@@ -637,6 +652,7 @@ function App() {
           selectedViewerPath={workspace.selectedViewerPath}
           onOpenChats={shell.openChatsTab}
           onOpenHome={handleOpenMobileHome}
+          onOpenAutomations={shell.openAutomationsTab}
           onOpenWorkspaceOrViewer={(app) => {
             if (app) {
               workspace.setSelectedViewerPath(app.viewerPath);

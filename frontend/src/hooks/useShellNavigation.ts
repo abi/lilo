@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import type { MobileChatMode, MobileView } from "../components/app/types";
+import type {
+  DesktopMainView,
+  DesktopSidebarPanelKind,
+  MobileChatMode,
+  MobileView,
+} from "../components/app/types";
 
 const LEFT_PANE_DEFAULT_WIDTH = 288;
 const LEFT_PANE_MIN_WIDTH = 240;
@@ -15,7 +20,10 @@ export function useShellNavigation() {
   const [mobileView, setMobileView] = useState<MobileView>("viewer");
   const [mobileChatMode, setMobileChatMode] = useState<MobileChatMode>("list");
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopMainView, setDesktopMainView] =
+    useState<DesktopMainView>("viewer");
+  const [desktopSidebarPanel, setDesktopSidebarPanel] =
+    useState<DesktopSidebarPanelKind | null>(null);
   const resizeRef = useRef<{
     startX: number;
     startWidth: number;
@@ -100,6 +108,10 @@ export function useShellNavigation() {
     setMobileView("viewer");
   }, []);
 
+  const openDesktopViewer = useCallback(() => {
+    setDesktopMainView("viewer");
+  }, []);
+
   const openChatsTab = useCallback(() => {
     setMobileView((currentView) => {
       // Tapping the Chats tab while already on it toggles back to the list
@@ -119,6 +131,14 @@ export function useShellNavigation() {
     setMobileView(hasSelectedApp ? "viewer" : "workspace");
   }, []);
 
+  const openAutomationsTab = useCallback(() => {
+    setMobileView("automations");
+  }, []);
+
+  const openDesktopAutomations = useCallback(() => {
+    setDesktopMainView("automations");
+  }, []);
+
   const backToMobileChatList = useCallback(() => {
     setMobileChatMode("list");
   }, []);
@@ -128,13 +148,12 @@ export function useShellNavigation() {
   }, []);
 
   const showSidebarPanel = useCallback(() => {
-    setSidebarOpen(true);
+    setDesktopSidebarPanel("workspace");
   }, []);
 
-  const hideSidebarPanel = useCallback(() => {
-    setSidebarOpen(false);
+  const toggleWorkspacePanel = useCallback(() => {
+    setDesktopSidebarPanel((current) => (current === "workspace" ? null : "workspace"));
   }, []);
-
 
   const toggleArchivedInStrip = useCallback(() => {
     setShowArchivedInStrip((value) => !value);
@@ -163,17 +182,20 @@ export function useShellNavigation() {
     showArchivedInStrip,
     mobileView,
     mobileChatMode,
-    sidebarOpen,
-    hiddenDesktopSidebar: !sidebarOpen,
+    desktopMainView,
+    desktopSidebarPanel,
+    hiddenDesktopSidebar: desktopSidebarPanel === null,
     openConversation,
     openMobileViewer,
+    openDesktopViewer,
     openChatsTab,
     openWorkspaceOrViewer,
+    openAutomationsTab,
+    openDesktopAutomations,
     backToMobileChatList,
     backToMobileWorkspace,
     showSidebarPanel,
-    hideSidebarPanel,
-
+    toggleWorkspacePanel,
     toggleArchivedInStrip,
     startResizeLeft,
   };

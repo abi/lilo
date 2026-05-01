@@ -8,6 +8,7 @@ interface MobileTabBarProps {
   selectedViewerPath: string | null;
   onOpenChats: () => void;
   onOpenHome: () => void;
+  onOpenAutomations: () => void;
   onOpenWorkspaceOrViewer: (app?: WorkspaceAppLink) => void;
 }
 
@@ -17,6 +18,7 @@ export function MobileTabBar({
   selectedViewerPath,
   onOpenChats,
   onOpenHome,
+  onOpenAutomations,
   onOpenWorkspaceOrViewer,
 }: MobileTabBarProps) {
   // The "Home" tab is the built-in `desktop` workspace app. The third tab
@@ -109,6 +111,20 @@ export function MobileTabBar({
           </svg>
         )}
         {otherApp?.name ?? "Apps"}
+      </button>
+      <button
+        type="button"
+        onClick={onOpenAutomations}
+        className={tabClass(mobileView === "automations")}
+      >
+        <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 2v4" />
+          <path d="M16 2v4" />
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M3 10h18" />
+          <path d="M12 14v3l2 1" />
+        </svg>
+        Automations
       </button>
     </nav>
   );
