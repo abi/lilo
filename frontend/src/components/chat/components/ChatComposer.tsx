@@ -4,6 +4,7 @@ import type {
   KeyboardEventHandler,
   RefObject,
 } from "react";
+import { useState } from "react";
 import type {
   ChatElementSelection,
   ChatModelId,
@@ -14,6 +15,7 @@ import { FileAttachmentChip } from "./FileAttachmentChip";
 import { ChatModelSelect } from "./ChatModelSelect";
 import { QueuedMessagesPanel } from "./QueuedMessagesPanel";
 import { SelectedElementAttachmentChip } from "./SelectedElementAttachmentChip";
+import { toChatModelOption } from "../modelOptions";
 
 interface ChatComposerProps {
   chatId: string;
@@ -101,10 +103,31 @@ export function ChatComposer({
   onRemoveSelectedFile,
   viewerPicker,
 }: ChatComposerProps) {
+  const [modelChangeError, setModelChangeError] = useState<string | null>(null);
   const hasComposerContent =
     draft.trim().length > 0 ||
     selectedFiles.length > 0 ||
     draftSelectedElements.length > 0;
+
+  const currentModelLabel = toChatModelOption({ provider: modelProvider, modelId })?.label ?? "the previous model";
+
+  const handleModelChange = async (
+    modelSelection: {
+      provider: ChatModelProvider;
+      modelId: ChatModelId;
+    },
+  ) => {
+    setModelChangeError(null);
+
+    try {
+      await onUpdateModel(chatId, {
+        modelProvider: modelSelection.provider,
+        modelId: modelSelection.modelId,
+      });
+    } catch {
+      setModelChangeError(`Couldn't change model. Reverted to ${currentModelLabel}.`);
+    }
+  };
 
   return (
     <div className="relative shrink-0 border-t border-neutral-200 bg-white px-2 py-2 dark:border-neutral-700 dark:bg-neutral-900">
@@ -212,6 +235,51 @@ export function ChatComposer({
               onClick={viewerPicker.onToggleSelecting}
               title="Cancel"
               aria-label="Cancel element selection"
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        ) : null}
+
+        {modelChangeError ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mb-1.5 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+          >
+            <svg
+              className="h-3.5 w-3.5 shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span className="min-w-0 flex-1">{modelChangeError}</span>
+            <button
+              type="button"
+              className="shrink-0 rounded p-0.5 text-amber-700 transition hover:bg-amber-100 hover:text-amber-950 dark:text-amber-300 dark:hover:bg-amber-900/60 dark:hover:text-amber-100"
+              onClick={() => setModelChangeError(null)}
+              title="Dismiss"
+              aria-label="Dismiss model change notice"
             >
               <svg
                 className="h-3.5 w-3.5"
@@ -355,12 +423,7 @@ export function ChatComposer({
                 modelProvider={modelProvider}
                 modelId={modelId}
                 disabled={isBusy}
-                onChange={(modelSelection) =>
-                  void onUpdateModel(chatId, {
-                    modelProvider: modelSelection.provider,
-                    modelId: modelSelection.modelId,
-                  })
-                }
+                onChange={(modelSelection) => void handleModelChange(modelSelection)}
               />
             </div>
 

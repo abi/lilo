@@ -780,7 +780,7 @@ export class PiSdkChatService {
   async updateChatModel(
     chatId: string,
     modelSelection: ChatModelSelection,
-  ): Promise<ChatDetail> {
+  ): Promise<ChatSummary> {
     const sessionInfo = await this.findSessionInfo(chatId);
     if (!sessionInfo) {
       throw new ChatNotFoundError(chatId);
@@ -796,12 +796,7 @@ export class PiSdkChatService {
       this.liveChats.delete(chatId);
     }
 
-    const updated = await this.getChat(chatId);
-    if (!updated) {
-      throw new ChatNotFoundError(chatId);
-    }
-
-    return updated;
+    return this.toSummary(sessionInfo);
   }
 
   async hasChat(chatId: string): Promise<boolean> {

@@ -20,6 +20,7 @@ import type {
   ChatContextInput,
   ChatDetailResponse,
   ChatQueuedMessage,
+  ChatSummary,
   ChatStoreState,
   LastSubmittedInput,
   ParsedSseEvent,
@@ -619,28 +620,59 @@ export const useChatStore = create<ChatStoreState>((set, get) => {
   },
 
   updateChatModel: async (chatId, modelSelection) => {
-    const payload = await fetchJson<ChatDetailResponse>(`${config.apiBaseUrl}/chats/${chatId}/model`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        provider: modelSelection.modelProvider,
-        modelId: modelSelection.modelId,
-      }),
-    });
+    const previous = get().chatsById[chatId];
+    if (!previous) {
+      return;
+    }
 
-    const chat = applyPushedTitle(payload.chat);
     set((state) => ({
-      chatsById: {
-        ...state.chatsById,
-        [chatId]: {
-          ...createChatState(chat, state.chatsById[chatId]),
-          messages: state.chatsById[chatId]?.messages ?? chat.messages,
-          isLoaded: state.chatsById[chatId]?.isLoaded ?? true,
-        },
-      },
+      ...updateChat(state, chatId, (chat) => ({
+        ...chat,
+        modelProvider: modelSelection.modelProvider,
+        modelId: modelSelection.modelId,
+      })),
     }));
+
+    try {
+      const payload = await fetchJson<{ chat: ChatSummary }>(`${config.apiBaseUrl}/chats/${chatId}/model`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          provider: modelSelection.modelProvider,
+          modelId: modelSelection.modelId,
+        }),
+      });
+
+      const chat = applyPushedTitle(payload.chat);
+      set((state) => ({
+        chatsById: {
+          ...state.chatsById,
+          [chatId]: {
+            ...createChatState(chat, state.chatsById[chatId]),
+            messages: state.chatsById[chatId]?.messages ?? [],
+            isLoaded: state.chatsById[chatId]?.isLoaded ?? true,
+          },
+        },
+      }));
+    } catch (error) {
+      set((state) => ({
+        ...updateChat(state, chatId, (chat) => ({
+          ...chat,
+          modelProvider: previous.modelProvider,
+          modelId: previous.modelId,
+        })),
+      }));
+      captureFrontendException(error, {
+        tags: {
+          area: "chat",
+          operation: "update_chat_model",
+          chat_id: chatId,
+        },
+      });
+      throw error;
+    }
   },
 
   /**
