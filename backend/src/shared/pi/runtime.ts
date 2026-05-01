@@ -2,6 +2,12 @@ import { getModel } from "@mariozechner/pi-ai";
 import { backendConfig } from "../config/config.js";
 
 export type ChatModelProvider = "openai" | "anthropic" | "openrouter";
+export type CanonicalChatModelId =
+  | "gpt-5.5"
+  | "gpt-5.4-mini"
+  | "claude-opus-4-7"
+  | "moonshotai/kimi-k2.6";
+
 export type ChatModelId =
   | "gpt-5.5"
   | "gpt-5.4-mini"
@@ -22,7 +28,7 @@ export interface ChatModelOption extends ChatModelSelection {
 
 interface ChatModelRouteOption extends ChatModelOption {
   nativeProvider?: Exclude<ChatModelProvider, "openrouter">;
-  allowlistIds: string[];
+  canonicalId: CanonicalChatModelId;
 }
 
 const NATIVE_CHAT_MODEL_OPTIONS: ChatModelRouteOption[] = [
@@ -31,21 +37,21 @@ const NATIVE_CHAT_MODEL_OPTIONS: ChatModelRouteOption[] = [
     modelId: "claude-opus-4-7",
     routingProvider: "anthropic",
     nativeProvider: "anthropic",
-    allowlistIds: ["claude-opus-4-7"],
+    canonicalId: "claude-opus-4-7",
   },
   {
     provider: "openai",
     modelId: "gpt-5.5",
     routingProvider: "openai",
     nativeProvider: "openai",
-    allowlistIds: ["gpt-5.5"],
+    canonicalId: "gpt-5.5",
   },
   {
     provider: "openai",
     modelId: "gpt-5.4-mini",
     routingProvider: "openai",
     nativeProvider: "openai",
-    allowlistIds: ["gpt-5.4-mini"],
+    canonicalId: "gpt-5.4-mini",
   },
 ];
 
@@ -55,27 +61,27 @@ const OPENROUTER_CHAT_MODEL_OPTIONS: ChatModelRouteOption[] = [
     modelId: "anthropic/claude-opus-4.7",
     routingProvider: "openrouter",
     nativeProvider: "anthropic",
-    allowlistIds: ["claude-opus-4-7", "anthropic/claude-opus-4.7"],
+    canonicalId: "claude-opus-4-7",
   },
   {
     provider: "openrouter",
     modelId: "openai/gpt-5.5",
     routingProvider: "openrouter",
     nativeProvider: "openai",
-    allowlistIds: ["gpt-5.5", "openai/gpt-5.5"],
+    canonicalId: "gpt-5.5",
   },
   {
     provider: "openrouter",
     modelId: "openai/gpt-5.4-mini",
     routingProvider: "openrouter",
     nativeProvider: "openai",
-    allowlistIds: ["gpt-5.4-mini", "openai/gpt-5.4-mini"],
+    canonicalId: "gpt-5.4-mini",
   },
   {
     provider: "openrouter",
     modelId: "moonshotai/kimi-k2.6",
     routingProvider: "openrouter",
-    allowlistIds: ["moonshotai/kimi-k2.6"],
+    canonicalId: "moonshotai/kimi-k2.6",
   },
 ];
 
@@ -136,7 +142,7 @@ const getRoutableChatModelOptions = (): ChatModelRouteOption[] => {
     const openrouterOption = OPENROUTER_CHAT_MODEL_OPTIONS.find(
       (option) =>
         option.nativeProvider === nativeOption.nativeProvider
-        && option.allowlistIds.includes(nativeOption.modelId),
+        && option.canonicalId === nativeOption.canonicalId,
     );
     if (openrouterOption) {
       options.push(openrouterOption);
@@ -149,12 +155,6 @@ const getRoutableChatModelOptions = (): ChatModelRouteOption[] => {
 
   return options;
 };
-
-const getAllowlistValues = (option: ChatModelRouteOption): string[] => [
-  option.modelId,
-  `${option.provider}/${option.modelId}`,
-  ...option.allowlistIds,
-];
 
 const toPublicChatModelOption = (option: ChatModelRouteOption): ChatModelOption => ({
   provider: option.provider,
@@ -171,9 +171,7 @@ export const getAllowedChatModelOptions = (): ChatModelOption[] => {
   }
 
   const allowedOptions = configuredOptions.filter((option) => {
-    return getAllowlistValues(option).some((value) =>
-      allowlist.has(value.toLowerCase()),
-    );
+    return allowlist.has(option.canonicalId);
   });
 
   if (allowedOptions.length === 0) {
@@ -182,7 +180,7 @@ export const getAllowedChatModelOptions = (): ChatModelOption[] => {
       : " OpenRouter models require OPENROUTER_API_KEY.";
 
     throw new Error(
-      `LILO_CHAT_MODEL_ALLOWLIST does not include any configured supported models. Configured supported models: ${configuredOptions.map((option) => option.modelId).join(", ")}.${openrouterHint}`,
+      `LILO_CHAT_MODEL_ALLOWLIST does not include any configured supported models. Configured supported models: ${Array.from(new Set(configuredOptions.map((option) => option.canonicalId))).join(", ")}.${openrouterHint}`,
     );
   }
 

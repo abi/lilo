@@ -135,16 +135,14 @@ OpenRouter. Native provider keys take priority: for example, if
 `OPENAI_API_KEY` is set, GPT models use OpenAI directly; if it is missing but
 `OPENROUTER_API_KEY` is set, GPT models route through OpenRouter instead.
 
-Limit the chat dropdown/API to specific models with a comma-separated allowlist:
+Limit the chat dropdown/API to specific models with a comma-separated allowlist.
 
 ```bash
-LILO_CHAT_MODEL_ALLOWLIST=gpt-5.4-mini
+LILO_CHAT_MODEL_ALLOWLIST=gpt-5.5,gpt-5.4-mini
 ```
 
-Supported allowlist ids: `claude-opus-4-7`, `gpt-5.5`,
-`gpt-5.4-mini`, `moonshotai/kimi-k2.6`, plus the OpenRouter ids
-`anthropic/claude-opus-4.7`, `openai/gpt-5.5`, and
-`openai/gpt-5.4-mini`.
+Supported allowlist IDs: `claude-opus-4-7`, `gpt-5.5`,
+`gpt-5.4-mini`, and `moonshotai/kimi-k2.6`.
 
 ### Agent tools (optional)
 
