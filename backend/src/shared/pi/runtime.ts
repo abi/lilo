@@ -1,8 +1,12 @@
 import { getModel } from "@mariozechner/pi-ai";
 import { backendConfig } from "../config/config.js";
 
-export type ChatModelProvider = "openai" | "anthropic";
-export type ChatModelId = "gpt-5.5" | "gpt-5.4-mini" | "claude-opus-4-7";
+export type ChatModelProvider = "openai" | "anthropic" | "openrouter";
+export type ChatModelId =
+  | "gpt-5.5"
+  | "gpt-5.4-mini"
+  | "claude-opus-4-7"
+  | "moonshotai/kimi-k2.6";
 
 export interface ChatModelSelection {
   provider: ChatModelProvider;
@@ -13,6 +17,7 @@ export const CHAT_MODEL_OPTIONS: ChatModelSelection[] = [
   { provider: "anthropic", modelId: "claude-opus-4-7" },
   { provider: "openai", modelId: "gpt-5.5" },
   { provider: "openai", modelId: "gpt-5.4-mini" },
+  { provider: "openrouter", modelId: "moonshotai/kimi-k2.6" },
 ];
 
 const PROMPT_TIMEOUT_MS = 600000;
@@ -31,20 +36,34 @@ const getChatModelAllowlist = (): Set<string> | null => {
   return values.length > 0 ? new Set(values) : null;
 };
 
-export const getAllowedChatModelOptions = (): ChatModelSelection[] => {
-  const allowlist = getChatModelAllowlist();
-  if (!allowlist) {
-    return CHAT_MODEL_OPTIONS;
+const isChatModelConfigured = (option: ChatModelSelection): boolean => {
+  if (option.provider === "openrouter") {
+    return Boolean(backendConfig.chat.openrouterApiKey);
   }
 
-  const allowedOptions = CHAT_MODEL_OPTIONS.filter((option) => {
+  return true;
+};
+
+export const getAllowedChatModelOptions = (): ChatModelSelection[] => {
+  const allowlist = getChatModelAllowlist();
+  const configuredOptions = CHAT_MODEL_OPTIONS.filter(isChatModelConfigured);
+
+  if (!allowlist) {
+    return configuredOptions;
+  }
+
+  const allowedOptions = configuredOptions.filter((option) => {
     const providerModelId = `${option.provider}/${option.modelId}`;
     return allowlist.has(option.modelId) || allowlist.has(providerModelId);
   });
 
   if (allowedOptions.length === 0) {
+    const openrouterHint = backendConfig.chat.openrouterApiKey
+      ? ""
+      : " OpenRouter models require OPENROUTER_API_KEY.";
+
     throw new Error(
-      `LILO_CHAT_MODEL_ALLOWLIST does not include any supported models. Supported models: ${CHAT_MODEL_OPTIONS.map((option) => option.modelId).join(", ")}`,
+      `LILO_CHAT_MODEL_ALLOWLIST does not include any configured supported models. Configured supported models: ${configuredOptions.map((option) => option.modelId).join(", ")}.${openrouterHint}`,
     );
   }
 

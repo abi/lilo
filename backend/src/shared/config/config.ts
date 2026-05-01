@@ -80,6 +80,7 @@ export const backendConfig = {
   },
   chat: {
     modelAllowlist: readCsvEnv("LILO_CHAT_MODEL_ALLOWLIST"),
+    openrouterApiKey: readEnv("OPENROUTER_API_KEY"),
   },
   media: {
     imageModel: normalizeImageModel(readEnv("LILO_IMAGE_MODEL")),

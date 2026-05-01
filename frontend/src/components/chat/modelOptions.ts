@@ -22,6 +22,11 @@ export const ALL_CHAT_MODEL_OPTIONS: ChatModelOption[] = [
     provider: "anthropic",
     modelId: "claude-opus-4-7",
   },
+  {
+    label: "Kimi K2.6",
+    provider: "openrouter",
+    modelId: "moonshotai/kimi-k2.6",
+  },
 ];
 
 export const toChatModelOption = (
