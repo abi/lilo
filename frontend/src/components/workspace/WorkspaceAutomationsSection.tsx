@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { config } from "../../config/config";
 import { authFetch } from "../../lib/auth";
 
@@ -39,12 +39,95 @@ interface WorkspaceAutomationsSectionProps {
   showHeader?: boolean;
 }
 
-const formatSchedule = (schedule: AutomationSchedule): string => {
-  if (schedule.type === "at") {
-    return `At ${schedule.at}`;
+type AutomationTab = "active" | "inactive" | "errored";
+
+const WEEKDAY_LABELS: Record<string, string> = {
+  "0": "Sunday",
+  "1": "Monday",
+  "2": "Tuesday",
+  "3": "Wednesday",
+  "4": "Thursday",
+  "5": "Friday",
+  "6": "Saturday",
+  "7": "Sunday",
+};
+
+const formatTimeParts = (hour: string, minute: string): string | null => {
+  const parsedHour = Number(hour);
+  const parsedMinute = Number(minute);
+  if (
+    !Number.isInteger(parsedHour) ||
+    !Number.isInteger(parsedMinute) ||
+    parsedHour < 0 ||
+    parsedHour > 23 ||
+    parsedMinute < 0 ||
+    parsedMinute > 59
+  ) {
+    return null;
   }
 
-  return `Cron ${schedule.expression}${schedule.timezone ? ` · ${schedule.timezone}` : ""}`;
+  const date = new Date(2000, 0, 1, parsedHour, parsedMinute);
+  return date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatCronDays = (dayOfWeek: string): string | null => {
+  if (dayOfWeek === "*") return "Every day";
+  if (dayOfWeek === "1-5") return "Every weekday";
+  if (dayOfWeek === "0,6" || dayOfWeek === "6,0") return "Every weekend";
+
+  const days = dayOfWeek.split(",");
+  if (days.every((day) => WEEKDAY_LABELS[day])) {
+    return `Every ${days.map((day) => WEEKDAY_LABELS[day]).join(", ")}`;
+  }
+
+  return null;
+};
+
+const formatCronSchedule = (expression: string, timezone?: string): string => {
+  const parts = expression.trim().split(/\s+/);
+  if (parts.length !== 5) {
+    return `Custom schedule: ${expression}${timezone ? ` (${timezone})` : ""}`;
+  }
+
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+  const timezoneSuffix = timezone ? ` (${timezone})` : "";
+
+  if (minute === "*" && hour === "*" && dayOfMonth === "*" && month === "*" && dayOfWeek === "*") {
+    return `Every minute${timezoneSuffix}`;
+  }
+
+  if (minute.startsWith("*/") && hour === "*" && dayOfMonth === "*" && month === "*" && dayOfWeek === "*") {
+    return `Every ${minute.slice(2)} minutes${timezoneSuffix}`;
+  }
+
+  const time = formatTimeParts(hour, minute);
+  if (!time) {
+    return `Custom schedule: ${expression}${timezoneSuffix}`;
+  }
+
+  if (dayOfMonth === "*" && month === "*") {
+    const days = formatCronDays(dayOfWeek);
+    if (days) {
+      return `${days} at ${time}${timezoneSuffix}`;
+    }
+  }
+
+  if (dayOfWeek === "*" && month === "*" && /^\d+$/.test(dayOfMonth)) {
+    return `Every month on day ${dayOfMonth} at ${time}${timezoneSuffix}`;
+  }
+
+  return `Custom schedule: ${expression}${timezoneSuffix}`;
+};
+
+const formatSchedule = (schedule: AutomationSchedule): string => {
+  if (schedule.type === "at") {
+    return formatDate(schedule.at);
+  }
+
+  return formatCronSchedule(schedule.expression, schedule.timezone);
 };
 
 const formatDate = (value?: string): string => {
@@ -73,9 +156,25 @@ export function WorkspaceAutomationsSection({
 }: WorkspaceAutomationsSectionProps) {
   const [jobs, setJobs] = useState<AutomationJob[]>([]);
   const [runs, setRuns] = useState<AutomationRun[]>([]);
+  const [selectedTab, setSelectedTab] = useState<AutomationTab>("active");
   const [isLoading, setIsLoading] = useState(false);
   const [isMutatingId, setIsMutatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const { activeJobs, inactiveJobs, erroredJobs } = useMemo(
+    () => ({
+      activeJobs: jobs.filter((job) => job.lastStatus !== "error" && Boolean(job.nextRunAt)),
+      inactiveJobs: jobs.filter((job) => job.lastStatus !== "error" && !job.nextRunAt),
+      erroredJobs: jobs.filter((job) => job.lastStatus === "error"),
+    }),
+    [jobs],
+  );
+  const visibleJobs =
+    selectedTab === "active"
+      ? activeJobs
+      : selectedTab === "inactive"
+        ? inactiveJobs
+        : erroredJobs;
 
   const loadAutomations = async () => {
     setIsLoading(true);
@@ -99,6 +198,22 @@ export function WorkspaceAutomationsSection({
     if (!isOpen) return;
     void loadAutomations();
   }, [isOpen]);
+
+  useEffect(() => {
+    if (selectedTab === "active" && activeJobs.length === 0 && erroredJobs.length > 0) {
+      setSelectedTab("errored");
+    } else if (selectedTab === "active" && activeJobs.length === 0 && inactiveJobs.length > 0) {
+      setSelectedTab("inactive");
+    } else if (selectedTab === "inactive" && inactiveJobs.length === 0 && erroredJobs.length > 0) {
+      setSelectedTab("errored");
+    } else if (selectedTab === "inactive" && inactiveJobs.length === 0 && activeJobs.length > 0) {
+      setSelectedTab("active");
+    } else if (selectedTab === "errored" && erroredJobs.length === 0 && activeJobs.length > 0) {
+      setSelectedTab("active");
+    } else if (selectedTab === "errored" && erroredJobs.length === 0 && inactiveJobs.length > 0) {
+      setSelectedTab("inactive");
+    }
+  }, [activeJobs.length, inactiveJobs.length, erroredJobs.length, selectedTab]);
 
   const patchAutomation = async (id: string, body: Record<string, unknown>) => {
     setIsMutatingId(id);
@@ -190,6 +305,53 @@ export function WorkspaceAutomationsSection({
         </div>
       ) : null}
 
+      {jobs.length > 0 ? (
+        <div className="mb-3 grid grid-cols-3 rounded-xl bg-neutral-100 p-1 text-xs font-semibold text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
+          <button
+            type="button"
+            onClick={() => setSelectedTab("active")}
+            className={`rounded-lg px-3 py-2 transition ${
+              selectedTab === "active"
+                ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-900 dark:text-neutral-100"
+                : "hover:text-neutral-700 dark:hover:text-neutral-200"
+            }`}
+          >
+            Active
+            <span className="ml-1 text-[10px] text-neutral-400">
+              {activeJobs.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedTab("inactive")}
+            className={`rounded-lg px-3 py-2 transition ${
+              selectedTab === "inactive"
+                ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-900 dark:text-neutral-100"
+                : "hover:text-neutral-700 dark:hover:text-neutral-200"
+            }`}
+          >
+            Inactive
+            <span className="ml-1 text-[10px] text-neutral-400">
+              {inactiveJobs.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedTab("errored")}
+            className={`rounded-lg px-3 py-2 transition ${
+              selectedTab === "errored"
+                ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-900 dark:text-neutral-100"
+                : "hover:text-neutral-700 dark:hover:text-neutral-200"
+            }`}
+          >
+            Errored
+            <span className="ml-1 text-[10px] text-neutral-400">
+              {erroredJobs.length}
+            </span>
+          </button>
+        </div>
+      ) : null}
+
       {isLoading && jobs.length === 0 ? (
         <p className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-3 text-center text-xs text-neutral-400 dark:border-neutral-700 dark:bg-neutral-800">
           Loading automations...
@@ -198,9 +360,17 @@ export function WorkspaceAutomationsSection({
         <div className="rounded-lg border border-dashed border-neutral-300 px-3 py-3 text-xs text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
           No automations yet. Ask Lilo to create one, like: “Remind me every weekday at 8am to summarize my open todos.”
         </div>
+      ) : visibleJobs.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-neutral-300 px-3 py-3 text-xs text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+          {selectedTab === "active"
+            ? "No active automations. Automations need a next scheduled run to appear here."
+            : selectedTab === "inactive"
+              ? "No inactive automations."
+              : "No errored automations."}
+        </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {jobs.map((job) => (
+          {visibleJobs.map((job) => (
             <article
               key={job.id}
               className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-800/70"
@@ -219,15 +389,28 @@ export function WorkspaceAutomationsSection({
                         disabled
                       </span>
                     ) : null}
+                    {!job.nextRunAt ? (
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:ring-amber-900">
+                        inactive
+                      </span>
+                    ) : null}
                   </div>
                   <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
                     {formatSchedule(job.schedule)}
                   </p>
                 </div>
               </div>
-              <p className="mt-2 line-clamp-2 text-xs text-neutral-600 dark:text-neutral-300">
-                {job.prompt}
-              </p>
+              <details className="group mt-3 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs dark:border-neutral-700 dark:bg-neutral-900">
+                <summary className="cursor-pointer select-none font-medium text-neutral-500 transition hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100">
+                  Prompt
+                  <span className="ml-1 text-neutral-400 group-open:hidden">
+                    hidden
+                  </span>
+                </summary>
+                <p className="mt-2 whitespace-pre-wrap text-neutral-700 dark:text-neutral-200">
+                  {job.prompt}
+                </p>
+              </details>
               <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
                 <span>Next: {formatDate(job.nextRunAt)}</span>
                 <span>Last: {formatDate(job.lastRunAt)}</span>
