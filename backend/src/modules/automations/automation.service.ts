@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
 import { WORKSPACE_ROOT } from "../../shared/config/paths.js";
@@ -29,6 +29,65 @@ interface AutomationMutationInput {
 
 const ensureAutomationDir = async (): Promise<void> => {
   await mkdir(dirname(AUTOMATION_STORE_PATH), { recursive: true });
+};
+
+const writeJsonFileAtomically = async (path: string, value: unknown): Promise<void> => {
+  await ensureAutomationDir();
+  const tempPath = `${path}.${process.pid}.${Date.now()}.${randomUUID()}.tmp`;
+  await writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  await rename(tempPath, path);
+};
+
+const findFirstJsonDocumentEnd = (raw: string): number | null => {
+  const start = raw.search(/\S/);
+  if (start === -1) {
+    return null;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < raw.length; index += 1) {
+    const char = raw[index];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+    } else if (char === "{" || char === "[") {
+      depth += 1;
+    } else if (char === "}" || char === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        return index + 1;
+      }
+    }
+  }
+
+  return null;
+};
+
+const parseFirstJsonDocument = (raw: string): unknown | null => {
+  const end = findFirstJsonDocumentEnd(raw);
+  if (end === null) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw.slice(0, end));
+  } catch {
+    return null;
+  }
 };
 
 const normalizeString = (value: unknown): string =>
@@ -127,11 +186,66 @@ const normalizeRun = (value: unknown): AutomationRunRecord | null => {
   };
 };
 
+const normalizeStore = (parsed: Partial<AutomationStoreFile>): AutomationStoreFile => ({
+  version: 1,
+  jobs: Array.isArray(parsed.jobs)
+    ? parsed.jobs.map(normalizeJob).filter((job): job is AutomationJob => Boolean(job))
+    : [],
+});
+
+const normalizeRunStore = (parsed: Partial<AutomationRunStoreFile>): AutomationRunStoreFile => ({
+  version: 1,
+  runs: Array.isArray(parsed.runs)
+    ? parsed.runs.map(normalizeRun).filter((run): run is AutomationRunRecord => Boolean(run))
+    : [],
+});
+
+const backupCorruptJsonFile = async (path: string, raw: string): Promise<string> => {
+  await ensureAutomationDir();
+  const backupPath = `${path}.corrupt-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+  await writeFile(backupPath, raw, "utf8");
+  return backupPath;
+};
+
 export class AutomationService {
   private timer: ReturnType<typeof setInterval> | null = null;
   private runningJobIds = new Set<string>();
+  private storeQueue: Promise<void> = Promise.resolve();
+  private runStoreQueue: Promise<void> = Promise.resolve();
 
   constructor(private readonly chatService: PiSdkChatService) {}
+
+  private async withStoreLock<T>(callback: () => Promise<T>): Promise<T> {
+    const previous = this.storeQueue;
+    let release: () => void = () => {};
+    const next = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.storeQueue = previous.catch(() => undefined).then(() => next);
+
+    await previous.catch(() => undefined);
+    try {
+      return await callback();
+    } finally {
+      release();
+    }
+  }
+
+  private async withRunStoreLock<T>(callback: () => Promise<T>): Promise<T> {
+    const previous = this.runStoreQueue;
+    let release: () => void = () => {};
+    const next = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.runStoreQueue = previous.catch(() => undefined).then(() => next);
+
+    await previous.catch(() => undefined);
+    try {
+      return await callback();
+    } finally {
+      release();
+    }
+  }
 
   start(): void {
     if (this.timer) {
@@ -152,11 +266,11 @@ export class AutomationService {
   }
 
   async listJobs(): Promise<AutomationJob[]> {
-    return (await this.readStore()).jobs;
+    return this.withStoreLock(async () => (await this.readStore()).jobs);
   }
 
   async listRuns(): Promise<AutomationRunRecord[]> {
-    return (await this.readRunStore()).runs;
+    return this.withRunStoreLock(async () => (await this.readRunStore()).runs);
   }
 
   async createJob(input: AutomationMutationInput): Promise<AutomationJob> {
@@ -179,52 +293,58 @@ export class AutomationService {
       nextRunAt: getNextRunAt(schedule) ?? undefined,
     };
 
-    const store = await this.readStore();
-    store.jobs.push(job);
-    await this.writeStore(store);
+    await this.withStoreLock(async () => {
+      const store = await this.readStore();
+      store.jobs.push(job);
+      await this.writeStore(store);
+    });
     return job;
   }
 
   async updateJob(id: string, input: AutomationMutationInput): Promise<AutomationJob> {
-    const store = await this.readStore();
-    const index = store.jobs.findIndex((job) => job.id === id);
-    if (index === -1) {
-      throw new Error(`Automation "${id}" was not found`);
-    }
+    return this.withStoreLock(async () => {
+      const store = await this.readStore();
+      const index = store.jobs.findIndex((job) => job.id === id);
+      if (index === -1) {
+        throw new Error(`Automation "${id}" was not found`);
+      }
 
-    const current = store.jobs[index]!;
-    const schedule =
-      input.schedule === undefined ? current.schedule : normalizeSchedule(input.schedule);
-    if (!schedule) {
-      throw new Error("Invalid automation schedule");
-    }
+      const current = store.jobs[index]!;
+      const schedule =
+        input.schedule === undefined ? current.schedule : normalizeSchedule(input.schedule);
+      if (!schedule) {
+        throw new Error("Invalid automation schedule");
+      }
 
-    const updated: AutomationJob = {
-      ...current,
-      ...(input.name !== undefined ? { name: normalizeString(input.name) } : {}),
-      ...(input.prompt !== undefined ? { prompt: normalizeString(input.prompt) } : {}),
-      ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
-      schedule,
-      updatedAt: new Date().toISOString(),
-      nextRunAt: getNextRunAt(schedule) ?? undefined,
-    };
-    if (!updated.name || !updated.prompt) {
-      throw new Error("Automation name and prompt cannot be empty");
-    }
+      const updated: AutomationJob = {
+        ...current,
+        ...(input.name !== undefined ? { name: normalizeString(input.name) } : {}),
+        ...(input.prompt !== undefined ? { prompt: normalizeString(input.prompt) } : {}),
+        ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+        schedule,
+        updatedAt: new Date().toISOString(),
+        nextRunAt: getNextRunAt(schedule) ?? undefined,
+      };
+      if (!updated.name || !updated.prompt) {
+        throw new Error("Automation name and prompt cannot be empty");
+      }
 
-    store.jobs[index] = updated;
-    await this.writeStore(store);
-    return updated;
+      store.jobs[index] = updated;
+      await this.writeStore(store);
+      return updated;
+    });
   }
 
   async deleteJob(id: string): Promise<void> {
-    const store = await this.readStore();
-    const nextJobs = store.jobs.filter((job) => job.id !== id);
-    if (nextJobs.length === store.jobs.length) {
-      throw new Error(`Automation "${id}" was not found`);
-    }
+    await this.withStoreLock(async () => {
+      const store = await this.readStore();
+      const nextJobs = store.jobs.filter((job) => job.id !== id);
+      if (nextJobs.length === store.jobs.length) {
+        throw new Error(`Automation "${id}" was not found`);
+      }
 
-    await this.writeStore({ ...store, jobs: nextJobs });
+      await this.writeStore({ ...store, jobs: nextJobs });
+    });
   }
 
   async runJobNow(id: string): Promise<AutomationRunRecord> {
@@ -352,16 +472,18 @@ export class AutomationService {
   }
 
   private async patchJobAfterRunStart(id: string, chatId: string): Promise<void> {
-    const store = await this.readStore();
-    const job = store.jobs.find((entry) => entry.id === id);
-    if (!job) return;
-    job.lastRunAt = new Date().toISOString();
-    job.lastStatus = "running";
-    job.lastError = undefined;
-    job.lastChatId = chatId;
-    job.nextRunAt = getNextRunAt(job.schedule) ?? undefined;
-    job.updatedAt = new Date().toISOString();
-    await this.writeStore(store);
+    await this.withStoreLock(async () => {
+      const store = await this.readStore();
+      const job = store.jobs.find((entry) => entry.id === id);
+      if (!job) return;
+      job.lastRunAt = new Date().toISOString();
+      job.lastStatus = "running";
+      job.lastError = undefined;
+      job.lastChatId = chatId;
+      job.nextRunAt = getNextRunAt(job.schedule) ?? undefined;
+      job.updatedAt = new Date().toISOString();
+      await this.writeStore(store);
+    });
   }
 
   private async patchJobAfterRunFinish(
@@ -369,45 +491,46 @@ export class AutomationService {
     status: "success" | "error",
     error?: string,
   ): Promise<void> {
-    const store = await this.readStore();
-    const job = store.jobs.find((entry) => entry.id === id);
-    if (!job) return;
-    job.lastStatus = status;
-    job.lastError = error;
-    job.nextRunAt = getNextRunAt(job.schedule) ?? undefined;
-    job.updatedAt = new Date().toISOString();
-    await this.writeStore(store);
+    await this.withStoreLock(async () => {
+      const store = await this.readStore();
+      const job = store.jobs.find((entry) => entry.id === id);
+      if (!job) return;
+      job.lastStatus = status;
+      job.lastError = error;
+      job.nextRunAt = getNextRunAt(job.schedule) ?? undefined;
+      job.updatedAt = new Date().toISOString();
+      await this.writeStore(store);
+    });
   }
 
   private async appendRun(run: AutomationRunRecord): Promise<void> {
-    const store = await this.readRunStore();
-    store.runs.unshift(run);
-    store.runs = store.runs.slice(0, MAX_RUN_HISTORY);
-    await this.writeRunStore(store);
+    await this.withRunStoreLock(async () => {
+      const store = await this.readRunStore();
+      store.runs.unshift(run);
+      store.runs = store.runs.slice(0, MAX_RUN_HISTORY);
+      await this.writeRunStore(store);
+    });
   }
 
   private async updateRun(run: AutomationRunRecord): Promise<void> {
-    const store = await this.readRunStore();
-    const index = store.runs.findIndex((entry) => entry.id === run.id);
-    if (index === -1) {
-      store.runs.unshift(run);
-    } else {
-      store.runs[index] = run;
-    }
-    store.runs = store.runs.slice(0, MAX_RUN_HISTORY);
-    await this.writeRunStore(store);
+    await this.withRunStoreLock(async () => {
+      const store = await this.readRunStore();
+      const index = store.runs.findIndex((entry) => entry.id === run.id);
+      if (index === -1) {
+        store.runs.unshift(run);
+      } else {
+        store.runs[index] = run;
+      }
+      store.runs = store.runs.slice(0, MAX_RUN_HISTORY);
+      await this.writeRunStore(store);
+    });
   }
 
   private async readStore(): Promise<AutomationStoreFile> {
     try {
       const raw = await readFile(AUTOMATION_STORE_PATH, "utf8");
       const parsed = JSON.parse(raw) as Partial<AutomationStoreFile>;
-      return {
-        version: 1,
-        jobs: Array.isArray(parsed.jobs)
-          ? parsed.jobs.map(normalizeJob).filter((job): job is AutomationJob => Boolean(job))
-          : [],
-      };
+      return normalizeStore(parsed);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
         return { version: 1, jobs: [] };
@@ -417,34 +540,65 @@ export class AutomationService {
   }
 
   private async writeStore(store: AutomationStoreFile): Promise<void> {
-    await ensureAutomationDir();
-    await writeFile(AUTOMATION_STORE_PATH, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+    await writeJsonFileAtomically(AUTOMATION_STORE_PATH, store);
   }
 
   private async readRunStore(): Promise<AutomationRunStoreFile> {
+    let raw = "";
     try {
-      const raw = await readFile(AUTOMATION_RUN_STORE_PATH, "utf8");
+      raw = await readFile(AUTOMATION_RUN_STORE_PATH, "utf8");
       const parsed = JSON.parse(raw) as Partial<AutomationRunStoreFile>;
-      return {
-        version: 1,
-        runs: Array.isArray(parsed.runs)
-          ? parsed.runs.map(normalizeRun).filter((run): run is AutomationRunRecord => Boolean(run))
-          : [],
-      };
+      return normalizeRunStore(parsed);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
         return { version: 1, runs: [] };
       }
+
+      if (error instanceof SyntaxError) {
+        const recovered = parseFirstJsonDocument(raw);
+        if (recovered && typeof recovered === "object") {
+          const store = normalizeRunStore(recovered as Partial<AutomationRunStoreFile>);
+          captureBackendException(error, {
+            tags: {
+              area: "automations",
+              operation: "recover_run_store",
+            },
+            extras: {
+              path: AUTOMATION_RUN_STORE_PATH,
+              rawLength: raw.length,
+              recoveredRuns: store.runs.length,
+            },
+            level: "warning",
+            fingerprint: ["automations", "run_store", "recovered_json"],
+          });
+          await this.writeRunStore(store);
+          return store;
+        }
+
+        const backupPath = await backupCorruptJsonFile(AUTOMATION_RUN_STORE_PATH, raw);
+        const emptyStore: AutomationRunStoreFile = { version: 1, runs: [] };
+        captureBackendException(error, {
+          tags: {
+            area: "automations",
+            operation: "reset_corrupt_run_store",
+          },
+          extras: {
+            path: AUTOMATION_RUN_STORE_PATH,
+            backupPath,
+            rawLength: raw.length,
+          },
+          level: "error",
+          fingerprint: ["automations", "run_store", "reset_corrupt_json"],
+        });
+        await this.writeRunStore(emptyStore);
+        return emptyStore;
+      }
+
       throw error;
     }
   }
 
   private async writeRunStore(store: AutomationRunStoreFile): Promise<void> {
-    await ensureAutomationDir();
-    await writeFile(
-      AUTOMATION_RUN_STORE_PATH,
-      `${JSON.stringify(store, null, 2)}\n`,
-      "utf8",
-    );
+    await writeJsonFileAtomically(AUTOMATION_RUN_STORE_PATH, store);
   }
 }
