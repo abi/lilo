@@ -1,11 +1,16 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rename, unlink } from "node:fs/promises";
 import { resolve } from "node:path";
+import {
+  type ChatModelSelection,
+  isSupportedChatModelSelection,
+} from "../pi/runtime.js";
 
 export interface WorkspaceAppPrefs {
   appNames: string[];
   archivedAppNames: string[];
   timeZone: string | null;
+  defaultChatModelSelection: ChatModelSelection | null;
 }
 
 const isValidTimeZone = (value: unknown): value is string => {
@@ -75,6 +80,7 @@ export const readWorkspaceAppPrefs = async (
       appNames?: unknown;
       archivedAppNames?: unknown;
       timeZone?: unknown;
+      defaultChatModelSelection?: unknown;
     };
 
     return {
@@ -85,8 +91,18 @@ export const readWorkspaceAppPrefs = async (
         ? parsed.archivedAppNames.filter((value): value is string => typeof value === "string")
         : [],
       timeZone: isValidTimeZone(parsed.timeZone) ? parsed.timeZone : null,
+      defaultChatModelSelection: isSupportedChatModelSelection(
+        parsed.defaultChatModelSelection,
+      )
+        ? parsed.defaultChatModelSelection
+        : null,
     };
   } catch {
-    return { appNames: [], archivedAppNames: [], timeZone: null };
+    return {
+      appNames: [],
+      archivedAppNames: [],
+      timeZone: null,
+      defaultChatModelSelection: null,
+    };
   }
 };

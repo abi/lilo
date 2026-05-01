@@ -1,7 +1,11 @@
 import { useCallback, useState } from "react";
 import { CloudSyncButton } from "../CloudSyncButton";
 import { WorkspaceSettingsButton } from "../workspace/WorkspaceSettingsButton";
-import type { WorkspaceAppLink, WorkspaceTemplateUpdate } from "../workspace/types";
+import type {
+  WorkspaceAppLink,
+  WorkspacePreferences,
+  WorkspaceTemplateUpdate,
+} from "../workspace/types";
 
 interface DesktopCollapsedSidebarStripProps {
   workspaceApps: WorkspaceAppLink[];
@@ -12,6 +16,7 @@ interface DesktopCollapsedSidebarStripProps {
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
   workspaceGitBrowserUrl?: string;
+  defaultChatModelSelection?: WorkspacePreferences["defaultChatModelSelection"];
   templateUpdates: WorkspaceTemplateUpdate[];
   onToggleSidebar: () => void;
   onToggleArchived: () => void;
@@ -19,6 +24,9 @@ interface DesktopCollapsedSidebarStripProps {
   onReorderApps: (appNames: string[]) => void;
   onSelectTheme: (theme: "light" | "dark" | "system") => void;
   onSaveWorkspaceTimeZone: (timeZone: string) => void;
+  onDefaultChatModelChange: (
+    selection: NonNullable<WorkspacePreferences["defaultChatModelSelection"]>,
+  ) => Promise<void> | void;
   onRequestTemplateUpdate: (update: WorkspaceTemplateUpdate) => void;
   onDismissTemplateUpdate: (update: WorkspaceTemplateUpdate) => Promise<void>;
   onOpenCommandPalette: () => void;
@@ -159,6 +167,7 @@ export function DesktopCollapsedSidebarStrip({
   workspaceTimeZone,
   workspaceGitRemoteUrl,
   workspaceGitBrowserUrl,
+  defaultChatModelSelection,
   templateUpdates,
   onToggleSidebar,
   onToggleArchived,
@@ -166,6 +175,7 @@ export function DesktopCollapsedSidebarStrip({
   onReorderApps,
   onSelectTheme,
   onSaveWorkspaceTimeZone,
+  onDefaultChatModelChange,
   onRequestTemplateUpdate,
   onDismissTemplateUpdate,
   onOpenCommandPalette,
@@ -362,10 +372,12 @@ export function DesktopCollapsedSidebarStrip({
           workspaceTimeZone={workspaceTimeZone}
           workspaceGitRemoteUrl={workspaceGitRemoteUrl}
           workspaceGitBrowserUrl={workspaceGitBrowserUrl}
+          defaultChatModelSelection={defaultChatModelSelection}
           templateUpdates={templateUpdates}
           onRequestTemplateUpdate={onRequestTemplateUpdate}
           onDismissTemplateUpdate={onDismissTemplateUpdate}
           onTimeZoneChange={onSaveWorkspaceTimeZone}
+          onDefaultChatModelChange={onDefaultChatModelChange}
           theme={theme}
           onSelectTheme={onSelectTheme}
           title="Settings"

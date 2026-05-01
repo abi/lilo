@@ -1,45 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { config } from "../../../config/config";
 import { fetchJson } from "../../../store/chat/api";
-import type { ChatModelId, ChatModelProvider } from "../../../store/chatStore";
-
-type ChatModelOption = {
-  label: string;
-  provider: ChatModelProvider;
-  modelId: ChatModelId;
-};
-
-const ALL_CHAT_MODEL_OPTIONS: ChatModelOption[] = [
-  {
-    label: "GPT 5.5",
-    provider: "openai",
-    modelId: "gpt-5.5",
-  },
-  {
-    label: "GPT 5.4 Mini",
-    provider: "openai",
-    modelId: "gpt-5.4-mini",
-  },
-  {
-    label: "Opus 4.7",
-    provider: "anthropic",
-    modelId: "claude-opus-4-7",
-  },
-];
-
-const toChatModelOption = (
-  model: Pick<ChatModelOption, "provider" | "modelId">,
-): ChatModelOption => {
-  return (
-    ALL_CHAT_MODEL_OPTIONS.find(
-      (option) => option.provider === model.provider && option.modelId === model.modelId,
-    ) ?? {
-      label: model.modelId,
-      provider: model.provider,
-      modelId: model.modelId,
-    }
-  );
-};
+import { type ChatModelOption, toChatModelOption } from "../modelOptions";
 
 interface ChatModelSelectProps {
   modelProvider: ChatModelOption["provider"];

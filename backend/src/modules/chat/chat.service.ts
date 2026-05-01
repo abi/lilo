@@ -747,10 +747,20 @@ export class PiSdkChatService {
     );
   }
 
-  async createChat(modelSelection = getDefaultChatModelSelection()): Promise<ChatDetail> {
+  private async getWorkspaceDefaultChatModelSelection(): Promise<ChatModelSelection> {
+    const prefs = await readWorkspaceAppPrefs(this.workspaceDir);
+    return prefs.defaultChatModelSelection ?? getDefaultChatModelSelection();
+  }
+
+  async createChat(modelSelection?: ChatModelSelection): Promise<ChatDetail> {
+    const resolvedModelSelection =
+      modelSelection ?? (await this.getWorkspaceDefaultChatModelSelection());
     const sessionManager = SessionManager.create(this.workspaceDir, this.sessionDir);
     await persistSessionManager(sessionManager);
-    await this.writeChatModelSelection(sessionManager.getSessionFile(), modelSelection);
+    await this.writeChatModelSelection(
+      sessionManager.getSessionFile(),
+      resolvedModelSelection,
+    );
 
     return {
       id: sessionManager.getSessionId(),
@@ -761,8 +771,8 @@ export class PiSdkChatService {
       status: "idle",
       activeRunId: null,
       activeRunLastSeq: null,
-      modelProvider: modelSelection.provider,
-      modelId: modelSelection.modelId,
+      modelProvider: resolvedModelSelection.provider,
+      modelId: resolvedModelSelection.modelId,
       messages: [],
     };
   }
@@ -1838,7 +1848,7 @@ export class PiSdkChatService {
 
   private async readChatModelSelection(sessionPath: string): Promise<ChatModelSelection> {
     const metadata = await this.readChatMetadata(sessionPath);
-    return metadata.modelSelection ?? getDefaultChatModelSelection();
+    return metadata.modelSelection ?? (await this.getWorkspaceDefaultChatModelSelection());
   }
 
   private async writeChatModelSelection(

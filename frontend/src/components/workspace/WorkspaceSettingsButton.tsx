@@ -3,8 +3,9 @@ import { createPortal } from "react-dom";
 import { logout, notifyAuthRequired } from "../../lib/auth";
 import { WorkspaceAutomationsSection } from "./WorkspaceAutomationsSection";
 import { WorkspaceAppUpdatesSection } from "./WorkspaceAppUpdatesSection";
+import { WorkspaceDefaultModelSection } from "./WorkspaceDefaultModelSection";
 import { TIMEZONE_META } from "./timezoneMeta";
-import type { WorkspaceTemplateUpdate } from "./types";
+import type { WorkspacePreferences, WorkspaceTemplateUpdate } from "./types";
 
 type ThemeOption = "light" | "dark" | "system";
 
@@ -12,10 +13,14 @@ interface WorkspaceSettingsButtonProps {
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
   workspaceGitBrowserUrl?: string;
+  defaultChatModelSelection?: WorkspacePreferences["defaultChatModelSelection"];
   templateUpdates?: WorkspaceTemplateUpdate[];
   onRequestTemplateUpdate?: (update: WorkspaceTemplateUpdate) => void;
   onDismissTemplateUpdate?: (update: WorkspaceTemplateUpdate) => Promise<void> | void;
   onTimeZoneChange: (timeZone: string) => void;
+  onDefaultChatModelChange: (
+    selection: NonNullable<WorkspacePreferences["defaultChatModelSelection"]>,
+  ) => Promise<void> | void;
   theme: ThemeOption;
   onSelectTheme: (theme: ThemeOption) => void;
   triggerClassName?: string;
@@ -148,10 +153,12 @@ export function WorkspaceSettingsButton({
   workspaceTimeZone,
   workspaceGitRemoteUrl,
   workspaceGitBrowserUrl,
+  defaultChatModelSelection,
   templateUpdates = [],
   onRequestTemplateUpdate,
   onDismissTemplateUpdate,
   onTimeZoneChange,
+  onDefaultChatModelChange,
   theme,
   onSelectTheme,
   triggerClassName = "rounded-lg p-2.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300",
@@ -326,6 +333,11 @@ export function WorkspaceSettingsButton({
                       })}
                     </div>
                   </section>
+
+                  <WorkspaceDefaultModelSection
+                    defaultChatModelSelection={defaultChatModelSelection}
+                    onDefaultChatModelChange={onDefaultChatModelChange}
+                  />
 
                   <section className="border-b border-neutral-200 px-4 py-4 dark:border-neutral-700">
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">

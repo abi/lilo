@@ -1,7 +1,12 @@
 import { useWorkspaceTreeState } from "./hooks/useWorkspaceTreeState";
 import { WorkspaceSidebarHeader } from "./WorkspaceSidebarHeader";
 import { WorkspaceTree } from "./tree/WorkspaceTree";
-import type { WorkspaceAppLink, WorkspaceEntry, WorkspaceTemplateUpdate } from "./types";
+import type {
+  WorkspaceAppLink,
+  WorkspaceEntry,
+  WorkspacePreferences,
+  WorkspaceTemplateUpdate,
+} from "./types";
 
 export type { WorkspaceAppLink, WorkspaceEntry, WorkspaceEntryKind } from "./types";
 
@@ -12,11 +17,15 @@ interface WorkspaceSidebarProps {
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
   workspaceGitBrowserUrl?: string;
+  defaultChatModelSelection?: WorkspacePreferences["defaultChatModelSelection"];
   templateUpdates?: WorkspaceTemplateUpdate[];
   mobile?: boolean;
   onSelectApp: (href: string) => void;
   onRefresh: () => void;
   onTimeZoneChange: (timeZone: string) => void;
+  onDefaultChatModelChange: (
+    selection: NonNullable<WorkspacePreferences["defaultChatModelSelection"]>,
+  ) => Promise<void> | void;
   onRequestTemplateUpdate?: (update: WorkspaceTemplateUpdate) => void;
   onDismissTemplateUpdate?: (update: WorkspaceTemplateUpdate) => Promise<void> | void;
   onReorderApps?: (appNames: string[]) => void;
@@ -29,11 +38,13 @@ export function WorkspaceSidebar({
   workspaceTimeZone,
   workspaceGitRemoteUrl,
   workspaceGitBrowserUrl,
+  defaultChatModelSelection,
   templateUpdates = [],
   mobile = false,
   onSelectApp,
   onRefresh,
   onTimeZoneChange,
+  onDefaultChatModelChange,
   onRequestTemplateUpdate,
   onDismissTemplateUpdate,
   onReorderApps,
@@ -63,8 +74,10 @@ export function WorkspaceSidebar({
         workspaceTimeZone={workspaceTimeZone}
         workspaceGitRemoteUrl={workspaceGitRemoteUrl}
         workspaceGitBrowserUrl={workspaceGitBrowserUrl}
+        defaultChatModelSelection={defaultChatModelSelection}
         templateUpdates={templateUpdates}
         onTimeZoneChange={onTimeZoneChange}
+        onDefaultChatModelChange={onDefaultChatModelChange}
         onRequestTemplateUpdate={onRequestTemplateUpdate}
         onDismissTemplateUpdate={onDismissTemplateUpdate}
       />

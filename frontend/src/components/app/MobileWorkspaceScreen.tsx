@@ -3,6 +3,7 @@ import { WorkspaceSidebar } from "../workspace/WorkspaceSidebar";
 import type {
   WorkspaceAppLink,
   WorkspaceEntry,
+  WorkspacePreferences,
   WorkspaceTemplateUpdate,
 } from "../workspace/types";
 
@@ -13,11 +14,15 @@ interface MobileWorkspaceScreenProps {
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
   workspaceGitBrowserUrl?: string;
+  defaultChatModelSelection?: WorkspacePreferences["defaultChatModelSelection"];
   templateUpdates: WorkspaceTemplateUpdate[];
   syncError?: string | null;
   onSelectApp: (href: string) => void;
   onRefreshWorkspace: () => void;
   onSaveWorkspaceTimeZone: (timeZone: string) => void;
+  onDefaultChatModelChange: (
+    selection: NonNullable<WorkspacePreferences["defaultChatModelSelection"]>,
+  ) => Promise<void> | void;
   onRequestTemplateUpdate: (update: WorkspaceTemplateUpdate) => void;
   onDismissTemplateUpdate: (update: WorkspaceTemplateUpdate) => Promise<void>;
   onReorderApps: (appNames: string[]) => void;
@@ -33,11 +38,13 @@ export function MobileWorkspaceScreen({
   workspaceTimeZone,
   workspaceGitRemoteUrl,
   workspaceGitBrowserUrl,
+  defaultChatModelSelection,
   templateUpdates,
   syncError,
   onSelectApp,
   onRefreshWorkspace,
   onSaveWorkspaceTimeZone,
+  onDefaultChatModelChange,
   onRequestTemplateUpdate,
   onDismissTemplateUpdate,
   onReorderApps,
@@ -69,10 +76,12 @@ export function MobileWorkspaceScreen({
         workspaceTimeZone={workspaceTimeZone}
         workspaceGitRemoteUrl={workspaceGitRemoteUrl}
         workspaceGitBrowserUrl={workspaceGitBrowserUrl}
+        defaultChatModelSelection={defaultChatModelSelection}
         templateUpdates={templateUpdates}
         onSelectApp={onSelectApp}
         onRefresh={onRefreshWorkspace}
         onTimeZoneChange={onSaveWorkspaceTimeZone}
+        onDefaultChatModelChange={onDefaultChatModelChange}
         onRequestTemplateUpdate={onRequestTemplateUpdate}
         onDismissTemplateUpdate={onDismissTemplateUpdate}
         onReorderApps={onReorderApps}

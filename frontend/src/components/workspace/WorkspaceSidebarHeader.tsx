@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { logout, notifyAuthRequired } from "../../lib/auth";
 import { WorkspaceAppUpdatesSection } from "./WorkspaceAppUpdatesSection";
-import type { WorkspaceTemplateUpdate } from "./types";
+import { WorkspaceDefaultModelSection } from "./WorkspaceDefaultModelSection";
+import type { WorkspacePreferences, WorkspaceTemplateUpdate } from "./types";
 
 interface WorkspaceSidebarHeaderProps {
   mobile?: boolean;
@@ -10,8 +11,12 @@ interface WorkspaceSidebarHeaderProps {
   workspaceTimeZone: string;
   workspaceGitRemoteUrl?: string;
   workspaceGitBrowserUrl?: string;
+  defaultChatModelSelection?: WorkspacePreferences["defaultChatModelSelection"];
   templateUpdates?: WorkspaceTemplateUpdate[];
   onTimeZoneChange: (timeZone: string) => void;
+  onDefaultChatModelChange: (
+    selection: NonNullable<WorkspacePreferences["defaultChatModelSelection"]>,
+  ) => Promise<void> | void;
   onRequestTemplateUpdate?: (update: WorkspaceTemplateUpdate) => void;
   onDismissTemplateUpdate?: (update: WorkspaceTemplateUpdate) => Promise<void> | void;
 }
@@ -37,8 +42,10 @@ export function WorkspaceSidebarHeader({
   workspaceTimeZone,
   workspaceGitRemoteUrl,
   workspaceGitBrowserUrl,
+  defaultChatModelSelection,
   templateUpdates = [],
   onTimeZoneChange,
+  onDefaultChatModelChange,
   onRequestTemplateUpdate,
   onDismissTemplateUpdate,
 }: WorkspaceSidebarHeaderProps) {
@@ -194,6 +201,12 @@ export function WorkspaceSidebarHeader({
                     <p className="mt-1 break-all font-mono text-xs text-neutral-800 dark:text-neutral-100">
                       {workspaceGitRemoteUrl || "Not configured"}
                     </p>
+                  </div>
+                  <div className="mb-4 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-950">
+                    <WorkspaceDefaultModelSection
+                      defaultChatModelSelection={defaultChatModelSelection}
+                      onDefaultChatModelChange={onDefaultChatModelChange}
+                    />
                   </div>
                   <WorkspaceAppUpdatesSection
                     className="mb-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-950"

@@ -36,6 +36,7 @@ import {
   dismissWorkspaceTemplateUpdate,
   getWorkspaceTemplateUpdates,
 } from "../../shared/workspace/templateUpdates.js";
+import { isSupportedChatModelSelection } from "../../shared/pi/runtime.js";
 import {
   getShellRunSnapshot,
   startShellRun,
@@ -82,6 +83,7 @@ const writeWorkspaceConfig = async (config: {
   appNames: string[];
   archivedAppNames: string[];
   timeZone: string | null;
+  defaultChatModelSelection: unknown;
 }): Promise<void> => {
   await mkdir(WORKSPACE_CONFIG_DIR, { recursive: true });
   const sanitized = {
@@ -90,6 +92,11 @@ const writeWorkspaceConfig = async (config: {
       (name) => name !== PINNED_APP_NAME,
     ),
     timeZone: config.timeZone,
+    defaultChatModelSelection: isSupportedChatModelSelection(
+      config.defaultChatModelSelection,
+    )
+      ? config.defaultChatModelSelection
+      : null,
   };
   await writeFile(WORKSPACE_CONFIG_PATH, JSON.stringify(sanitized, null, 2), "utf8");
 };
@@ -1784,6 +1791,9 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
       templateUpdates,
       preferences: {
         timeZone: prefs.timeZone ?? DEFAULT_WORKSPACE_TIME_ZONE,
+        ...(prefs.defaultChatModelSelection
+          ? { defaultChatModelSelection: prefs.defaultChatModelSelection }
+          : {}),
         ...(workspaceGitUrl ? { gitRemoteUrl: workspaceGitUrl } : {}),
         ...(workspaceGitBrowserUrl ? { gitBrowserUrl: workspaceGitBrowserUrl } : {}),
       },
@@ -1882,6 +1892,7 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
         appNames,
         archivedAppNames: prefs.archivedAppNames.filter((name) => validApps.includes(name)),
         timeZone: prefs.timeZone,
+        defaultChatModelSelection: prefs.defaultChatModelSelection,
       });
       return c.json({ ok: true, appNames });
     } catch (error) {
@@ -1913,6 +1924,7 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
         appNames: prefs.appNames.filter((name) => validApps.includes(name)),
         archivedAppNames,
         timeZone: prefs.timeZone,
+        defaultChatModelSelection: prefs.defaultChatModelSelection,
       });
 
       return c.json({ ok: true, archivedAppNames });
@@ -1929,25 +1941,44 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
 
   app.put("/workspace/preferences", async (c) => {
     try {
-      const body = (await c.req.json()) as { timeZone?: unknown };
-      if (typeof body.timeZone !== "string" || body.timeZone.trim().length === 0) {
-        return c.json({ error: "timeZone must be a non-empty string" }, 400);
-      }
-
-      try {
-        new Intl.DateTimeFormat("en-US", { timeZone: body.timeZone });
-      } catch {
-        return c.json({ error: "Invalid timeZone" }, 400);
-      }
-
+      const body = (await c.req.json()) as {
+        timeZone?: unknown;
+        defaultChatModelSelection?: unknown;
+      };
       const prefs = await readWorkspaceAppPrefs(WORKSPACE_ROOT);
+
+      let timeZone = prefs.timeZone;
+      if (body.timeZone !== undefined) {
+        if (typeof body.timeZone !== "string" || body.timeZone.trim().length === 0) {
+          return c.json({ error: "timeZone must be a non-empty string" }, 400);
+        }
+
+        try {
+          new Intl.DateTimeFormat("en-US", { timeZone: body.timeZone });
+        } catch {
+          return c.json({ error: "Invalid timeZone" }, 400);
+        }
+
+        timeZone = body.timeZone;
+      }
+
+      let defaultChatModelSelection = prefs.defaultChatModelSelection;
+      if (body.defaultChatModelSelection !== undefined) {
+        if (!isSupportedChatModelSelection(body.defaultChatModelSelection)) {
+          return c.json({ error: "Invalid default chat model selection" }, 400);
+        }
+
+        defaultChatModelSelection = body.defaultChatModelSelection;
+      }
+
       await writeWorkspaceConfig({
         appNames: prefs.appNames,
         archivedAppNames: prefs.archivedAppNames,
-        timeZone: body.timeZone,
+        timeZone,
+        defaultChatModelSelection,
       });
 
-      return c.json({ ok: true, timeZone: body.timeZone });
+      return c.json({ ok: true, timeZone, defaultChatModelSelection });
     } catch (error) {
       return c.json(
         {

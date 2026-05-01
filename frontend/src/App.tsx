@@ -488,6 +488,7 @@ function App() {
             workspaceTimeZone={workspace.workspacePreferences.timeZone}
             workspaceGitRemoteUrl={workspace.workspacePreferences.gitRemoteUrl}
             workspaceGitBrowserUrl={workspace.workspacePreferences.gitBrowserUrl}
+            defaultChatModelSelection={workspace.workspacePreferences.defaultChatModelSelection}
             templateUpdates={workspace.templateUpdates}
             onToggleSidebar={shell.sidebarOpen ? shell.hideSidebarPanel : shell.showSidebarPanel}
             onToggleArchived={shell.toggleArchivedInStrip}
@@ -495,6 +496,7 @@ function App() {
             onReorderApps={workspace.saveAppOrder}
             onSelectTheme={setTheme}
             onSaveWorkspaceTimeZone={workspace.saveWorkspaceTimeZone}
+            onDefaultChatModelChange={workspace.saveDefaultChatModelSelection}
             onRequestTemplateUpdate={handleRequestTemplateUpdate}
             onDismissTemplateUpdate={workspace.dismissTemplateUpdate}
             onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
@@ -511,12 +513,14 @@ function App() {
             workspaceTimeZone={workspace.workspacePreferences.timeZone}
             workspaceGitRemoteUrl={workspace.workspacePreferences.gitRemoteUrl}
             workspaceGitBrowserUrl={workspace.workspacePreferences.gitBrowserUrl}
+            defaultChatModelSelection={workspace.workspacePreferences.defaultChatModelSelection}
             workspaceApps={workspace.workspaceApps}
             workspaceEntries={workspace.workspaceEntries}
             templateUpdates={workspace.templateUpdates}
             onSelectApp={workspace.setSelectedViewerPath}
             onRefreshWorkspace={() => void workspace.loadWorkspace()}
             onSaveWorkspaceTimeZone={workspace.saveWorkspaceTimeZone}
+            onDefaultChatModelChange={workspace.saveDefaultChatModelSelection}
             onRequestTemplateUpdate={handleRequestTemplateUpdate}
             onDismissTemplateUpdate={workspace.dismissTemplateUpdate}
             onReorderApps={workspace.saveAppOrder}
@@ -549,11 +553,13 @@ function App() {
           workspaceTimeZone={workspace.workspacePreferences.timeZone}
           workspaceGitRemoteUrl={workspace.workspacePreferences.gitRemoteUrl}
           workspaceGitBrowserUrl={workspace.workspacePreferences.gitBrowserUrl}
+          defaultChatModelSelection={workspace.workspacePreferences.defaultChatModelSelection}
           templateUpdates={workspace.templateUpdates}
           syncError={workspace.silentSyncError}
           onSelectApp={handleOpenMobileWorkspaceApp}
           onRefreshWorkspace={() => void workspace.loadWorkspace()}
           onSaveWorkspaceTimeZone={workspace.saveWorkspaceTimeZone}
+          onDefaultChatModelChange={workspace.saveDefaultChatModelSelection}
           onRequestTemplateUpdate={handleRequestTemplateUpdate}
           onDismissTemplateUpdate={workspace.dismissTemplateUpdate}
           onReorderApps={workspace.saveAppOrder}

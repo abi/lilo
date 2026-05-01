@@ -149,6 +149,7 @@ export function useWorkspaceCatalog({
       setTemplateUpdates(updates);
       setWorkspacePreferences({
         timeZone: payload.preferences?.timeZone ?? DEFAULT_WORKSPACE_TIME_ZONE,
+        defaultChatModelSelection: payload.preferences?.defaultChatModelSelection,
         gitRemoteUrl: payload.preferences?.gitRemoteUrl,
         gitBrowserUrl: payload.preferences?.gitBrowserUrl,
       });
@@ -311,7 +312,7 @@ export function useWorkspaceCatalog({
   const saveWorkspaceTimeZone = useCallback(
     async (timeZone: string) => {
       const previous = workspacePreferences;
-      setWorkspacePreferences({ timeZone });
+      setWorkspacePreferences((current) => ({ ...current, timeZone }));
 
       try {
         const response = await authFetch(`${config.apiBaseUrl}/workspace/preferences`, {
@@ -327,6 +328,38 @@ export function useWorkspaceCatalog({
         }
       } catch {
         setWorkspacePreferences(previous);
+      }
+    },
+    [workspacePreferences],
+  );
+
+  const saveDefaultChatModelSelection = useCallback(
+    async (
+      defaultChatModelSelection: NonNullable<
+        WorkspacePreferences["defaultChatModelSelection"]
+      >,
+    ) => {
+      const previous = workspacePreferences;
+      setWorkspacePreferences((current) => ({
+        ...current,
+        defaultChatModelSelection,
+      }));
+
+      try {
+        const response = await authFetch(`${config.apiBaseUrl}/workspace/preferences`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ defaultChatModelSelection }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to save workspace preferences");
+        }
+      } catch {
+        setWorkspacePreferences(previous);
+        throw new Error("Failed to save default model");
       }
     },
     [workspacePreferences],
@@ -425,6 +458,7 @@ export function useWorkspaceCatalog({
     saveAppOrder,
     saveArchivedApps,
     saveWorkspaceTimeZone,
+    saveDefaultChatModelSelection,
     dismissTemplateUpdate,
     retryStartup,
   };

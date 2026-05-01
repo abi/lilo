@@ -1,3 +1,5 @@
+import type { ChatModelId, ChatModelProvider } from "../../store/chatStore";
+
 export type WorkspaceAppLink = {
   name: string;
   displayName?: string;
@@ -30,6 +32,10 @@ export type WorkspaceEntry = {
 
 export type WorkspacePreferences = {
   timeZone: string;
+  defaultChatModelSelection?: {
+    provider: ChatModelProvider;
+    modelId: ChatModelId;
+  };
   gitRemoteUrl?: string;
   gitBrowserUrl?: string;
 };

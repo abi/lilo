@@ -2,6 +2,7 @@ import { WorkspaceSidebar } from "../workspace/WorkspaceSidebar";
 import type {
   WorkspaceAppLink,
   WorkspaceEntry,
+  WorkspacePreferences,
   WorkspaceTemplateUpdate,
 } from "../workspace/types";
 
@@ -12,10 +13,14 @@ interface ChatSidebarProps {
   workspaceEntries: WorkspaceEntry[];
   workspaceGitRemoteUrl?: string;
   workspaceGitBrowserUrl?: string;
+  defaultChatModelSelection?: WorkspacePreferences["defaultChatModelSelection"];
   templateUpdates: WorkspaceTemplateUpdate[];
   onSelectApp: (href: string) => void;
   onRefreshWorkspace: () => void;
   onSaveWorkspaceTimeZone: (timeZone: string) => void;
+  onDefaultChatModelChange: (
+    selection: NonNullable<WorkspacePreferences["defaultChatModelSelection"]>,
+  ) => Promise<void> | void;
   onRequestTemplateUpdate: (update: WorkspaceTemplateUpdate) => void;
   onDismissTemplateUpdate: (update: WorkspaceTemplateUpdate) => Promise<void>;
   onReorderApps: (appNames: string[]) => void;
@@ -28,10 +33,12 @@ export function ChatSidebar({
   workspaceEntries,
   workspaceGitRemoteUrl,
   workspaceGitBrowserUrl,
+  defaultChatModelSelection,
   templateUpdates,
   onSelectApp,
   onRefreshWorkspace,
   onSaveWorkspaceTimeZone,
+  onDefaultChatModelChange,
   onRequestTemplateUpdate,
   onDismissTemplateUpdate,
   onReorderApps,
@@ -52,10 +59,12 @@ export function ChatSidebar({
           workspaceTimeZone={workspaceTimeZone}
           workspaceGitRemoteUrl={workspaceGitRemoteUrl}
           workspaceGitBrowserUrl={workspaceGitBrowserUrl}
+          defaultChatModelSelection={defaultChatModelSelection}
           templateUpdates={templateUpdates}
           onSelectApp={onSelectApp}
           onRefresh={onRefreshWorkspace}
           onTimeZoneChange={onSaveWorkspaceTimeZone}
+          onDefaultChatModelChange={onDefaultChatModelChange}
           onRequestTemplateUpdate={onRequestTemplateUpdate}
           onDismissTemplateUpdate={onDismissTemplateUpdate}
           onReorderApps={onReorderApps}
