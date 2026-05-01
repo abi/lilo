@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ChatSessionState } from "../../store/chatStore";
+import type { WorkspaceEntry } from "../workspace/types";
 import { ChatHeader } from "./components/ChatHeader";
 import { ChatMessageList } from "./components/ChatMessageList";
 import { useChatScroll } from "./hooks/useChatScroll";
@@ -10,16 +11,20 @@ interface AppChatPaneProps {
   chat: ChatSessionState | null;
   mobile?: boolean;
   workspaceApps?: WorkspaceAppViewer[];
+  workspaceEntries?: WorkspaceEntry[];
   onBackToChatList?: () => void;
   onOpenViewerApp?: (viewerPath: string) => void;
+  onOpenViewerPath?: (viewerPath: string) => void;
 }
 
 export function AppChatPane({
   chat,
   mobile = false,
   workspaceApps = [],
+  workspaceEntries = [],
   onBackToChatList,
   onOpenViewerApp,
+  onOpenViewerPath,
 }: AppChatPaneProps) {
   const [submittingQuestionId] = useState<string | null>(null);
   const messageGroups = useMemo(
@@ -85,6 +90,7 @@ export function AppChatPane({
         chat={chat}
         messageGroups={messageGroups}
         workspaceApps={workspaceApps}
+        workspaceEntries={workspaceEntries}
         chatScrollRef={chatScrollRef}
         fullWidth
         canRetry={false}
@@ -95,6 +101,7 @@ export function AppChatPane({
         onClearError={() => {}}
         onSubmitQuestionAnswer={() => {}}
         onOpenViewerApp={onOpenViewerApp}
+        onOpenViewerPath={onOpenViewerPath ?? onOpenViewerApp}
       />
     </main>
   );

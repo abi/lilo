@@ -4,13 +4,14 @@ import type {
   SendMessageOptions,
 } from "../../store/chatStore";
 import { ChatPane } from "../chat/ChatPane";
-import type { WorkspaceAppLink } from "../workspace/types";
+import type { WorkspaceAppLink, WorkspaceEntry } from "../workspace/types";
 
 interface MobileConversationScreenProps {
   visible: boolean;
   chat: ChatSessionState | null;
   viewerPath: string | null;
   workspaceApps: WorkspaceAppLink[];
+  workspaceEntries: WorkspaceEntry[];
   onBackToChatList: () => void;
   onOpenViewerApp: (viewerPath: string) => void;
   onSetDraft: (chatId: string, draft: string) => void;
@@ -65,6 +66,7 @@ export function MobileConversationScreen({
   chat,
   viewerPath,
   workspaceApps,
+  workspaceEntries,
   onBackToChatList,
   onOpenViewerApp,
   onSetDraft,
@@ -93,8 +95,10 @@ export function MobileConversationScreen({
         viewerPath={viewerPath}
         mobile
         workspaceApps={workspaceApps}
+        workspaceEntries={workspaceEntries}
         onBackToChatList={onBackToChatList}
         onOpenViewerApp={onOpenViewerApp}
+        onOpenViewerPath={onOpenViewerApp}
         onSetDraft={onSetDraft}
         onRemoveDraftSelectedElement={onRemoveDraftSelectedElement}
         onClearDraftSelectedElements={onClearDraftSelectedElements}

@@ -184,8 +184,10 @@ export function DesktopWorkspaceChatShell({
             chat={activeAppChat}
             mobile={false}
             workspaceApps={workspaceApps}
+            workspaceEntries={workspaceEntries}
             onBackToChatList={onToggleShowAppChats}
             onOpenViewerApp={onOpenViewerApp}
+            onOpenViewerPath={onOpenViewerPath}
           />
         ) : (
           <ChatPane
@@ -193,7 +195,9 @@ export function DesktopWorkspaceChatShell({
             viewerPath={selectedViewerPath}
             mobile={false}
             workspaceApps={workspaceApps}
+            workspaceEntries={workspaceEntries}
             onOpenViewerApp={onOpenViewerApp}
+            onOpenViewerPath={onOpenViewerPath}
             viewerPicker={{
               isSelectingElement: pickerInjection.isSelectingElement,
               canPickElements: pickerInjection.canPickElements,

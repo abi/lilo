@@ -17,6 +17,7 @@ import type {
   ChatSessionState,
 } from "../../store/chatStore";
 import type { AppChatSummary } from "../../hooks/useAppChats";
+import type { WorkspaceEntry } from "../workspace/types";
 import {
   clearAllComposerPersistence,
   loadComposerDraft,
@@ -51,6 +52,7 @@ interface ChatPaneProps {
   mobile?: boolean;
   onBackToChatList?: () => void;
   onOpenViewerApp?: (viewerPath: string) => void;
+  onOpenViewerPath?: (viewerPath: string) => void;
   onSetDraft: (chatId: string, draft: string) => void;
   onRemoveDraftSelectedElement: (
     chatId: string,
@@ -94,6 +96,7 @@ interface ChatPaneProps {
   focusComposerNonce?: number;
   onNewChat?: () => void;
   workspaceApps?: WorkspaceAppViewer[];
+  workspaceEntries?: WorkspaceEntry[];
   onRetryLastMessage: (chatId: string) => Promise<void>;
   onStopChat: (chatId: string) => Promise<void>;
   onClearError: (chatId: string) => void;
@@ -112,6 +115,7 @@ export function ChatPane({
   mobile = false,
   onBackToChatList,
   onOpenViewerApp,
+  onOpenViewerPath,
   onSetDraft,
   onRemoveDraftSelectedElement,
   onClearDraftSelectedElements,
@@ -127,6 +131,7 @@ export function ChatPane({
   focusComposerNonce = 0,
   onNewChat,
   workspaceApps = [],
+  workspaceEntries = [],
   onRetryLastMessage,
   onStopChat,
   onClearError,
@@ -498,6 +503,7 @@ export function ChatPane({
         chat={chat}
         messageGroups={messageGroups}
         workspaceApps={workspaceApps}
+        workspaceEntries={workspaceEntries}
         chatScrollRef={chatScrollRef}
         canRetry={canRetry}
         isBusy={isBusy}
@@ -509,6 +515,7 @@ export function ChatPane({
           void submitQuestionAnswer(messageId, response);
         }}
         onOpenViewerApp={onOpenViewerApp}
+        onOpenViewerPath={onOpenViewerPath ?? onOpenViewerApp}
         onImageClick={setLightboxSrc}
         onAddAssistantSelection={(selection: ChatElementSelection) => {
           addDraftSelectedElement(chat.id, selection);

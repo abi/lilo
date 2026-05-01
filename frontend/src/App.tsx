@@ -624,6 +624,7 @@ function App() {
         chat={activeChat}
         viewerPath={workspace.selectedViewerPath}
         workspaceApps={workspace.workspaceApps}
+        workspaceEntries={workspace.workspaceEntries}
         onBackToChatList={shell.backToMobileChatList}
         onOpenViewerApp={handleOpenMobileViewerApp}
         onSetDraft={setDraft}

@@ -1,6 +1,7 @@
 import type { ClipboardEvent } from "react";
 import type { RefObject } from "react";
 import type { ChatElementSelection, ChatSessionState } from "../../../store/chatStore";
+import type { WorkspaceEntry } from "../../workspace/types";
 import { getNormalizedSelectionText, getSelectionHtml } from "../lib/copySelection";
 import { isAskUserQuestionDetails } from "../lib/messageGroups";
 import type { MessageGroup, WorkspaceAppViewer } from "../types";
@@ -17,6 +18,7 @@ interface ChatMessageListProps {
   chat: ChatSessionState;
   messageGroups: MessageGroup[];
   workspaceApps: WorkspaceAppViewer[];
+  workspaceEntries?: WorkspaceEntry[];
   chatScrollRef: RefObject<HTMLDivElement>;
   fullWidth?: boolean;
   canRetry: boolean;
@@ -27,6 +29,7 @@ interface ChatMessageListProps {
   onClearError: (chatId: string) => void;
   onSubmitQuestionAnswer: (messageId: string, response: string) => void;
   onOpenViewerApp?: (viewerPath: string) => void;
+  onOpenViewerPath?: (viewerPath: string) => void;
   onImageClick?: (src: string) => void;
   onAddAssistantSelection?: (selection: ChatElementSelection) => void;
 }
@@ -35,6 +38,7 @@ export function ChatMessageList({
   chat,
   messageGroups,
   workspaceApps,
+  workspaceEntries = [],
   chatScrollRef,
   fullWidth = false,
   canRetry,
@@ -45,6 +49,7 @@ export function ChatMessageList({
   onClearError,
   onSubmitQuestionAnswer,
   onOpenViewerApp,
+  onOpenViewerPath,
   onImageClick,
   onAddAssistantSelection,
 }: ChatMessageListProps) {
@@ -200,6 +205,8 @@ export function ChatMessageList({
                 message={group.message}
                 onCopyAssistantMessage={handleRenderedMessageCopy}
                 onImageClick={onImageClick}
+                workspaceEntries={workspaceEntries}
+                onOpenWorkspacePath={onOpenViewerPath}
               />
             </div>
           );

@@ -1,16 +1,21 @@
 import { useState } from "react";
 import { MarkdownRenderer } from "../../MarkdownRenderer";
 import type { ChatMessage } from "../../../store/chatStore";
+import type { WorkspaceEntry } from "../../workspace/types";
 import { PromptLightbox } from "./PromptLightbox";
 
 interface UserMessageContentProps {
   message: ChatMessage;
   hasContext: boolean;
+  workspaceEntries?: WorkspaceEntry[];
+  onOpenWorkspacePath?: (viewerPath: string) => void;
 }
 
 export function UserMessageContent({
   message,
   hasContext,
+  workspaceEntries = [],
+  onOpenWorkspacePath,
 }: UserMessageContentProps) {
   const [tapped, setTapped] = useState(false);
   const [showFull, setShowFull] = useState(false);
@@ -25,7 +30,12 @@ export function UserMessageContent({
       className="space-y-2"
       onClick={hasContext && !tapped ? () => setTapped(true) : undefined}
     >
-      <MarkdownRenderer content={strippedContent} />
+      <MarkdownRenderer
+        content={strippedContent}
+        workspaceEntries={workspaceEntries}
+        onOpenWorkspacePath={onOpenWorkspacePath}
+        linkPlainWorkspacePaths={message.role === "assistant"}
+      />
       {hasContext && tapped ? (
         <button
           type="button"

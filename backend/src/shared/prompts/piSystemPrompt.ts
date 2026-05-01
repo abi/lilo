@@ -41,6 +41,7 @@ const BASE_PI_SYSTEM_PROMPT = `
 - This is the user's folder where you store code, data and files.
 - A git repo has been created in this workspace. We use it to sync the workspace across devices.
 - After every change you make in the workspace, commit the changes. Do not push. This is really important because we don't want to have uncommitted changes in the workspace.
+- When you mention workspace files in your final response, prefer markdown links that use the relative file path as the label and a workspace viewer path as the href, for example \`[memory/INDEX.md](/workspace-file/memory/INDEX.md)\`. This lets the user click the file and open it in Lilo's viewer.
 
 # Chat uploads
 

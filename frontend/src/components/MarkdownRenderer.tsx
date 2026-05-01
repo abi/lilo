@@ -1,6 +1,7 @@
 import type { ComponentPropsWithoutRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { WorkspaceEntry } from "./workspace/types";
 
 interface MarkdownRendererProps {
   content: string;
@@ -10,6 +11,8 @@ interface MarkdownRendererProps {
    */
   basePath?: string | null;
   onOpenWorkspacePath?: (viewerPath: string) => void;
+  workspaceEntries?: WorkspaceEntry[];
+  linkPlainWorkspacePaths?: boolean;
 }
 
 const isExternalHref = (href: string): boolean =>
@@ -20,6 +23,26 @@ const encodeWorkspacePath = (path: string): string =>
     .split("/")
     .map((segment) => (segment.length === 0 ? "" : encodeURIComponent(segment)))
     .join("/");
+
+const normalizePlainWorkspacePath = (value: string): string =>
+  value
+    .trim()
+    .replace(/^['"`]+|['"`]+$/g, "")
+    .replace(/^[./]+/, "")
+    .replace(/[),.;:!?]+$/g, "");
+
+const PLAIN_WORKSPACE_PATH_PATTERN =
+  /(?<![\w/-])(?:\.\/)?[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+(?::\d+)?/g;
+
+interface MarkdownAstNode {
+  type?: string;
+  value?: string;
+  url?: string;
+  children?: MarkdownAstNode[];
+  [key: string]: unknown;
+}
+
+type RemarkPlugin = () => (tree: MarkdownAstNode) => void;
 
 /**
  * Turn an href found in rendered markdown into a workspace viewer path if it
@@ -115,15 +138,105 @@ const MarkdownCode = ({
   );
 };
 
+const linkablePlainTextParentTypes = new Set([
+  "paragraph",
+  "heading",
+  "listItem",
+  "tableCell",
+  "blockquote",
+  "strong",
+  "emphasis",
+  "delete",
+]);
+
+const createWorkspacePathLinkPlugin = (
+  workspaceViewerPathByRelativePath: Map<string, string>,
+): RemarkPlugin => () => {
+  const linkTextNode = (node: MarkdownAstNode): MarkdownAstNode[] => {
+    const text = node.value ?? "";
+    const parts: MarkdownAstNode[] = [];
+    let lastIndex = 0;
+
+    for (const match of text.matchAll(PLAIN_WORKSPACE_PATH_PATTERN)) {
+      const rawPath = match[0];
+      const index = match.index ?? 0;
+      const normalized = normalizePlainWorkspacePath(rawPath.replace(/:\d+$/, ""));
+      const viewerPath = workspaceViewerPathByRelativePath.get(normalized);
+      if (!viewerPath) {
+        continue;
+      }
+
+      if (index > lastIndex) {
+        parts.push({ type: "text", value: text.slice(lastIndex, index) });
+      }
+
+      parts.push({
+        type: "link",
+        url: viewerPath,
+        children: [{ type: "text", value: rawPath }],
+      });
+      lastIndex = index + rawPath.length;
+    }
+
+    if (parts.length === 0) {
+      return [node];
+    }
+
+    if (lastIndex < text.length) {
+      parts.push({ type: "text", value: text.slice(lastIndex) });
+    }
+
+    return parts;
+  };
+
+  const visit = (node: MarkdownAstNode) => {
+    if (!node.children) {
+      return;
+    }
+
+    node.children = node.children.flatMap((child) => {
+      if (
+        child.type === "text" &&
+        node.type &&
+        linkablePlainTextParentTypes.has(node.type)
+      ) {
+        return linkTextNode(child);
+      }
+
+      if (child.type !== "link" && child.type !== "inlineCode" && child.type !== "code") {
+        visit(child);
+      }
+
+      return [child];
+    });
+  };
+
+  return visit;
+};
+
 export function MarkdownRenderer({
   content,
   basePath,
   onOpenWorkspacePath,
+  workspaceEntries = [],
+  linkPlainWorkspacePaths = false,
 }: MarkdownRendererProps) {
+  const workspaceViewerPathByRelativePath = new Map(
+    workspaceEntries.flatMap((entry) =>
+      entry.viewerPath && entry.kind !== "app" && entry.kind !== "directory"
+        ? [[entry.relativePath, entry.viewerPath] as const]
+        : [],
+    ),
+  );
+  const remarkPlugins =
+    linkPlainWorkspacePaths && workspaceViewerPathByRelativePath.size > 0
+      ? [remarkGfm, createWorkspacePathLinkPlugin(workspaceViewerPathByRelativePath)]
+      : [remarkGfm];
+
   return (
     <div className="markdown-content text-inherit">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={remarkPlugins}
         components={{
           h1: ({ children, ...props }: ComponentPropsWithoutRef<"h1">) => (
             <h1 className="mb-4 mt-6 text-3xl font-semibold leading-tight first:mt-0" {...props}>
