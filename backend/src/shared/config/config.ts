@@ -80,6 +80,8 @@ export const backendConfig = {
   },
   chat: {
     modelAllowlist: readCsvEnv("LILO_CHAT_MODEL_ALLOWLIST"),
+    openaiApiKey: readEnv("OPENAI_API_KEY"),
+    anthropicApiKey: readEnv("ANTHROPIC_API_KEY"),
     openrouterApiKey: readEnv("OPENROUTER_API_KEY"),
   },
   media: {

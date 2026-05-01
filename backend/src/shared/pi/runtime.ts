@@ -6,6 +6,8 @@ export type ChatModelId =
   | "gpt-5.5"
   | "gpt-5.4-mini"
   | "claude-opus-4-7"
+  | "openai/gpt-5.4-mini"
+  | "anthropic/claude-opus-4.7"
   | "moonshotai/kimi-k2.6";
 
 export interface ChatModelSelection {
@@ -13,11 +15,65 @@ export interface ChatModelSelection {
   modelId: ChatModelId;
 }
 
-export const CHAT_MODEL_OPTIONS: ChatModelSelection[] = [
-  { provider: "anthropic", modelId: "claude-opus-4-7" },
-  { provider: "openai", modelId: "gpt-5.5" },
-  { provider: "openai", modelId: "gpt-5.4-mini" },
-  { provider: "openrouter", modelId: "moonshotai/kimi-k2.6" },
+export interface ChatModelOption extends ChatModelSelection {
+  routingProvider: ChatModelProvider;
+}
+
+interface ChatModelRouteOption extends ChatModelOption {
+  nativeProvider?: Exclude<ChatModelProvider, "openrouter">;
+  allowlistIds: string[];
+}
+
+const NATIVE_CHAT_MODEL_OPTIONS: ChatModelRouteOption[] = [
+  {
+    provider: "anthropic",
+    modelId: "claude-opus-4-7",
+    routingProvider: "anthropic",
+    nativeProvider: "anthropic",
+    allowlistIds: ["claude-opus-4-7"],
+  },
+  {
+    provider: "openai",
+    modelId: "gpt-5.5",
+    routingProvider: "openai",
+    nativeProvider: "openai",
+    allowlistIds: ["gpt-5.5"],
+  },
+  {
+    provider: "openai",
+    modelId: "gpt-5.4-mini",
+    routingProvider: "openai",
+    nativeProvider: "openai",
+    allowlistIds: ["gpt-5.4-mini"],
+  },
+];
+
+const OPENROUTER_CHAT_MODEL_OPTIONS: ChatModelRouteOption[] = [
+  {
+    provider: "openrouter",
+    modelId: "anthropic/claude-opus-4.7",
+    routingProvider: "openrouter",
+    nativeProvider: "anthropic",
+    allowlistIds: ["claude-opus-4-7", "anthropic/claude-opus-4.7"],
+  },
+  {
+    provider: "openrouter",
+    modelId: "openai/gpt-5.4-mini",
+    routingProvider: "openrouter",
+    nativeProvider: "openai",
+    allowlistIds: ["gpt-5.4-mini", "openai/gpt-5.4-mini"],
+  },
+  {
+    provider: "openrouter",
+    modelId: "moonshotai/kimi-k2.6",
+    routingProvider: "openrouter",
+    allowlistIds: ["moonshotai/kimi-k2.6"],
+  },
+];
+
+export const CHAT_MODEL_OPTIONS: ChatModelOption[] = [
+  ...NATIVE_CHAT_MODEL_OPTIONS,
+  ...OPENROUTER_CHAT_MODEL_OPTIONS,
 ];
 
 const PROMPT_TIMEOUT_MS = 600000;
@@ -36,25 +92,75 @@ const getChatModelAllowlist = (): Set<string> | null => {
   return values.length > 0 ? new Set(values) : null;
 };
 
-const isChatModelConfigured = (option: ChatModelSelection): boolean => {
-  if (option.provider === "openrouter") {
-    return Boolean(backendConfig.chat.openrouterApiKey);
+const hasNativeProviderKey = (
+  provider: Exclude<ChatModelProvider, "openrouter">,
+): boolean => {
+  if (provider === "openai") {
+    return Boolean(backendConfig.chat.openaiApiKey);
   }
 
-  return true;
+  return Boolean(backendConfig.chat.anthropicApiKey);
 };
 
-export const getAllowedChatModelOptions = (): ChatModelSelection[] => {
+const getRoutableChatModelOptions = (): ChatModelRouteOption[] => {
+  const hasOpenRouterKey = Boolean(backendConfig.chat.openrouterApiKey);
+
+  if (!hasOpenRouterKey) {
+    return NATIVE_CHAT_MODEL_OPTIONS;
+  }
+
+  const options: ChatModelRouteOption[] = [];
+
+  for (const nativeOption of NATIVE_CHAT_MODEL_OPTIONS) {
+    if (
+      !nativeOption.nativeProvider
+      || hasNativeProviderKey(nativeOption.nativeProvider)
+    ) {
+      options.push(nativeOption);
+      continue;
+    }
+
+    const openrouterOption = OPENROUTER_CHAT_MODEL_OPTIONS.find(
+      (option) =>
+        option.nativeProvider === nativeOption.nativeProvider
+        && option.allowlistIds.includes(nativeOption.modelId),
+    );
+    if (openrouterOption) {
+      options.push(openrouterOption);
+    }
+  }
+
+  options.push(
+    ...OPENROUTER_CHAT_MODEL_OPTIONS.filter((option) => !option.nativeProvider),
+  );
+
+  return options;
+};
+
+const getAllowlistValues = (option: ChatModelRouteOption): string[] => [
+  option.modelId,
+  `${option.provider}/${option.modelId}`,
+  ...option.allowlistIds,
+];
+
+const toPublicChatModelOption = (option: ChatModelRouteOption): ChatModelOption => ({
+  provider: option.provider,
+  modelId: option.modelId,
+  routingProvider: option.routingProvider,
+});
+
+export const getAllowedChatModelOptions = (): ChatModelOption[] => {
   const allowlist = getChatModelAllowlist();
-  const configuredOptions = CHAT_MODEL_OPTIONS.filter(isChatModelConfigured);
+  const configuredOptions = getRoutableChatModelOptions();
 
   if (!allowlist) {
-    return configuredOptions;
+    return configuredOptions.map(toPublicChatModelOption);
   }
 
   const allowedOptions = configuredOptions.filter((option) => {
-    const providerModelId = `${option.provider}/${option.modelId}`;
-    return allowlist.has(option.modelId) || allowlist.has(providerModelId);
+    return getAllowlistValues(option).some((value) =>
+      allowlist.has(value.toLowerCase()),
+    );
   });
 
   if (allowedOptions.length === 0) {
@@ -67,7 +173,7 @@ export const getAllowedChatModelOptions = (): ChatModelSelection[] => {
     );
   }
 
-  return allowedOptions;
+  return allowedOptions.map(toPublicChatModelOption);
 };
 
 export const isSupportedChatModelSelection = (

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { config } from "../../../config/config";
 import { fetchJson } from "../../../store/chat/api";
-import { type ChatModelOption, toChatModelOption } from "../modelOptions";
+import {
+  type ChatModelOption,
+  toChatModelOption,
+} from "../modelOptions";
 
 interface ChatModelSelectProps {
   modelProvider: ChatModelOption["provider"];
@@ -40,7 +43,7 @@ export function ChatModelSelect({
     const loadAllowedModels = async () => {
       try {
         const payload = await fetchJson<{
-          models: Array<Pick<ChatModelOption, "provider" | "modelId">>;
+          models: Array<Pick<ChatModelOption, "provider" | "modelId" | "routingProvider">>;
         }>(`${config.apiBaseUrl}/chats/models`);
         const nextOptions = payload.models.map(toChatModelOption);
         if (!cancelled && nextOptions.length > 0) {

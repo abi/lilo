@@ -3,6 +3,7 @@ import { config } from "../../config/config";
 import { fetchJson } from "../../store/chat/api";
 import type { ChatModelId, ChatModelProvider } from "../../store/chatStore";
 import {
+  getChatModelRouteLabel,
   type ChatModelOption,
   toChatModelOption,
 } from "../chat/modelOptions";
@@ -52,7 +53,7 @@ export function WorkspaceDefaultModelSection({
     const loadAllowedModels = async () => {
       try {
         const payload = await fetchJson<{
-          models: Array<Pick<ChatModelOption, "provider" | "modelId">>;
+          models: Array<Pick<ChatModelOption, "provider" | "modelId" | "routingProvider">>;
         }>(`${config.apiBaseUrl}/chats/models`);
         const nextOptions = payload.models.map(toChatModelOption);
         if (!cancelled) {
@@ -131,6 +132,28 @@ export function WorkspaceDefaultModelSection({
           <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
             Saving default model...
           </p>
+        ) : null}
+        {options.length > 0 ? (
+          <div className="mt-3 rounded-lg border border-neutral-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+              Model Providers
+            </p>
+            <div className="mt-2 space-y-1.5">
+              {options.map((option) => (
+                <div
+                  key={`${modelValue(option)}:provider`}
+                  className="flex items-center justify-between gap-3 text-xs"
+                >
+                  <span className="min-w-0 truncate text-neutral-600 dark:text-neutral-300">
+                    {option.label}
+                  </span>
+                  <span className="shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+                    {getChatModelRouteLabel(option)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : null}
       </div>
     </section>
