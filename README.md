@@ -40,7 +40,7 @@ https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
 <tr><td><b>🎨 Rich tool suite</b></td><td>Image generation (Replicate), web search & scraping (Firecrawl), headless browser automation (Browserbase), filesystem ops, shell execution, network fetch — all callable by apps and the agent when configured.</td></tr>
 <tr><td><b>📱 Mobile-ready</b></td><td>Optimized for phones. All apps render seamlessly on both.</td></tr>
 <tr><td><b>🔐 Password-gated and private</b></td><td>One env var locks down the entire web app and all backend APIs (REST + WebSocket). Webhooks stay accessible with their own provider-signed requests.</td></tr>
-<tr><td><b>🧰 Model-agnostic</b></td><td>Pick between <b>GPT 5.5</b> (OpenAI) and <b>Claude Opus 4.7</b> (Anthropic) per chat. Switch mid-conversation.</td></tr>
+<tr><td><b>🧰 Model-agnostic</b></td><td>Pick between <b>GPT 5.5</b>, <b>GPT 5.4 Mini</b>, <b>Claude Opus 4.7</b>, and <b>Kimi K2.6</b> per chat. Route through OpenAI, Anthropic, or OpenRouter depending on configured keys.</td></tr>
 <tr><td><b>🔄 Git-backed cloud sync</b></td><td>Optionally sync your workspace to a git remote so the entire workspace (apps, data, and memories) is versioned and portable across devices.</td></tr>
 <tr><td><b>⌨️ Keyboard-first UX</b></td><td><code>⌘K</code> / <code>Ctrl+K</code> command palette for instant app switching. Browser back/forward navigates between previously opened apps.</td></tr>
 </table>
@@ -54,7 +54,7 @@ https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
 
 - Node.js 20+
 - [pnpm](https://pnpm.io) 10+
-- An API key for at least one of: OpenAI, Anthropic
+- An API key for at least one of: OpenAI, Anthropic, OpenRouter
 
 ### 1. Install
 
@@ -76,6 +76,7 @@ LILO_SESSIONS_DIR=./.lilo-sessions      # persistent chat session storage
 # At least one chat model
 OPENAI_API_KEY=sk-...                   # enables GPT 5.5
 ANTHROPIC_API_KEY=sk-ant-...            # enables Claude Opus 4.7
+OPENROUTER_API_KEY=sk-or-...            # enables OpenRouter-routed models
 
 # Recommended
 LILO_AUTH_PASSWORD=choose-a-strong-password   # locks down the whole app
@@ -123,11 +124,16 @@ All env vars are read from (in order of precedence):
 At least one is required to actually use Lilo.
 
 
-| Variable            | Enables               |
-| ------------------- | --------------------- |
-| `OPENAI_API_KEY`    | GPT 5.5, GPT 5.4 Mini |
-| `ANTHROPIC_API_KEY` | Claude Opus 4.7       |
+| Variable             | Enables                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------ |
+| `OPENAI_API_KEY`     | GPT 5.5, GPT 5.4 Mini                                                                |
+| `ANTHROPIC_API_KEY`  | Claude Opus 4.7                                                                      |
+| `OPENROUTER_API_KEY` | OpenRouter routing for GPT 5.5, GPT 5.4 Mini, Claude Opus 4.7, and Kimi K2.6          |
 
+If `OPENROUTER_API_KEY` is set, Lilo can route supported models through
+OpenRouter. Native provider keys take priority: for example, if
+`OPENAI_API_KEY` is set, GPT models use OpenAI directly; if it is missing but
+`OPENROUTER_API_KEY` is set, GPT models route through OpenRouter instead.
 
 Limit the chat dropdown/API to specific models with a comma-separated allowlist:
 
@@ -135,7 +141,10 @@ Limit the chat dropdown/API to specific models with a comma-separated allowlist:
 LILO_CHAT_MODEL_ALLOWLIST=gpt-5.4-mini
 ```
 
-Supported model ids: `claude-opus-4-7`, `gpt-5.5`, `gpt-5.4-mini`.
+Supported allowlist ids: `claude-opus-4-7`, `gpt-5.5`,
+`gpt-5.4-mini`, `moonshotai/kimi-k2.6`, plus the OpenRouter ids
+`anthropic/claude-opus-4.7`, `openai/gpt-5.5`, and
+`openai/gpt-5.4-mini`.
 
 ### Agent tools (optional)
 
