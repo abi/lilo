@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import type { PiSdkChatService, SseEvent } from "../chat/chat.service.js";
+import type { PiSdkChatService } from "../chat/chat.service.js";
 import { WORKSPACE_ROOT } from "../../shared/config/paths.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
 import {
@@ -11,6 +11,7 @@ import {
 import { sendEmailAutomationMessage } from "../email/email.routes.js";
 import { sendTelegramAutomationMessage } from "../telegram/telegram.routes.js";
 import { sendWhatsAppAutomationMessage } from "../whatsapp/whatsapp.routes.js";
+import { runWithAutomationNotificationContext } from "./automation.notification.js";
 import { getNextRunAt } from "./automation.schedule.js";
 import type {
   AutomationJob,
@@ -415,25 +416,33 @@ export class AutomationService {
       const outputChannel = (await readWorkspaceAppPrefs(WORKSPACE_ROOT)).automationOutputChannel;
       const outputChannelLabel = AUTOMATION_OUTPUT_CHANNEL_LABELS[outputChannel];
 
-      let finalText = "";
-      await this.chatService.promptChat(chatId, {
-        message: [
-          `Run automation "${job.name}".`,
-          `Trigger: ${trigger}.`,
-          "",
-          job.prompt,
-          "",
-          `Return the final result as a concise plain-text message suitable for ${outputChannelLabel}.`,
-        ].join("\n"),
-        images: [],
-        attachments: [],
-        context: {},
-      }, (event) => {
-        finalText += this.extractAssistantText(event);
-      });
-
-      const message = finalText.trim() || `Automation "${job.name}" completed.`;
-      await this.sendAutomationMessage(outputChannel, message);
+      await runWithAutomationNotificationContext(
+        {
+          automationId: job.id,
+          automationName: job.name,
+          runId: runRecord.id,
+          outputChannel,
+          sendMessage: (message) => this.sendAutomationMessage(outputChannel, message),
+        },
+        () =>
+          this.chatService.promptChat(chatId, {
+            message: [
+              `Run automation "${job.name}".`,
+              `Trigger: ${trigger}.`,
+              "",
+              "Automation notification rules:",
+              `- Your normal assistant text is internal run history only. It will not be sent to ${outputChannelLabel}.`,
+              "- Do not narrate routine progress, acknowledgements, or completion just to notify the user.",
+              "- If the automation has nothing useful to tell the user, finish normally with a brief internal summary and do not call any notification tool.",
+              `- If, and only if, the user should receive an external ${outputChannelLabel} notification, call send_automation_message with the exact message to send.`,
+              "",
+              job.prompt,
+            ].join("\n"),
+            images: [],
+            attachments: [],
+            context: {},
+          }),
+      );
 
       const finished: AutomationRunRecord = {
         ...runRecord,
@@ -491,15 +500,6 @@ export class AutomationService {
     }
 
     await sendWhatsAppAutomationMessage(message);
-  }
-
-  private extractAssistantText(event: SseEvent): string {
-    if (event.event !== "text_delta") {
-      return "";
-    }
-
-    const delta = event.data.delta;
-    return typeof delta === "string" ? delta : "";
   }
 
   private async patchJobAfterRunStart(id: string, chatId: string): Promise<void> {

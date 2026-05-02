@@ -342,7 +342,7 @@ export function WorkspaceAutomationsSection({
               Automations
             </p>
             <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-              Agent-created prompts that run on a schedule and send results to your chosen channel.
+              Agent-created prompts that run on a schedule and only notify you when needed.
             </p>
           </div>
         ) : (
@@ -368,10 +368,10 @@ export function WorkspaceAutomationsSection({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
-              Send automation replies to
+              Automation notification channel
             </p>
             <p className="mt-0.5 text-[11px] text-neutral-500 dark:text-neutral-400">
-              Applies to every automation run.
+              Used only when an automation explicitly sends a user-facing message.
             </p>
           </div>
           <select

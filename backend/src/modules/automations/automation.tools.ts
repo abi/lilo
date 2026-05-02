@@ -1,5 +1,6 @@
 import { Type } from "@mariozechner/pi-ai";
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { getAutomationNotificationContext } from "./automation.notification.js";
 import { describeSchedule } from "./automation.schedule.js";
 import { getAutomationService } from "./automation.registry.js";
 
@@ -55,7 +56,7 @@ export const automationCreateTool: ToolDefinition = {
   name: "automation_create",
   label: "Create Automation",
   description:
-    "Create a scheduled automation. Automations run the prompt in a new chat and send the result to the configured automation channel.",
+    "Create a scheduled automation. Automations run the prompt in a new chat. The run only sends an external message if it calls send_automation_message.",
   parameters: Type.Object({
     name: Type.String({ description: "Short automation name.", minLength: 1 }),
     prompt: Type.String({
@@ -136,6 +137,55 @@ export const automationDeleteTool: ToolDefinition = {
   },
 };
 
+export const automationSendMessageTool: ToolDefinition = {
+  name: "send_automation_message",
+  label: "Send Automation Message",
+  description:
+    "During an automation run only, send an external notification to the configured automation channel. Use this only when the automation has a message the user should actually receive. If there is nothing useful to notify the user about, do not call this tool.",
+  promptSnippet:
+    "send_automation_message: during automation runs only, call this with the exact user-facing message to send to the configured automation channel. Do not call it for status/progress/completion noise; if no notification is needed, finish normally without calling it.",
+  promptGuidelines: [
+    "For automation runs, your normal assistant text is internal run history only and is not sent externally.",
+    "Only call send_automation_message when the user should receive a notification.",
+    "Never call send_automation_message for generic progress, acknowledgement, or completion messages.",
+  ],
+  parameters: Type.Object({
+    message: Type.String({
+      description: "The exact user-facing message to send.",
+      minLength: 1,
+    }),
+  }),
+  async execute(_toolCallId, params) {
+    const context = getAutomationNotificationContext();
+    if (!context) {
+      throw new Error("send_automation_message is only available while an automation is running");
+    }
+
+    const message = String((params as { message?: unknown }).message ?? "").trim();
+    if (!message) {
+      throw new Error("Automation message cannot be empty");
+    }
+
+    await context.sendMessage(message);
+
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: `Sent automation message via ${context.outputChannel}.`,
+        },
+      ],
+      details: {
+        automationId: context.automationId,
+        automationName: context.automationName,
+        runId: context.runId,
+        outputChannel: context.outputChannel,
+        message,
+      },
+    };
+  },
+};
+
 export const automationRunTool: ToolDefinition = {
   name: "automation_run",
   label: "Run Automation",
@@ -165,4 +215,5 @@ export const AUTOMATION_TOOLS: ToolDefinition[] = [
   automationUpdateTool,
   automationDeleteTool,
   automationRunTool,
+  automationSendMessageTool,
 ];
