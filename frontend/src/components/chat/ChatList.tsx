@@ -19,6 +19,36 @@ type DateGroup = {
   chats: ChatSessionState[];
 };
 
+function ChatListLoading({ isMobile }: { isMobile: boolean }) {
+  return (
+    <div className={isMobile ? "flex flex-col gap-5 px-4 py-3" : "flex flex-col gap-4 px-2 py-2"}>
+      <div>
+        <div className="mb-3 flex items-center gap-2">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-neutral-300 dark:bg-neutral-600" />
+          <span className="text-xs font-medium text-neutral-400 dark:text-neutral-500">
+            Refreshing chats
+          </span>
+        </div>
+        <div className={isMobile ? "flex flex-col gap-4" : "flex flex-col gap-3"}>
+          {Array.from({ length: isMobile ? 6 : 5 }, (_, index) => (
+            <div key={index} className="animate-pulse">
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="h-4 w-full max-w-[17rem] rounded bg-neutral-200 dark:bg-neutral-800" />
+                  {index % 2 === 0 ? (
+                    <div className="mt-2 h-4 w-2/3 rounded bg-neutral-100 dark:bg-neutral-800/70" />
+                  ) : null}
+                </div>
+                <div className="h-3 w-9 rounded bg-neutral-100 dark:bg-neutral-800/70" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function groupChatsByDate(chats: ChatSessionState[]): DateGroup[] {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -101,11 +131,7 @@ export function ChatList({
   const groups = useMemo(() => groupChatsByDate(visibleChats), [visibleChats]);
 
   if (loading) {
-    return (
-      <div className="px-4 py-4 text-sm text-neutral-400">
-        Loading chats...
-      </div>
-    );
+    return <ChatListLoading isMobile={isMobile} />;
   }
 
   if (showAppChats) {

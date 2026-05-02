@@ -7,6 +7,9 @@ import { ChatList } from "../ChatList";
 const POPOVER_WIDTH = 384;
 const POPOVER_MARGIN = 12;
 const POPOVER_GAP = 8;
+const MIN_REFRESH_LOADING_MS = 300;
+
+const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 interface PopoverPosition {
   top: number;
@@ -25,6 +28,7 @@ interface ChatHistoryDropdownProps {
   onSelectChat: (chatId: string) => void;
   onSelectAppChat: (chat: AppChatSummary) => void;
   onToggleShowAppChats: () => void;
+  onRefreshChats?: () => Promise<void>;
 }
 
 export function ChatHistoryDropdown({
@@ -37,8 +41,10 @@ export function ChatHistoryDropdown({
   onSelectChat,
   onSelectAppChat,
   onToggleShowAppChats,
+  onRefreshChats,
 }: ChatHistoryDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -117,12 +123,40 @@ export function ChatHistoryDropdown({
     onSelectAppChat(chat);
   };
 
+  const handleToggleOpen = () => {
+    if (isOpen) {
+      setIsOpen(false);
+      return;
+    }
+
+    setIsOpen(true);
+    if (!onRefreshChats) {
+      return;
+    }
+
+    setIsRefreshing(true);
+    void (async () => {
+      const startedAt = Date.now();
+      try {
+        await onRefreshChats();
+      } catch (error) {
+        console.error("[chat-history] Failed to refresh chat list", error);
+      } finally {
+        const elapsed = Date.now() - startedAt;
+        if (elapsed < MIN_REFRESH_LOADING_MS) {
+          await wait(MIN_REFRESH_LOADING_MS - elapsed);
+        }
+        setIsRefreshing(false);
+      }
+    })();
+  };
+
   return (
     <div ref={containerRef} className="relative">
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setIsOpen((value) => !value)}
+        onClick={handleToggleOpen}
         title="Chat history"
         aria-label="Chat history"
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 transition hover:border-neutral-300 hover:bg-neutral-100 hover:text-neutral-950 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:bg-neutral-700 dark:hover:text-white"
@@ -169,13 +203,17 @@ export function ChatHistoryDropdown({
                   }`}
                 >
                   Chats
-                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                    !showAppChats
-                      ? "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-                      : "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
-                  }`}>
-                    {chats.filter((c) => c.messageCount > 0).length}
-                  </span>
+                  {isRefreshing && !showAppChats ? (
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-neutral-400 dark:bg-neutral-500" />
+                  ) : (
+                    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                      !showAppChats
+                        ? "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                        : "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
+                    }`}>
+                      {chats.filter((c) => c.messageCount > 0).length}
+                    </span>
+                  )}
                   {!showAppChats ? (
                     <span className="absolute -bottom-px left-2 right-2 h-0.5 rounded-full bg-neutral-900 dark:bg-neutral-100" />
                   ) : null}
@@ -213,7 +251,7 @@ export function ChatHistoryDropdown({
                   showAppChats={showAppChats}
                   activeChatId={activeChatId}
                   activeAppChatId={activeAppChatId}
-                  loading={loadingChats}
+                  loading={loadingChats || (!showAppChats && isRefreshing)}
                   onSelectChat={handleSelectChat}
                   onSelectAppChat={handleSelectAppChat}
                 />

@@ -63,6 +63,7 @@ function App() {
     initializationError,
     workspaceVersion,
     initialize,
+    refreshChatList,
     createChat,
     selectChat,
     setDraft,
@@ -592,6 +593,7 @@ function App() {
             });
           }}
           onToggleShowAppChats={() => setShowAppChats((value) => !value)}
+          onRefreshChats={refreshChatList}
           onAutomationOutputChannelChange={workspace.saveAutomationOutputChannel}
           pickerInjection={pickerInjection}
         />

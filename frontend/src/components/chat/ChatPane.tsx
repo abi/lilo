@@ -43,6 +43,7 @@ interface ChatPaneHistory {
   onSelectChat: (chatId: string) => void;
   onSelectAppChat: (chat: AppChatSummary) => void;
   onToggleShowAppChats: () => void;
+  onRefreshChats?: () => Promise<void>;
 }
 
 interface ChatPaneProps {

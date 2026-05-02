@@ -23,6 +23,7 @@ interface ChatHeaderProps {
     onSelectChat: (chatId: string) => void;
     onSelectAppChat: (chat: AppChatSummary) => void;
     onToggleShowAppChats: () => void;
+    onRefreshChats?: () => Promise<void>;
   };
 }
 
@@ -123,6 +124,7 @@ export function ChatHeader({
               onSelectChat={history.onSelectChat}
               onSelectAppChat={history.onSelectAppChat}
               onToggleShowAppChats={history.onToggleShowAppChats}
+              onRefreshChats={history.onRefreshChats}
             />
           ) : null}
           {onNewChat ? (

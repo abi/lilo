@@ -84,6 +84,7 @@ interface DesktopWorkspaceChatShellProps {
   onSelectChat: (chatId: string) => void;
   onSelectAppChat: (chat: AppChatSummary) => void;
   onToggleShowAppChats: () => void;
+  onRefreshChats: () => Promise<void>;
   onAutomationOutputChannelChange: (channel: AutomationOutputChannel) => Promise<void> | void;
   pickerInjection: ViewerPickerInjection;
 }
@@ -132,6 +133,7 @@ export function DesktopWorkspaceChatShell({
   onSelectChat,
   onSelectAppChat,
   onToggleShowAppChats,
+  onRefreshChats,
   onAutomationOutputChannelChange,
   pickerInjection,
 }: DesktopWorkspaceChatShellProps) {
@@ -248,6 +250,7 @@ export function DesktopWorkspaceChatShell({
               onSelectChat,
               onSelectAppChat,
               onToggleShowAppChats,
+              onRefreshChats,
             }}
           />
         )}
