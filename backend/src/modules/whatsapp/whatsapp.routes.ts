@@ -123,6 +123,12 @@ const maskSignature = (signature: string): string =>
     ? "[redacted]"
     : `${signature.slice(0, 4)}...${signature.slice(-4)}`;
 
+const maskWhatsAppAddress = (address: string): string => {
+  const [prefix, value = address] = address.split(":");
+  const visibleTail = value.slice(-4);
+  return `${prefix === value ? "whatsapp" : prefix}:***${visibleTail}`;
+};
+
 const MAX_WHATSAPP_REPLY_CHARS = 1_500;
 
 const isImageMimeType = (value: string): boolean =>
@@ -480,12 +486,41 @@ export const sendWhatsAppReplyChunked = async (
 export const sendWhatsAppAutomationMessage = async (
   body: string,
 ): Promise<Array<{ sid: string | null; status: string | null }>> => {
-  const [to] = getAllowedWhatsAppSenders();
-  if (!to) {
-    throw new Error("LILO_WHATSAPP_ALLOWED_SENDERS is not configured");
+  const recipients = getAllowedWhatsAppSenders();
+  const results: Array<{ sid: string | null; status: string | null }> = [];
+  const failures: Array<{ recipient: string; error: unknown }> = [];
+
+  for (const recipient of recipients) {
+    try {
+      results.push(...(await sendWhatsAppReplyChunked(recipient, body)));
+    } catch (error) {
+      failures.push({ recipient, error });
+    }
   }
 
-  return sendWhatsAppReplyChunked(to, body);
+  if (failures.length > 0) {
+    const failedRecipients = failures.map(({ recipient }) => maskWhatsAppAddress(recipient)).join(", ");
+    const error = new Error(`Failed to send WhatsApp automation message to: ${failedRecipients}`);
+    captureBackendException(error, {
+      tags: {
+        area: "whatsapp",
+        provider: "twilio",
+        operation: "send_automation_fanout",
+      },
+      extras: {
+        failedRecipients,
+        failureCount: failures.length,
+        recipientCount: recipients.length,
+        errors: failures.map(({ recipient, error: failure }) => ({
+          recipient: maskWhatsAppAddress(recipient),
+          message: failure instanceof Error ? failure.message : String(failure),
+        })),
+      },
+    });
+    throw error;
+  }
+
+  return results;
 };
 
 const sendWhatsAppTypingIndicator = async (messageId: string): Promise<void> => {
