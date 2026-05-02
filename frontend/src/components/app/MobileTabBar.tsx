@@ -1,25 +1,50 @@
 import { useEffect, useMemo, useState } from "react";
-import type { WorkspaceAppLink } from "../workspace/types";
+import { WorkspaceSettingsButton } from "../workspace/WorkspaceSettingsButton";
+import type { WorkspaceAppLink, WorkspacePreferences, WorkspaceTemplateUpdate } from "../workspace/types";
 import type { MobileView } from "./types";
 
 interface MobileTabBarProps {
   mobileView: MobileView;
   workspaceApps: WorkspaceAppLink[];
   selectedViewerPath: string | null;
+  workspaceTimeZone: string;
+  workspaceGitRemoteUrl?: string;
+  workspaceGitBrowserUrl?: string;
+  defaultChatModelSelection?: WorkspacePreferences["defaultChatModelSelection"];
+  templateUpdates?: WorkspaceTemplateUpdate[];
+  theme: "light" | "dark" | "system";
   onOpenChats: () => void;
   onOpenHome: () => void;
   onOpenAutomations: () => void;
   onOpenWorkspaceOrViewer: (app?: WorkspaceAppLink) => void;
+  onSaveWorkspaceTimeZone: (timeZone: string) => void;
+  onDefaultChatModelChange: (
+    selection: NonNullable<WorkspacePreferences["defaultChatModelSelection"]>,
+  ) => Promise<void> | void;
+  onRequestTemplateUpdate?: (update: WorkspaceTemplateUpdate) => void;
+  onDismissTemplateUpdate?: (update: WorkspaceTemplateUpdate) => Promise<void> | void;
+  onSelectTheme: (theme: "light" | "dark" | "system") => void;
 }
 
 export function MobileTabBar({
   mobileView,
   workspaceApps,
   selectedViewerPath,
+  workspaceTimeZone,
+  workspaceGitRemoteUrl,
+  workspaceGitBrowserUrl,
+  defaultChatModelSelection,
+  templateUpdates = [],
+  theme,
   onOpenChats,
   onOpenHome,
   onOpenAutomations,
   onOpenWorkspaceOrViewer,
+  onSaveWorkspaceTimeZone,
+  onDefaultChatModelChange,
+  onRequestTemplateUpdate,
+  onDismissTemplateUpdate,
+  onSelectTheme,
 }: MobileTabBarProps) {
   // The "Home" tab is the built-in `desktop` workspace app. The third tab
   // shows whatever app is currently selected (if any) — collapsing into the
@@ -126,6 +151,24 @@ export function MobileTabBar({
         </svg>
         Automations
       </button>
+      <WorkspaceSettingsButton
+        workspaceTimeZone={workspaceTimeZone}
+        workspaceGitRemoteUrl={workspaceGitRemoteUrl}
+        workspaceGitBrowserUrl={workspaceGitBrowserUrl}
+        defaultChatModelSelection={defaultChatModelSelection}
+        templateUpdates={templateUpdates}
+        onRequestTemplateUpdate={onRequestTemplateUpdate}
+        onDismissTemplateUpdate={onDismissTemplateUpdate}
+        onOpenAutomations={onOpenAutomations}
+        onTimeZoneChange={onSaveWorkspaceTimeZone}
+        onDefaultChatModelChange={onDefaultChatModelChange}
+        theme={theme}
+        onSelectTheme={onSelectTheme}
+        title="Settings"
+        label="Settings"
+        triggerClassName={tabClass(false)}
+        triggerIconClassName="h-6 w-6"
+      />
     </nav>
   );
 }

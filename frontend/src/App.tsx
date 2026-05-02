@@ -658,6 +658,12 @@ function App() {
           mobileView={shell.mobileView}
           workspaceApps={workspace.workspaceApps}
           selectedViewerPath={workspace.selectedViewerPath}
+          workspaceTimeZone={workspace.workspacePreferences.timeZone}
+          workspaceGitRemoteUrl={workspace.workspacePreferences.gitRemoteUrl}
+          workspaceGitBrowserUrl={workspace.workspacePreferences.gitBrowserUrl}
+          defaultChatModelSelection={workspace.workspacePreferences.defaultChatModelSelection}
+          templateUpdates={workspace.templateUpdates}
+          theme={theme}
           onOpenChats={shell.openChatsTab}
           onOpenHome={handleOpenMobileHome}
           onOpenAutomations={shell.openAutomationsTab}
@@ -669,6 +675,11 @@ function App() {
             }
             shell.openWorkspaceOrViewer(Boolean(workspace.selectedViewerPath));
           }}
+          onSaveWorkspaceTimeZone={workspace.saveWorkspaceTimeZone}
+          onDefaultChatModelChange={workspace.saveDefaultChatModelSelection}
+          onRequestTemplateUpdate={handleRequestTemplateUpdate}
+          onDismissTemplateUpdate={workspace.dismissTemplateUpdate}
+          onSelectTheme={setTheme}
         />
       ) : null}
 
