@@ -44,6 +44,12 @@ interface WorkspaceAutomationsSectionProps {
 
 type AutomationTab = "active" | "inactive" | "errored";
 
+interface AutomationGroup {
+  id: string;
+  label: string;
+  jobs: AutomationJob[];
+}
+
 interface ChannelStatus {
   id: AutomationOutputChannel;
   label: string;
@@ -161,6 +167,146 @@ const formatDate = (value?: string): string => {
   });
 };
 
+const getRelativeDayLabel = (date: Date): string | null => {
+  const today = startOfDay(new Date());
+  const targetDay = startOfDay(date);
+  const dayOffset = Math.round((targetDay.getTime() - today.getTime()) / 86_400_000);
+
+  if (dayOffset === -1) return "Yesterday";
+  if (dayOffset === 0) return "Today";
+  if (dayOffset === 1) return "Tomorrow";
+  return null;
+};
+
+const formatFriendlyDate = (value?: string): string => {
+  if (!value) return "Not scheduled";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  const relativeDay = getRelativeDayLabel(date);
+  const time = date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  if (relativeDay) return `${relativeDay} at ${time}`;
+
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatScheduleSummary = (job: AutomationJob): string => {
+  if (job.schedule.type === "at") {
+    return `Next: ${formatFriendlyDate(job.nextRunAt ?? job.schedule.at)}`;
+  }
+
+  return `${formatSchedule(job.schedule)} · Next: ${formatFriendlyDate(job.nextRunAt)}`;
+};
+
+const formatLastRunSummary = (value?: string): string => {
+  if (!value) return "Last: Not run";
+  return `Last: ${formatFriendlyDate(value)}`;
+};
+
+const startOfDay = (date: Date): Date =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const addDays = (date: Date, days: number): Date => {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+};
+
+const startOfWeek = (date: Date): Date => {
+  const dayStart = startOfDay(date);
+  return addDays(dayStart, -dayStart.getDay());
+};
+
+const getScheduleBucket = (job: AutomationJob, now = new Date()): { id: string; label: string } => {
+  if (!job.nextRunAt) return { id: "inactive", label: "Inactive" };
+
+  const nextRunAt = new Date(job.nextRunAt);
+  if (Number.isNaN(nextRunAt.getTime())) {
+    return { id: "later", label: "Later" };
+  }
+
+  const today = startOfDay(now);
+  const nextDay = startOfDay(nextRunAt);
+  const dayOffset = Math.round((nextDay.getTime() - today.getTime()) / 86_400_000);
+
+  if (nextRunAt.getTime() < now.getTime()) {
+    return { id: "overdue", label: "Overdue" };
+  }
+
+  if (dayOffset === 0) {
+    const hour = nextRunAt.getHours();
+    if (hour < 12) return { id: "this-morning", label: "This morning" };
+    if (hour < 17) return { id: "this-afternoon", label: "This afternoon" };
+    return { id: "tonight", label: "Tonight" };
+  }
+
+  if (dayOffset === 1) return { id: "tomorrow", label: "Tomorrow" };
+
+  const currentWeekStart = startOfWeek(now);
+  const nextWeekStart = addDays(currentWeekStart, 7);
+  const followingWeekStart = addDays(nextWeekStart, 7);
+
+  if (nextRunAt < nextWeekStart) return { id: "this-week", label: "This week" };
+
+  if (nextRunAt < followingWeekStart) return { id: "next-week", label: "Next week" };
+
+  return { id: "later", label: "Later" };
+};
+
+const getAutomationGroups = (
+  jobs: AutomationJob[],
+  selectedTab: AutomationTab,
+): AutomationGroup[] => {
+  const now = new Date();
+  const bucketOrder = [
+    "overdue",
+    "this-morning",
+    "this-afternoon",
+    "tonight",
+    "tomorrow",
+    "this-week",
+    "next-week",
+    "later",
+    "inactive",
+    "errored",
+  ];
+  const groups = new Map<string, AutomationGroup>();
+
+  for (const job of [...jobs].sort((first, second) => {
+    const firstTime = first.nextRunAt ? new Date(first.nextRunAt).getTime() : Number.POSITIVE_INFINITY;
+    const secondTime = second.nextRunAt ? new Date(second.nextRunAt).getTime() : Number.POSITIVE_INFINITY;
+    if (firstTime !== secondTime) return firstTime - secondTime;
+    return first.name.localeCompare(second.name);
+  })) {
+    const bucket =
+      selectedTab === "active"
+        ? getScheduleBucket(job, now)
+        : selectedTab === "inactive"
+          ? { id: "inactive", label: "Inactive" }
+          : { id: "errored", label: "Errored" };
+
+    const existingGroup = groups.get(bucket.id);
+    if (existingGroup) {
+      existingGroup.jobs.push(job);
+    } else {
+      groups.set(bucket.id, { ...bucket, jobs: [job] });
+    }
+  }
+
+  return [...groups.values()].sort(
+    (first, second) => bucketOrder.indexOf(first.id) - bucketOrder.indexOf(second.id),
+  );
+};
+
 const statusClassName = (status?: AutomationJob["lastStatus"]): string => {
   if (status === "success") return "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900";
   if (status === "error") return "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-900";
@@ -200,6 +346,10 @@ export function WorkspaceAutomationsSection({
       : selectedTab === "inactive"
         ? inactiveJobs
         : erroredJobs;
+  const groupedJobs = useMemo(
+    () => getAutomationGroups(visibleJobs, selectedTab),
+    [selectedTab, visibleJobs],
+  );
   const configuredChannels = channels.filter((channel) => channel.configured);
   const selectedChannelConfigured = configuredChannels.some(
     (channel) => channel.id === automationOutputChannel,
@@ -474,84 +624,94 @@ export function WorkspaceAutomationsSection({
               : "No errored automations."}
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
-          {visibleJobs.map((job) => (
-            <article
-              key={job.id}
-              className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-800/70"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <h3 className="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                      {job.name}
-                    </h3>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${statusClassName(job.lastStatus)}`}>
-                      {job.lastStatus ?? "idle"}
-                    </span>
-                    {!job.enabled ? (
-                      <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-[10px] font-semibold text-neutral-500 dark:bg-neutral-700 dark:text-neutral-300">
-                        disabled
-                      </span>
+        <div className="flex flex-col gap-4">
+          {groupedJobs.map((group) => (
+            <section key={group.id} className="space-y-2">
+              <div className="flex items-center justify-between rounded-lg bg-neutral-900 px-3 py-2 text-white shadow-sm dark:bg-neutral-100 dark:text-neutral-950">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.18em]">
+                  {group.label}
+                </h3>
+                <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white dark:bg-neutral-950/10 dark:text-neutral-950">
+                  {group.jobs.length}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {group.jobs.map((job) => (
+                  <article
+                    key={job.id}
+                    className="rounded-lg border border-neutral-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900/60"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <h4 className="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                            {job.name}
+                          </h4>
+                          <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ring-1 ${statusClassName(job.lastStatus)}`}>
+                            {job.lastStatus ?? "idle"}
+                          </span>
+                          {!job.enabled ? (
+                            <span className="shrink-0 rounded-full bg-neutral-200 px-1.5 py-0.5 text-[9px] font-semibold text-neutral-500 dark:bg-neutral-700 dark:text-neutral-300">
+                              off
+                            </span>
+                          ) : null}
+                          {!job.nextRunAt ? (
+                            <span className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:ring-amber-900">
+                              inactive
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-0.5 truncate text-[11px] font-medium text-neutral-600 dark:text-neutral-300">
+                          {formatScheduleSummary(job)}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right text-[11px] text-neutral-400 dark:text-neutral-500">
+                        {formatLastRunSummary(job.lastRunAt)}
+                      </div>
+                    </div>
+                    <details className="group mt-1.5 text-xs">
+                      <summary className="cursor-pointer select-none text-[11px] font-medium text-neutral-400 transition hover:text-neutral-900 dark:text-neutral-500 dark:hover:text-neutral-100">
+                        Prompt
+                      </summary>
+                      <p className="mt-1.5 whitespace-pre-wrap rounded-md bg-neutral-50 px-2 py-1.5 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                        {job.prompt}
+                      </p>
+                    </details>
+                    {job.lastError ? (
+                      <p className="mt-1.5 rounded-md bg-red-50 px-2 py-1 text-[11px] text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                        {job.lastError}
+                      </p>
                     ) : null}
-                    {!job.nextRunAt ? (
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:ring-amber-900">
-                        inactive
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
-                    {formatSchedule(job.schedule)}
-                  </p>
-                </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-[11px] font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                        disabled={isMutatingId === job.id}
+                        onClick={() => void patchAutomation(job.id, { enabled: !job.enabled })}
+                      >
+                        {job.enabled ? "Disable" : "Enable"}
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-[11px] font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                        disabled={isMutatingId === job.id}
+                        onClick={() => void runAutomation(job.id)}
+                      >
+                        Run now
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md border border-red-200 bg-white px-2 py-1 text-[11px] font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:bg-neutral-900 dark:text-red-300 dark:hover:bg-red-950/30"
+                        disabled={isMutatingId === job.id}
+                        onClick={() => void deleteAutomation(job.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                ))}
               </div>
-              <details className="group mt-3 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs dark:border-neutral-700 dark:bg-neutral-900">
-                <summary className="cursor-pointer select-none font-medium text-neutral-500 transition hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100">
-                  Prompt
-                  <span className="ml-1 text-neutral-400 group-open:hidden">
-                    hidden
-                  </span>
-                </summary>
-                <p className="mt-2 whitespace-pre-wrap text-neutral-700 dark:text-neutral-200">
-                  {job.prompt}
-                </p>
-              </details>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
-                <span>Next: {formatDate(job.nextRunAt)}</span>
-                <span>Last: {formatDate(job.lastRunAt)}</span>
-              </div>
-              {job.lastError ? (
-                <p className="mt-2 rounded-lg bg-red-50 px-2 py-1.5 text-[11px] text-red-700 dark:bg-red-950/30 dark:text-red-300">
-                  {job.lastError}
-                </p>
-              ) : null}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                  disabled={isMutatingId === job.id}
-                  onClick={() => void patchAutomation(job.id, { enabled: !job.enabled })}
-                >
-                  {job.enabled ? "Disable" : "Enable"}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                  disabled={isMutatingId === job.id}
-                  onClick={() => void runAutomation(job.id)}
-                >
-                  Run now
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:bg-neutral-900 dark:text-red-300 dark:hover:bg-red-950/30"
-                  disabled={isMutatingId === job.id}
-                  onClick={() => void deleteAutomation(job.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            </article>
+            </section>
           ))}
         </div>
       )}
