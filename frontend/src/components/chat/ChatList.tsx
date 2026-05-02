@@ -19,6 +19,15 @@ type DateGroup = {
   chats: ChatSessionState[];
 };
 
+const shouldShowChatInHistory = (chat: ChatSessionState): boolean =>
+  chat.messageCount > 0 ||
+  chat.messages.length > 0 ||
+  chat.status === "streaming" ||
+  chat.connectionState === "connecting" ||
+  chat.connectionState === "streaming" ||
+  chat.isWorking ||
+  chat.status === "error";
+
 function ChatListLoading({ isMobile }: { isMobile: boolean }) {
   return (
     <div className={isMobile ? "flex flex-col gap-5 px-4 py-3" : "flex flex-col gap-4 px-2 py-2"}>
@@ -125,7 +134,7 @@ export function ChatList({
 }: ChatListProps) {
   const isMobile = variant === "mobile";
   const visibleChats = useMemo(
-    () => chats.filter((chat) => chat.messageCount > 0),
+    () => chats.filter(shouldShowChatInHistory),
     [chats],
   );
   const groups = useMemo(() => groupChatsByDate(visibleChats), [visibleChats]);

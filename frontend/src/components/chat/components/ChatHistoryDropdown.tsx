@@ -10,6 +10,14 @@ const POPOVER_GAP = 8;
 const MIN_REFRESH_LOADING_MS = 300;
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+const shouldShowChatInHistory = (chat: ChatSessionState): boolean =>
+  chat.messageCount > 0 ||
+  chat.messages.length > 0 ||
+  chat.status === "streaming" ||
+  chat.connectionState === "connecting" ||
+  chat.connectionState === "streaming" ||
+  chat.isWorking ||
+  chat.status === "error";
 
 interface PopoverPosition {
   top: number;
@@ -211,7 +219,7 @@ export function ChatHistoryDropdown({
                         ? "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                         : "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
                     }`}>
-                      {chats.filter((c) => c.messageCount > 0).length}
+                      {chats.filter(shouldShowChatInHistory).length}
                     </span>
                   )}
                   {!showAppChats ? (
