@@ -15,22 +15,12 @@ import { captureBackendException } from "../../shared/observability/sentry.js";
 import { ASK_USER_QUESTION_TOOL_NAME } from "../../shared/tools/askUserQuestionTool.js";
 import { readWorkspaceAppPrefs } from "../../shared/workspace/appPrefs.js";
 import { formatWhatsAppOutput } from "./whatsapp.format.js";
+import { normalizeWhatsAppAddress } from "./whatsapp.address.js";
 import { resolveDailyWhatsAppChatId, storeDailyWhatsAppChatId } from "./threadStore.js";
 
 const getWhatsAppThreadTimezone = async (): Promise<string> => {
   const workspacePrefs = await readWorkspaceAppPrefs(WORKSPACE_ROOT);
   return workspacePrefs.timeZone ?? "America/New_York";
-};
-
-const normalizeWhatsAppAddress = (value: string): string => {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return "";
-  }
-
-  return trimmed.toLowerCase().startsWith("whatsapp:")
-    ? trimmed
-    : `whatsapp:${trimmed}`;
 };
 
 const secureCompare = (left: string, right: string): boolean => {

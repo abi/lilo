@@ -2,6 +2,7 @@ import { dirname, resolve } from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { ensureDir } from "../../shared/session/sessionStore.js";
 import { resolveSessionSubdir } from "../../shared/config/sessions.js";
+import { normalizeWhatsAppPhoneNumber } from "./whatsapp.address.js";
 
 type ChannelName = "whatsapp";
 
@@ -14,16 +15,8 @@ type ChannelThreadMap = Record<string, ChannelThreadRecord>;
 
 const THREAD_STORE_PATH = resolve(resolveSessionSubdir("channels"), "thread-map.json");
 
-const normalizeWhatsAppAddress = (value: string): string =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/^whatsapp:/, "")
-    .replace(/[^\d+]/g, "")
-    .replace(/(?!^)\+/g, "");
-
 const buildKey = (channel: ChannelName, from: string, dayKey: string): string =>
-  `${channel}:${normalizeWhatsAppAddress(from)}:${dayKey}`;
+  `${channel}:${normalizeWhatsAppPhoneNumber(from)}:${dayKey}`;
 
 const toDayKey = (now: Date, timeZone: string): string => {
   try {
