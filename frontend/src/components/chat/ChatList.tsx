@@ -28,6 +28,24 @@ const shouldShowChatInHistory = (chat: ChatSessionState): boolean =>
   chat.isWorking ||
   chat.status === "error";
 
+const getChatHistoryTitle = (chat: ChatSessionState): string => {
+  const title = chat.title.trim();
+  const isPlaceholder =
+    title.length === 0 ||
+    title === "New chat" ||
+    title.toLowerCase() === "(no messages)";
+
+  if (!isPlaceholder) {
+    return title;
+  }
+
+  const userMessage = [...chat.messages]
+    .reverse()
+    .find((message) => message.role === "user" && message.content.trim().length > 0);
+
+  return userMessage?.content.trim() || title || "New chat";
+};
+
 function ChatListLoading({ isMobile }: { isMobile: boolean }) {
   return (
     <div className={isMobile ? "flex flex-col gap-5 px-4 py-3" : "flex flex-col gap-4 px-2 py-2"}>
@@ -228,6 +246,7 @@ export function ChatList({
           >
             {group.chats.map((chat) => {
               const isActive = chat.id === activeChatId;
+              const displayTitle = getChatHistoryTitle(chat);
               const isBusy =
                 chat.status === "streaming" ||
                 chat.connectionState === "connecting" ||
@@ -271,7 +290,7 @@ export function ChatList({
                       isMobile ? "text-[17px]" : "text-sm"
                     }`}
                   >
-                    {chat.title}
+                    {displayTitle}
                   </span>
                   <span
                     className={`shrink-0 font-medium ${
