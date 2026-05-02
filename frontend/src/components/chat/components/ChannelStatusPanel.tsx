@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { config } from "../../../config/config";
 import { fetchJson } from "../../../store/chat/api";
@@ -26,13 +25,6 @@ interface ChannelStatusResponse {
   channels: ChannelStatus[];
 }
 
-interface PopoverPosition {
-  left: number;
-  top: number;
-  width: number;
-  maxHeight: number;
-}
-
 const stateStyles: Record<ChannelState, { label: string; dot: string; badge: string }> = {
   configured: {
     label: "Configured",
@@ -54,201 +46,95 @@ const stateStyles: Record<ChannelState, { label: string; dot: string; badge: str
   },
 };
 
-const triggerClassName =
-  "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 transition hover:border-neutral-300 hover:bg-neutral-100 hover:text-neutral-950 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:bg-neutral-700 dark:hover:text-white";
-
-export function ChannelStatusButton() {
-  const [isOpen, setIsOpen] = useState(false);
+export function ChannelStatusPanel() {
   const [channels, setChannels] = useState<ChannelStatus[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const popoverRef = useRef<HTMLDivElement | null>(null);
-  const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const updatePosition = () => {
-      const trigger = triggerRef.current;
-      if (!trigger) {
-        return;
-      }
-
-      const rect = trigger.getBoundingClientRect();
-      const width = Math.min(448, window.innerWidth - 32);
-      const left = Math.min(Math.max(16, rect.right - width), window.innerWidth - width - 16);
-      const top = rect.bottom + 8;
-
-      setPopoverPosition({
-        left,
-        top,
-        width,
-        maxHeight: Math.max(240, window.innerHeight - top - 16),
-      });
-    };
-
-    updatePosition();
-
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (
-        !triggerRef.current?.contains(target) &&
-        !popoverRef.current?.contains(target)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
-    };
-
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-    window.addEventListener("mousedown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-      window.removeEventListener("mousedown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen || channels) {
-      return;
-    }
-
-    let cancelled = false;
+  const loadChannels = () => {
     setLoading(true);
     setError(null);
 
     fetchJson<ChannelStatusResponse>(`${config.apiBaseUrl}/api/channels/status`)
       .then((payload) => {
-        if (!cancelled) {
-          setChannels(payload.channels);
-        }
+        setChannels(payload.channels);
       })
       .catch((requestError) => {
-        if (!cancelled) {
-          setError(
-            requestError instanceof Error
-              ? requestError.message
-              : "Failed to load channel status",
-          );
-        }
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Failed to load channel status",
+        );
       })
       .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        setLoading(false);
       });
+  };
 
-    return () => {
-      cancelled = true;
-    };
-  }, [channels, isOpen]);
+  useEffect(() => {
+    loadChannels();
+  }, []);
 
   return (
-    <div className="relative">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setIsOpen((value) => !value)}
-        title="Channel configuration"
-        aria-label="Channel configuration"
-        className={triggerClassName}
-      >
-        <svg
-          className="h-4 w-4 shrink-0"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
+    <section className="border-b border-neutral-200 px-4 py-4 dark:border-neutral-700">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+            Messaging channels
+          </p>
+          <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+            Check and configure Email, Telegram, and WhatsApp.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={loadChannels}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+          title="Refresh"
+          aria-label="Refresh channel configuration"
         >
-          <path d="M4 6h16" />
-          <path d="M4 12h10" />
-          <path d="M4 18h7" />
-          <circle cx="18" cy="12" r="2" />
-          <circle cx="15" cy="18" r="2" />
-        </svg>
-      </button>
+          <svg
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
+            <path d="M3 21v-5h5" />
+            <path d="M3 12A9 9 0 0 1 18.5 5.7L21 8" />
+            <path d="M21 3v5h-5" />
+          </svg>
+        </button>
+      </div>
 
-      {isOpen && popoverPosition ? createPortal(
-        <div
-          ref={popoverRef}
-          className="fixed z-[120] overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xl ring-1 ring-black/5 dark:border-neutral-700 dark:bg-neutral-900 dark:ring-white/5"
-          style={{
-            left: popoverPosition.left,
-            top: popoverPosition.top,
-            width: popoverPosition.width,
-            maxHeight: popoverPosition.maxHeight,
-          }}
-        >
-          <div className="flex items-center justify-between gap-3 border-b border-neutral-200 px-3 py-3 dark:border-neutral-700">
-            <div className="min-w-0">
-              <h3 className="font-heading text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                Channels
-              </h3>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setChannels(null);
-                setError(null);
-              }}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
-              title="Refresh"
-              aria-label="Refresh channel configuration"
-            >
-              <svg
-                className="h-4 w-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
-                <path d="M3 21v-5h5" />
-                <path d="M3 12A9 9 0 0 1 18.5 5.7L21 8" />
-                <path d="M21 3v5h-5" />
-              </svg>
-            </button>
-          </div>
+      <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-700 dark:bg-neutral-800/60">
+        {loading ? (
+          <p className="px-2 py-6 text-center text-sm text-neutral-500 dark:text-neutral-400">
+            Checking channels...
+          </p>
+        ) : null}
 
-          <div className="overflow-y-auto p-2" style={{ maxHeight: popoverPosition.maxHeight - 53 }}>
-            {loading ? (
-              <p className="px-2 py-6 text-center text-sm text-neutral-500 dark:text-neutral-400">
-                Checking channels...
-              </p>
-            ) : null}
+        {error ? (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+            {error}
+          </p>
+        ) : null}
 
-            {error ? (
-              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-                {error}
-              </p>
-            ) : null}
+        {!loading && !error && channels?.length === 0 ? (
+          <p className="px-2 py-6 text-center text-sm text-neutral-500 dark:text-neutral-400">
+            No channel status is available.
+          </p>
+        ) : null}
 
-            {channels?.map((channel) => (
-              <ChannelCard key={channel.id} channel={channel} />
-            ))}
-          </div>
-        </div>,
-        document.body,
-      ) : null}
-    </div>
+        {channels?.map((channel) => (
+          <ChannelCard key={channel.id} channel={channel} />
+        ))}
+      </div>
+    </section>
   );
 }
 

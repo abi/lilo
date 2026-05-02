@@ -1,6 +1,5 @@
 import type { ChatSessionState } from "../../../store/chatStore";
 import type { AppChatSummary } from "../../../hooks/useAppChats";
-import { ChannelStatusButton } from "./ChannelStatusButton";
 import { ChatHistoryDropdown } from "./ChatHistoryDropdown";
 import { NewChatButton } from "./NewChatButton";
 import { TruncatedTitle } from "./TruncatedTitle";
@@ -73,7 +72,6 @@ export function ChatHeader({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ChannelStatusButton />
           {onNewChat ? <NewChatButton onClick={onNewChat} /> : null}
         </div>
       </header>
@@ -112,7 +110,6 @@ export function ChatHeader({
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ChannelStatusButton />
           {history ? (
             <ChatHistoryDropdown
               chats={history.chats}

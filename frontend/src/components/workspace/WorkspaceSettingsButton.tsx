@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { logout, notifyAuthRequired } from "../../lib/auth";
+import { ChannelStatusPanel } from "../chat/components/ChannelStatusPanel";
 import { WorkspaceAppUpdatesSection } from "./WorkspaceAppUpdatesSection";
 import { WorkspaceDefaultModelSection } from "./WorkspaceDefaultModelSection";
 import { TIMEZONE_META } from "./timezoneMeta";
@@ -339,6 +340,8 @@ export function WorkspaceSettingsButton({
                     defaultChatModelSelection={defaultChatModelSelection}
                     onDefaultChatModelChange={onDefaultChatModelChange}
                   />
+
+                  <ChannelStatusPanel />
 
                   <section className="border-b border-neutral-200 px-4 py-4 dark:border-neutral-700">
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
