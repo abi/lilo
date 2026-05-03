@@ -1,11 +1,10 @@
 services:
   - type: web
     name: lilo
-    runtime: node
+    runtime: docker
+    dockerfilePath: ./Dockerfile
     plan: starter
     region: oregon
-    buildCommand: corepack enable && corepack prepare pnpm@10.5.2 --activate && pnpm install --frozen-lockfile && pnpm build
-    startCommand: node backend/dist/index.js
     healthCheckPath: /health
     autoDeployTrigger: commit
     disk:
