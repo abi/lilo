@@ -25,6 +25,11 @@ interface ChannelStatusResponse {
   channels: ChannelStatus[];
 }
 
+interface TelegramWebhookSetupResponse {
+  ok: boolean;
+  webhookUrl: string;
+}
+
 const stateStyles: Record<ChannelState, { label: string; dot: string; badge: string }> = {
   configured: {
     label: "Configured",
@@ -131,14 +136,20 @@ export function ChannelStatusPanel() {
         ) : null}
 
         {channels?.map((channel) => (
-          <ChannelCard key={channel.id} channel={channel} />
+          <ChannelCard key={channel.id} channel={channel} onRefresh={loadChannels} />
         ))}
       </div>
     </section>
   );
 }
 
-function ChannelCard({ channel }: { channel: ChannelStatus }) {
+function ChannelCard({
+  channel,
+  onRefresh,
+}: {
+  channel: ChannelStatus;
+  onRefresh: () => void;
+}) {
   const styles = stateStyles[channel.state];
   const [showDetails, setShowDetails] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
@@ -270,7 +281,7 @@ function ChannelCard({ channel }: { channel: ChannelStatus }) {
       )}
 
       {showSetup ? (
-        <ChannelSetupInstructions channelId={channel.id} />
+        <ChannelSetupInstructions channel={channel} onRefresh={onRefresh} />
       ) : null}
 
       {showDetails && secondaryDetails.length > 0 ? (
@@ -313,8 +324,14 @@ function getPrimaryChannelDetail(channel: ChannelStatus): ChannelDetail | null {
   return null;
 }
 
-function ChannelSetupInstructions({ channelId }: { channelId: ChannelStatus["id"] }) {
-  const steps = getSetupSteps(channelId);
+function ChannelSetupInstructions({
+  channel,
+  onRefresh,
+}: {
+  channel: ChannelStatus;
+  onRefresh: () => void;
+}) {
+  const steps = getSetupSteps(channel.id);
 
   return (
     <div className="mt-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-800">
@@ -331,6 +348,141 @@ function ChannelSetupInstructions({ channelId }: { channelId: ChannelStatus["id"
           </li>
         ))}
       </ol>
+      {channel.id === "telegram" ? (
+        <TelegramSetupActions channel={channel} onRefresh={onRefresh} />
+      ) : null}
+    </div>
+  );
+}
+
+function TelegramSetupActions({
+  channel,
+  onRefresh,
+}: {
+  channel: ChannelStatus;
+  onRefresh: () => void;
+}) {
+  const [generatedSecret, setGeneratedSecret] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const [webhookState, setWebhookState] = useState<
+    | { status: "idle" }
+    | { status: "loading" }
+    | { status: "success"; message: string }
+    | { status: "error"; message: string }
+  >({ status: "idle" });
+
+  const hasToken = channel.details.some(
+    (detail) => detail.label === "Bot token" && detail.value === "Set",
+  );
+  const hasWebhookSecret = channel.details.some(
+    (detail) => detail.label === "Webhook secret" && detail.value === "Set",
+  );
+  const canConfigureWebhook = hasToken && hasWebhookSecret;
+
+  const handleGenerateSecret = async () => {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    const secret = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    setGeneratedSecret(secret);
+    setCopyState("idle");
+
+    try {
+      await navigator.clipboard.writeText(secret);
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+  };
+
+  const handleConfigureWebhook = async () => {
+    setWebhookState({ status: "loading" });
+    try {
+      const payload = await fetchJson<TelegramWebhookSetupResponse>(
+        `${config.apiBaseUrl}/api/channels/telegram/webhook`,
+        { method: "POST" },
+      );
+      setWebhookState({
+        status: "success",
+        message: `Webhook configured: ${payload.webhookUrl}`,
+      });
+      onRefresh();
+    } catch (error) {
+      setWebhookState({
+        status: "error",
+        message:
+          error instanceof Error ? error.message : "Failed to configure Telegram webhook",
+      });
+    }
+  };
+
+  return (
+    <div className="mt-3 space-y-3 rounded-lg border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950/30">
+      <div>
+        <p className="text-xs font-semibold text-sky-900 dark:text-sky-100">
+          Telegram helpers
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-sky-800/80 dark:text-sky-200/80">
+          Generate a secret for your env var, then use the webhook button after the
+          token and secret are deployed.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            void handleGenerateSecret();
+          }}
+          className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-900 transition hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100 dark:hover:bg-sky-900"
+        >
+          Generate webhook secret
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            void handleConfigureWebhook();
+          }}
+          disabled={!canConfigureWebhook || webhookState.status === "loading"}
+          className="rounded-lg border border-sky-700 bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:border-sky-200 disabled:bg-sky-200 disabled:text-sky-500 dark:disabled:border-sky-900 dark:disabled:bg-sky-950 dark:disabled:text-sky-700"
+          title={
+            canConfigureWebhook
+              ? "Configure Telegram webhook"
+              : "Set TELEGRAM_BOT_TOKEN and TELEGRAM_WEBHOOK_SECRET, redeploy, then use this"
+          }
+        >
+          {webhookState.status === "loading" ? "Configuring..." : "Configure webhook"}
+        </button>
+      </div>
+
+      {generatedSecret ? (
+        <div className="rounded-md bg-white p-2 text-xs dark:bg-sky-950">
+          <p className="font-semibold text-sky-900 dark:text-sky-100">
+            TELEGRAM_WEBHOOK_SECRET
+          </p>
+          <code className="mt-1 block break-all font-mono text-[11px] text-sky-900 dark:text-sky-100">
+            {generatedSecret}
+          </code>
+          <p className="mt-1 text-[11px] text-sky-700 dark:text-sky-300">
+            {copyState === "copied"
+              ? "Copied. Add it to your env vars and redeploy."
+              : copyState === "failed"
+                ? "Copy this value into TELEGRAM_WEBHOOK_SECRET, then redeploy."
+                : "Add this value to TELEGRAM_WEBHOOK_SECRET, then redeploy."}
+          </p>
+        </div>
+      ) : null}
+
+      {webhookState.status === "success" || webhookState.status === "error" ? (
+        <p
+          className={`rounded-md px-2 py-1.5 text-xs ${
+            webhookState.status === "success"
+              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+              : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+          }`}
+        >
+          {webhookState.message}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -355,8 +507,8 @@ function getSetupSteps(channelId: ChannelStatus["id"]): string[] {
       "Set TELEGRAM_BOT_TOKEN to the BotFather token.",
       "Find your numeric Telegram user ID. You can message @userinfobot, @getidsbot, or send your bot a message and inspect getUpdates from the Telegram Bot API.",
       "Set LILO_TELEGRAM_ALLOWED_USER_IDS to the numeric user IDs allowed to talk to Lilo, separated by commas. Do not use group chat IDs here.",
-      "Generate a long random secret, set TELEGRAM_WEBHOOK_SECRET to it, and redeploy the backend.",
-      "Configure the Telegram webhook to " + getWebhookUrl("/api/inbound-telegram") + " and pass the same secret as secret_token. For example: curl -X POST https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook -d url=" + getWebhookUrl("/api/inbound-telegram") + " -d secret_token=<TELEGRAM_WEBHOOK_SECRET>.",
+      "Generate a long random secret, set TELEGRAM_WEBHOOK_SECRET to it, and redeploy the backend. You can use the Generate webhook secret button below.",
+      "Configure the Telegram webhook to " + getWebhookUrl("/api/inbound-telegram") + " and pass the same secret as secret_token. After TELEGRAM_BOT_TOKEN and TELEGRAM_WEBHOOK_SECRET are deployed, you can use the Configure webhook button below. Manual example: curl -X POST https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook -d url=" + getWebhookUrl("/api/inbound-telegram") + " -d secret_token=<TELEGRAM_WEBHOOK_SECRET>.",
       "Open your bot in Telegram and send a message from one of the allowed user IDs. Lilo should create a persistent chat for that Telegram conversation.",
       "If messages do not arrive, call getWebhookInfo for the bot token and check Telegram's last_error_message.",
     ];

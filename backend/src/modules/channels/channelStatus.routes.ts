@@ -24,6 +24,11 @@ interface ConfigSpec {
   value: string | null;
 }
 
+interface TelegramApiResponse {
+  ok: boolean;
+  description?: string;
+}
+
 const configValue = (name: string, value: string | null): ConfigSpec => ({
   name,
   value,
@@ -183,10 +188,73 @@ const getChannelStatuses = (): ChannelStatus[] => {
   ];
 };
 
+const buildPublicWebhookUrl = (baseUrl: string, path: string): string =>
+  `${baseUrl.replace(/\/$/, "")}${path}`;
+
+const getPublicBaseUrl = (requestUrl: string): string =>
+  backendConfig.server.publicAppUrl ?? new URL(requestUrl).origin;
+
+const setTelegramWebhook = async (webhookUrl: string): Promise<void> => {
+  const botToken = backendConfig.channels.telegram.botToken;
+  const webhookSecret = backendConfig.channels.telegram.webhookSecret;
+
+  if (!botToken) {
+    throw new Error("TELEGRAM_BOT_TOKEN is not configured");
+  }
+
+  if (!webhookSecret) {
+    throw new Error("TELEGRAM_WEBHOOK_SECRET is not configured");
+  }
+
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      url: webhookUrl,
+      secret_token: webhookSecret,
+      allowed_updates: ["message"],
+    }),
+  });
+
+  const text = await response.text();
+  let payload: TelegramApiResponse | null = null;
+  try {
+    payload = JSON.parse(text) as TelegramApiResponse;
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok || payload?.ok !== true) {
+    throw new Error(payload?.description ?? `Telegram setWebhook failed (${response.status})`);
+  }
+};
+
 export const registerChannelStatusRoutes = (app: Hono): void => {
   app.get("/api/channels/status", (c) =>
     c.json({
       channels: getChannelStatuses(),
     }),
   );
+
+  app.post("/api/channels/telegram/webhook", async (c) => {
+    const webhookUrl = buildPublicWebhookUrl(
+      getPublicBaseUrl(c.req.url),
+      "/api/inbound-telegram",
+    );
+
+    try {
+      await setTelegramWebhook(webhookUrl);
+      return c.json({ ok: true, webhookUrl });
+    } catch (error) {
+      return c.json(
+        {
+          error: "Failed to configure Telegram webhook",
+          details: error instanceof Error ? error.message : "Unknown Telegram setup error",
+        },
+        400,
+      );
+    }
+  });
 };
