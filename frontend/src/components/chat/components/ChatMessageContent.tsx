@@ -1,6 +1,6 @@
 import type { ClipboardEventHandler } from "react";
 import type { ChatMessage } from "../../../store/chatStore";
-import type { WorkspaceEntry } from "../../workspace/types";
+import type { WorkspaceAppLink, WorkspaceEntry } from "../../workspace/types";
 import { getFileAttachments, getImageAttachments, getSelectedElementAttachments } from "../lib/attachments";
 import { FileAttachmentChip } from "./FileAttachmentChip";
 import { SelectedElementAttachmentChip } from "./SelectedElementAttachmentChip";
@@ -11,6 +11,7 @@ interface ChatMessageContentProps {
   onCopyAssistantMessage?: ClipboardEventHandler<HTMLDivElement>;
   onImageClick?: (src: string) => void;
   workspaceEntries?: WorkspaceEntry[];
+  workspaceApps?: Pick<WorkspaceAppLink, "href" | "viewerPath">[];
   onOpenWorkspacePath?: (viewerPath: string) => void;
 }
 
@@ -19,6 +20,7 @@ export function ChatMessageContent({
   onCopyAssistantMessage,
   onImageClick,
   workspaceEntries = [],
+  workspaceApps = [],
   onOpenWorkspacePath,
 }: ChatMessageContentProps) {
   const isUser = message.role === "user";
@@ -46,6 +48,7 @@ export function ChatMessageContent({
             message={message}
             hasContext={hasContext}
             workspaceEntries={workspaceEntries}
+            workspaceApps={workspaceApps}
             onOpenWorkspacePath={onOpenWorkspacePath}
           />
         ) : null}

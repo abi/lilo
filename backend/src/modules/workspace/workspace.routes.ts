@@ -258,6 +258,23 @@ const encodeWorkspaceRoutePath = (relativePath: string): string =>
 const buildRawWorkspaceFilePath = (relativePath: string): string =>
   `/workspace-file/${encodeWorkspaceRoutePath(relativePath)}`;
 
+const buildViewerDeepLinkPath = (viewerPath: string): string =>
+  `/?viewer=${encodeURIComponent(viewerPath)}`;
+
+const isTopLevelDocumentNavigation = (request: Request): boolean => {
+  const fetchDest = request.headers.get("sec-fetch-dest");
+  if (fetchDest) {
+    return fetchDest === "document";
+  }
+
+  const fetchMode = request.headers.get("sec-fetch-mode");
+  if (fetchMode && fetchMode !== "navigate") {
+    return false;
+  }
+
+  return request.headers.get("accept")?.includes("text/html") ?? false;
+};
+
 const mimeTypeForPath = (path: string): string => {
   const extension = extname(path).toLowerCase();
 
@@ -1856,9 +1873,14 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
   app.get("/workspace-file/:filePath{.+}", async (c) => {
     const filePath = c.req.param("filePath");
     const absolutePath = resolveWorkspaceFilePath(filePath);
+    const viewerPath = buildRawWorkspaceFilePath(filePath);
 
     if (!absolutePath) {
       return c.json({ error: "Invalid workspace path" }, 400);
+    }
+
+    if (isTopLevelDocumentNavigation(c.req.raw)) {
+      return c.redirect(buildViewerDeepLinkPath(viewerPath), 302);
     }
 
     try {
@@ -2537,9 +2559,17 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
     const appName = c.req.param("appName");
     const filePath = c.req.param("filePath");
     const absolutePath = resolveWorkspacePath(appName, filePath);
+    const viewerPath = `/workspace/${encodeWorkspaceRoutePath(appName)}/${encodeWorkspaceRoutePath(filePath)}`;
 
     if (!absolutePath) {
       return c.json({ error: "Invalid workspace path" }, 400);
+    }
+
+    if (
+      isTopLevelDocumentNavigation(c.req.raw) &&
+      extname(absolutePath).toLowerCase() === ".html"
+    ) {
+      return c.redirect(buildViewerDeepLinkPath(viewerPath), 302);
     }
 
     try {
@@ -2579,6 +2609,10 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
     const appDefinition = await getWorkspaceAppDefinition(appName);
     if (!appDefinition) {
       return c.json({ error: "Invalid workspace path" }, 400);
+    }
+
+    if (isTopLevelDocumentNavigation(c.req.raw)) {
+      return c.redirect(buildViewerDeepLinkPath(appDefinition.viewerPath), 302);
     }
 
     return c.redirect(appDefinition.viewerPath, 302);

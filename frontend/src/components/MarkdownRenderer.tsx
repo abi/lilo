@@ -1,7 +1,7 @@
 import type { ComponentPropsWithoutRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { WorkspaceEntry } from "./workspace/types";
+import type { WorkspaceAppLink, WorkspaceEntry } from "./workspace/types";
 
 interface MarkdownRendererProps {
   content: string;
@@ -12,6 +12,7 @@ interface MarkdownRendererProps {
   basePath?: string | null;
   onOpenWorkspacePath?: (viewerPath: string) => void;
   workspaceEntries?: WorkspaceEntry[];
+  workspaceApps?: Pick<WorkspaceAppLink, "href" | "viewerPath">[];
   linkPlainWorkspacePaths?: boolean;
 }
 
@@ -34,6 +35,12 @@ const normalizePlainWorkspacePath = (value: string): string =>
 const PLAIN_WORKSPACE_PATH_PATTERN =
   /(?<![\w/-])(?:\.\/)?[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+(?::\d+)?/g;
 
+const resolveWorkspaceAppViewerPath = (
+  path: string,
+  workspaceApps: Pick<WorkspaceAppLink, "href" | "viewerPath">[],
+): string | null =>
+  workspaceApps.find((app) => path === app.href || path === app.viewerPath)?.viewerPath ?? null;
+
 interface MarkdownAstNode {
   type?: string;
   value?: string;
@@ -55,6 +62,7 @@ type RemarkPlugin = () => (tree: MarkdownAstNode) => void;
 const normalizeWorkspaceViewerPath = (
   href: string,
   basePath?: string | null,
+  workspaceApps: Pick<WorkspaceAppLink, "href" | "viewerPath">[] = [],
 ): string | null => {
   const raw = href.trim();
   if (
@@ -62,8 +70,7 @@ const normalizeWorkspaceViewerPath = (
     raw.startsWith("#") ||
     raw.startsWith("mailto:") ||
     raw.startsWith("tel:") ||
-    raw.startsWith("javascript:") ||
-    isExternalHref(raw)
+    raw.startsWith("javascript:")
   ) {
     return null;
   }
@@ -75,12 +82,28 @@ const normalizeWorkspaceViewerPath = (
     return null;
   }
 
+  try {
+    const url = new URL(withoutQuery);
+    if (
+      url.pathname.startsWith("/workspace-file/") ||
+      url.pathname.startsWith("/workspace/")
+    ) {
+      return resolveWorkspaceAppViewerPath(url.pathname, workspaceApps) ?? url.pathname;
+    }
+  } catch {
+    /* not an absolute URL */
+  }
+
+  if (isExternalHref(raw)) {
+    return null;
+  }
+
   // Absolute workspace paths already target the viewer.
   if (
     withoutQuery.startsWith("/workspace-file/") ||
     withoutQuery.startsWith("/workspace/")
   ) {
-    return withoutQuery;
+    return resolveWorkspaceAppViewerPath(withoutQuery, workspaceApps) ?? withoutQuery;
   }
 
   const isRelative =
@@ -97,7 +120,7 @@ const normalizeWorkspaceViewerPath = (
         path.startsWith("/workspace-file/") ||
         path.startsWith("/workspace/")
       ) {
-        return path;
+        return resolveWorkspaceAppViewerPath(path, workspaceApps) ?? path;
       }
     } catch {
       /* ignore malformed input */
@@ -219,6 +242,7 @@ export function MarkdownRenderer({
   basePath,
   onOpenWorkspacePath,
   workspaceEntries = [],
+  workspaceApps = [],
   linkPlainWorkspacePaths = false,
 }: MarkdownRendererProps) {
   const workspaceViewerPathByRelativePath = new Map(
@@ -324,7 +348,7 @@ export function MarkdownRenderer({
           a: ({ children, href, onClick, ...props }: ComponentPropsWithoutRef<"a">) => {
             const workspaceViewerPath =
               typeof href === "string"
-                ? normalizeWorkspaceViewerPath(href, basePath)
+                ? normalizeWorkspaceViewerPath(href, basePath, workspaceApps)
                 : null;
             const openInViewer = Boolean(workspaceViewerPath && onOpenWorkspacePath);
 

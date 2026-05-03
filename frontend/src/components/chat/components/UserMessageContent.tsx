@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { MarkdownRenderer } from "../../MarkdownRenderer";
 import type { ChatMessage } from "../../../store/chatStore";
-import type { WorkspaceEntry } from "../../workspace/types";
+import type { WorkspaceAppLink, WorkspaceEntry } from "../../workspace/types";
 import { PromptLightbox } from "./PromptLightbox";
 
 interface UserMessageContentProps {
   message: ChatMessage;
   hasContext: boolean;
   workspaceEntries?: WorkspaceEntry[];
+  workspaceApps?: Pick<WorkspaceAppLink, "href" | "viewerPath">[];
   onOpenWorkspacePath?: (viewerPath: string) => void;
 }
 
@@ -15,6 +16,7 @@ export function UserMessageContent({
   message,
   hasContext,
   workspaceEntries = [],
+  workspaceApps = [],
   onOpenWorkspacePath,
 }: UserMessageContentProps) {
   const [tapped, setTapped] = useState(false);
@@ -33,6 +35,7 @@ export function UserMessageContent({
       <MarkdownRenderer
         content={strippedContent}
         workspaceEntries={workspaceEntries}
+        workspaceApps={workspaceApps}
         onOpenWorkspacePath={onOpenWorkspacePath}
         linkPlainWorkspacePaths={message.role === "assistant"}
       />

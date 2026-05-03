@@ -561,7 +561,7 @@ function App() {
           onSelectElement={handleSelectViewerElement}
           onRefreshViewer={workspace.refreshViewer}
           onOpenViewerApp={handleOpenViewerApp}
-          onOpenViewerPath={workspace.setSelectedViewerPath}
+          onOpenViewerPath={handleOpenViewerApp}
           onSetDraft={setDraft}
           onRemoveDraftSelectedElement={removeDraftSelectedElement}
           onClearDraftSelectedElements={clearDraftSelectedElements}

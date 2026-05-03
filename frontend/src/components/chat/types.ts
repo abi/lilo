@@ -22,5 +22,6 @@ export interface WorkspaceAppViewer {
   name: string;
   displayName?: string;
   href: string;
+  viewerPath: string;
   iconHref?: string;
 }

@@ -205,6 +205,7 @@ export function ChatMessageList({
                 message={group.message}
                 onCopyAssistantMessage={handleRenderedMessageCopy}
                 onImageClick={onImageClick}
+                workspaceApps={workspaceApps}
                 workspaceEntries={workspaceEntries}
                 onOpenWorkspacePath={onOpenViewerPath}
               />

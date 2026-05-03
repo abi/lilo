@@ -11,6 +11,30 @@ import { formatSetupError, parseErrorMessage } from "./workspace/utils";
 
 const DEFAULT_WORKSPACE_TIME_ZONE = "America/New_York";
 const SELECTED_VIEWER_PATH_STORAGE_KEY = "lilo-selected-viewer-path";
+const VIEWER_URL_PARAM = "viewer";
+
+const normalizeViewerPath = (value: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.startsWith("/workspace-file/") || trimmed.startsWith("/workspace/")
+    ? trimmed
+    : null;
+};
+
+const readUrlSelectedViewerPath = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return normalizeViewerPath(new URL(window.location.href).searchParams.get(VIEWER_URL_PARAM));
+  } catch {
+    return null;
+  }
+};
 
 const readStoredSelectedViewerPath = (): string | null => {
   if (typeof window === "undefined") {
@@ -18,11 +42,14 @@ const readStoredSelectedViewerPath = (): string | null => {
   }
 
   try {
-    return localStorage.getItem(SELECTED_VIEWER_PATH_STORAGE_KEY);
+    return normalizeViewerPath(localStorage.getItem(SELECTED_VIEWER_PATH_STORAGE_KEY));
   } catch {
     return null;
   }
 };
+
+const readInitialSelectedViewerPath = (): string | null =>
+  readUrlSelectedViewerPath() ?? readStoredSelectedViewerPath();
 
 const writeStoredSelectedViewerPath = (viewerPath: string | null) => {
   if (typeof window === "undefined") {
@@ -112,7 +139,7 @@ export function useWorkspaceCatalog({
   const [workspaceEntries, setWorkspaceEntries] = useState<WorkspaceEntry[]>([]);
   const [templateUpdates, setTemplateUpdates] = useState<WorkspaceTemplateUpdate[]>([]);
   const [selectedViewerPath, setSelectedViewerPath] = useState<string | null>(() =>
-    readStoredSelectedViewerPath(),
+    readInitialSelectedViewerPath(),
   );
   const [viewerRefreshKey, setViewerRefreshKey] = useState(0);
   const [silentSyncError, setSilentSyncError] = useState<string | null>(null);
