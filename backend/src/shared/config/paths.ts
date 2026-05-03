@@ -63,6 +63,41 @@ const runWorkspaceGit = (workspaceDir: string, args: string[]): string =>
     stdio: ["ignore", "pipe", "pipe"],
   }).trim();
 
+const ensureWorkspaceGitSafeDirectory = (workspaceDir: string): void => {
+  try {
+    const configuredDirectories = execFileSync(
+      "git",
+      ["config", "--global", "--get-all", "safe.directory"],
+      {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    )
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (configuredDirectories.includes(workspaceDir)) {
+      return;
+    }
+  } catch {
+    // Missing config is fine; we add the Render/Railway volume path below.
+  }
+
+  try {
+    execFileSync("git", ["config", "--global", "--add", "safe.directory", workspaceDir], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    console.log(`Registered workspace git safe.directory: ${workspaceDir}`);
+  } catch (error) {
+    console.warn("Failed to register workspace git safe.directory", {
+      workspaceDir,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
 const isWorkspaceGitRepo = (workspaceDir: string): boolean => {
   try {
     return runWorkspaceGit(workspaceDir, ["rev-parse", "--is-inside-work-tree"]) === "true";
@@ -135,6 +170,7 @@ export const resolveWorkspaceRoot = (): string => {
     mkdirSync(workspaceDir, { recursive: true });
   }
 
+  ensureWorkspaceGitSafeDirectory(workspaceDir);
   bootstrapWorkspaceIfEmpty(workspaceDir);
   ensureWorkspaceGitRemote(workspaceDir);
 
