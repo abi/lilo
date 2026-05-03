@@ -14,7 +14,7 @@ import {
 import { captureBackendException } from "../../shared/observability/sentry.js";
 import { ASK_USER_QUESTION_TOOL_NAME } from "../../shared/tools/askUserQuestionTool.js";
 import { readWorkspaceAppPrefs } from "../../shared/workspace/appPrefs.js";
-import { formatWhatsAppOutput } from "./whatsapp.format.js";
+import { formatMessagingOutput } from "../channels/channelOutput.format.js";
 import { normalizeWhatsAppAddress } from "./whatsapp.address.js";
 import { resolveDailyWhatsAppChatId, storeDailyWhatsAppChatId } from "./threadStore.js";
 
@@ -465,7 +465,7 @@ export const sendWhatsAppReplyChunked = async (
   to: string,
   body: string,
 ): Promise<Array<{ sid: string | null; status: string | null }>> => {
-  const formattedBody = formatWhatsAppOutput(body, {
+  const formattedBody = formatMessagingOutput(body, {
     publicAppUrl: backendConfig.server.publicAppUrl,
   });
   const chunks = splitWhatsAppReply(formattedBody);

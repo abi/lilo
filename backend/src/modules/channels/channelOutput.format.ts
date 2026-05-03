@@ -1,6 +1,6 @@
 const WORKSPACE_FILE_PREFIX = "/workspace-file/";
 
-interface FormatWhatsAppOutputOptions {
+interface FormatMessagingOutputOptions {
   publicAppUrl?: string | null;
 }
 
@@ -50,14 +50,14 @@ const formatMarkdownTable = (headerLine: string, rowLines: string[]): string => 
       }
 
       return rows.length === 1
-        ? values.map((value) => `• ${value}`).join("\n")
+        ? values.map((value) => `- ${value}`).join("\n")
         : `${rowIndex + 1}. ${values.join("; ")}`;
     })
     .filter(Boolean)
     .join("\n");
 };
 
-const formatMarkdownTablesForWhatsApp = (body: string): string => {
+const formatMarkdownTablesForMessaging = (body: string): string => {
   const lines = body.replace(/\r\n/g, "\n").split("\n");
   const output: string[] = [];
   let inFence = false;
@@ -144,9 +144,9 @@ const getWorkspaceFileUrl = (
   }
 };
 
-const formatWorkspaceFileLinksForWhatsApp = (
+const formatWorkspaceFileLinksForMessaging = (
   body: string,
-  options: FormatWhatsAppOutputOptions,
+  options: FormatMessagingOutputOptions,
 ): string => {
   const withMarkdownLinks = body.replace(
     /\[([^\]\n]+)\]\((\/workspace-file\/[^)\s]+)\)/g,
@@ -166,10 +166,10 @@ const formatWorkspaceFileLinksForWhatsApp = (
   );
 };
 
-export const formatWhatsAppOutput = (
+export const formatMessagingOutput = (
   body: string,
-  options: FormatWhatsAppOutputOptions = {},
+  options: FormatMessagingOutputOptions = {},
 ): string => {
-  const withoutTables = formatMarkdownTablesForWhatsApp(body);
-  return formatWorkspaceFileLinksForWhatsApp(withoutTables, options).trim();
+  const withoutTables = formatMarkdownTablesForMessaging(body);
+  return formatWorkspaceFileLinksForMessaging(withoutTables, options).trim();
 };
