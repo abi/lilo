@@ -30,6 +30,13 @@ interface TelegramWebhookSetupResponse {
   webhookUrl: string;
 }
 
+interface ResendWebhookSetupResponse {
+  ok: boolean;
+  webhookUrl: string;
+  webhookId: string;
+  signingSecret: string;
+}
+
 const stateStyles: Record<ChannelState, { label: string; dot: string; badge: string }> = {
   configured: {
     label: "Configured",
@@ -348,8 +355,115 @@ function ChannelSetupInstructions({
           </li>
         ))}
       </ol>
+      {channel.id === "email" ? (
+        <EmailSetupActions channel={channel} />
+      ) : null}
       {channel.id === "telegram" ? (
         <TelegramSetupActions channel={channel} onRefresh={onRefresh} />
+      ) : null}
+    </div>
+  );
+}
+
+function EmailSetupActions({ channel }: { channel: ChannelStatus }) {
+  const [webhookState, setWebhookState] = useState<
+    | { status: "idle" }
+    | { status: "loading" }
+    | {
+        status: "success";
+        webhookUrl: string;
+        webhookId: string;
+        signingSecret: string;
+        copied: boolean;
+      }
+    | { status: "error"; message: string }
+  >({ status: "idle" });
+
+  const hasApiKey = channel.details.some(
+    (detail) => detail.label === "API key" && detail.value === "Set",
+  );
+
+  const handleCreateWebhook = async () => {
+    setWebhookState({ status: "loading" });
+
+    try {
+      const payload = await fetchJson<ResendWebhookSetupResponse>(
+        `${config.apiBaseUrl}/api/channels/email/resend-webhook`,
+        { method: "POST" },
+      );
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(payload.signingSecret);
+        copied = true;
+      } catch {
+        copied = false;
+      }
+      setWebhookState({
+        status: "success",
+        webhookUrl: payload.webhookUrl,
+        webhookId: payload.webhookId,
+        signingSecret: payload.signingSecret,
+        copied,
+      });
+    } catch (error) {
+      setWebhookState({
+        status: "error",
+        message: error instanceof Error ? error.message : "Failed to create Resend webhook",
+      });
+    }
+  };
+
+  return (
+    <div className="mt-3 space-y-3 rounded-lg border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950/30">
+      <div>
+        <p className="text-xs font-semibold text-sky-900 dark:text-sky-100">
+          Resend helper
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-sky-800/80 dark:text-sky-200/80">
+          After RESEND_API_KEY is deployed, Lilo can create the email.received webhook
+          for this deployment. Resend returns the signing secret only once.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          void handleCreateWebhook();
+        }}
+        disabled={!hasApiKey || webhookState.status === "loading"}
+        className="rounded-lg border border-sky-700 bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:border-sky-200 disabled:bg-sky-200 disabled:text-sky-500 dark:disabled:border-sky-900 dark:disabled:bg-sky-950 dark:disabled:text-sky-700"
+        title={
+          hasApiKey
+            ? "Create Resend email.received webhook"
+            : "Set RESEND_API_KEY, redeploy, then use this"
+        }
+      >
+        {webhookState.status === "loading" ? "Creating webhook..." : "Create Resend webhook"}
+      </button>
+
+      {webhookState.status === "success" ? (
+        <div className="space-y-2 rounded-md bg-white p-2 text-xs dark:bg-sky-950">
+          <p className="font-semibold text-sky-900 dark:text-sky-100">
+            RESEND_WEBHOOK_SECRET
+          </p>
+          <code className="block break-all font-mono text-[11px] text-sky-900 dark:text-sky-100">
+            {webhookState.signingSecret}
+          </code>
+          <p className="text-[11px] text-sky-700 dark:text-sky-300">
+            {webhookState.copied
+              ? "Copied. Add it to RESEND_WEBHOOK_SECRET and redeploy."
+              : "Copy this value into RESEND_WEBHOOK_SECRET and redeploy."}
+          </p>
+          <p className="break-words text-[11px] text-sky-700 dark:text-sky-300">
+            Created webhook {webhookState.webhookId} for {webhookState.webhookUrl}.
+          </p>
+        </div>
+      ) : null}
+
+      {webhookState.status === "error" ? (
+        <p className="rounded-md bg-red-50 px-2 py-1.5 text-xs text-red-700 dark:bg-red-950/40 dark:text-red-300">
+          {webhookState.message}
+        </p>
       ) : null}
     </div>
   );
@@ -494,8 +608,8 @@ function getSetupSteps(channelId: ChannelStatus["id"]): string[] {
       "In Resend, open Emails, then the Receiving tab. Use the Resend-managed receiving address, or enable receiving on your own domain by adding the required DNS records.",
       "Choose the exact address people will email, such as hi@your-resend-domain.resend.app. Set LILO_EMAIL_AGENT_ADDRESS to that address.",
       "Set LILO_EMAIL_REPLY_FROM to the sender identity replies should come from, such as Lilo <lilo@yourdomain.com>. This address/domain must be allowed by Resend for sending.",
-      "In Resend, open Webhooks, add a webhook, set the endpoint URL to " + getWebhookUrl("/api/inbound-email") + ", and select the email.received event.",
-      "After creating the Resend webhook, copy its signing secret and set RESEND_WEBHOOK_SECRET to that value.",
+      "Create a Resend webhook for the email.received event with endpoint URL " + getWebhookUrl("/api/inbound-email") + ". After RESEND_API_KEY is deployed, you can use the Create Resend webhook button below.",
+      "After creating the Resend webhook, copy its signing secret and set RESEND_WEBHOOK_SECRET to that value. Resend only shows this secret when the webhook is created.",
       "Set LILO_EMAIL_ALLOWED_SENDERS to the exact email addresses allowed to talk to the agent, separated by commas.",
       "Redeploy the backend. Then send an email to LILO_EMAIL_AGENT_ADDRESS from one of the allowed addresses and confirm Lilo replies in the same thread.",
     ];

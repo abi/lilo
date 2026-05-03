@@ -29,6 +29,13 @@ interface TelegramApiResponse {
   description?: string;
 }
 
+interface ResendWebhookResponse {
+  object?: string;
+  id?: string;
+  signing_secret?: string;
+  message?: string;
+}
+
 const configValue = (name: string, value: string | null): ConfigSpec => ({
   name,
   value,
@@ -191,8 +198,21 @@ const getChannelStatuses = (): ChannelStatus[] => {
 const buildPublicWebhookUrl = (baseUrl: string, path: string): string =>
   `${baseUrl.replace(/\/$/, "")}${path}`;
 
-const getPublicBaseUrl = (requestUrl: string): string =>
-  backendConfig.server.publicAppUrl ?? new URL(requestUrl).origin;
+const getPublicBaseUrl = (request: Request): string => {
+  if (backendConfig.server.publicAppUrl) {
+    return backendConfig.server.publicAppUrl;
+  }
+
+  const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  if (forwardedHost) {
+    const forwardedProto =
+      request.headers.get("x-forwarded-proto") ??
+      new URL(request.url).protocol.replace(/:$/, "");
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+
+  return new URL(request.url).origin;
+};
 
 const setTelegramWebhook = async (webhookUrl: string): Promise<void> => {
   const botToken = backendConfig.channels.telegram.botToken;
@@ -231,6 +251,50 @@ const setTelegramWebhook = async (webhookUrl: string): Promise<void> => {
   }
 };
 
+const createResendEmailWebhook = async (
+  webhookUrl: string,
+): Promise<{ id: string; signingSecret: string }> => {
+  const apiKey = backendConfig.channels.email.resendApiKey;
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+
+  if (!webhookUrl.startsWith("https://")) {
+    throw new Error("Resend webhooks require a public HTTPS URL");
+  }
+
+  const response = await fetch("https://api.resend.com/webhooks", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      endpoint: webhookUrl,
+      events: ["email.received"],
+    }),
+  });
+
+  const text = await response.text();
+  let payload: ResendWebhookResponse | null = null;
+  try {
+    payload = JSON.parse(text) as ResendWebhookResponse;
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok || !payload?.id || !payload.signing_secret) {
+    throw new Error(
+      payload?.message ?? `Resend create webhook failed (${response.status})`,
+    );
+  }
+
+  return {
+    id: payload.id,
+    signingSecret: payload.signing_secret,
+  };
+};
+
 export const registerChannelStatusRoutes = (app: Hono): void => {
   app.get("/api/channels/status", (c) =>
     c.json({
@@ -240,7 +304,7 @@ export const registerChannelStatusRoutes = (app: Hono): void => {
 
   app.post("/api/channels/telegram/webhook", async (c) => {
     const webhookUrl = buildPublicWebhookUrl(
-      getPublicBaseUrl(c.req.url),
+      getPublicBaseUrl(c.req.raw),
       "/api/inbound-telegram",
     );
 
@@ -252,6 +316,31 @@ export const registerChannelStatusRoutes = (app: Hono): void => {
         {
           error: "Failed to configure Telegram webhook",
           details: error instanceof Error ? error.message : "Unknown Telegram setup error",
+        },
+        400,
+      );
+    }
+  });
+
+  app.post("/api/channels/email/resend-webhook", async (c) => {
+    const webhookUrl = buildPublicWebhookUrl(
+      getPublicBaseUrl(c.req.raw),
+      "/api/inbound-email",
+    );
+
+    try {
+      const webhook = await createResendEmailWebhook(webhookUrl);
+      return c.json({
+        ok: true,
+        webhookUrl,
+        webhookId: webhook.id,
+        signingSecret: webhook.signingSecret,
+      });
+    } catch (error) {
+      return c.json(
+        {
+          error: "Failed to create Resend webhook",
+          details: error instanceof Error ? error.message : "Unknown Resend setup error",
         },
         400,
       );
