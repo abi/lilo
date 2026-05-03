@@ -28,7 +28,7 @@ export function WorkspaceAppUpdatesSection({
             App Updates
           </p>
           <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-            Compare bundled template apps with this workspace, then ask the agent to port updates.
+            Compare bundled template apps with your files, then ask the agent to port updates.
           </p>
         </div>
         {hasUpdates ? (
@@ -40,7 +40,7 @@ export function WorkspaceAppUpdatesSection({
 
       {!hasUpdates ? (
         <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
-          All workspace apps are up to date with the bundled templates.
+          All file-backed apps are up to date with the bundled templates.
         </div>
       ) : (
         <div className="mt-3 flex flex-col gap-2">
@@ -91,7 +91,7 @@ export function WorkspaceAppUpdatesSection({
                 </div>
 
                 <p className="mt-2 text-xs leading-relaxed text-neutral-700 dark:text-neutral-300">
-                  Ask the agent to compare the bundled template with your workspace copy and port the update.
+                  Ask the agent to compare the bundled template with your file-backed copy and port the update.
                 </p>
               </article>
             );

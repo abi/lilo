@@ -47,7 +47,7 @@ export function ChatSidebar({
     <aside className="flex h-full w-full flex-col overflow-hidden border-r border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
       <div className="flex items-center px-4 py-3">
         <h1 className="font-heading text-sm font-bold uppercase tracking-widest text-neutral-900 dark:text-neutral-100">
-          Workspace
+          Files
         </h1>
       </div>
 

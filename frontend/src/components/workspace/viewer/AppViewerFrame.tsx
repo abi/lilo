@@ -121,7 +121,7 @@ export function AppViewerFrame({
       <iframe
         ref={iframeRef}
         key={`${mobile ? "mobile-" : ""}${selectedViewerUrl}-${viewerRefreshKey}`}
-        title="Workspace App Viewer"
+        title="App Viewer"
         src={selectedViewerUrl}
         className="h-full w-full bg-white"
       />

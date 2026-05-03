@@ -345,7 +345,7 @@ export function WorkspaceSettingsButton({
 
                   <section className="border-b border-neutral-200 px-4 py-4 dark:border-neutral-700">
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
-                      Workspace Git
+                      Files Git
                     </p>
                     <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800">
                       <div className="flex items-center justify-between gap-2">
@@ -578,7 +578,7 @@ export function WorkspaceSettingsButton({
                         Account
                       </p>
                       <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-                        Sign out of this workspace.
+                        Sign out of this Lilo deployment.
                       </p>
                     </div>
                     <button

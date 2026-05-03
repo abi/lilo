@@ -56,7 +56,7 @@ export function MobileWorkspaceScreen({
     <div className="flex min-h-0 flex-1 flex-col bg-white dark:bg-neutral-900 md:hidden">
       <header className="border-b border-neutral-200 px-4 py-3 dark:border-neutral-700">
         <h2 className="font-heading text-sm font-bold uppercase tracking-widest text-neutral-900 dark:text-neutral-100">
-          Workspace
+          Files
         </h2>
         <div className="mt-2">
           <CloudSyncButton

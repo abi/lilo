@@ -266,12 +266,12 @@ export function DesktopCollapsedSidebarStrip({
             ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
             : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
         }`}
-        title={isWorkspacePanelActive ? "Hide workspace" : "Show workspace"}
+        title={isWorkspacePanelActive ? "Hide files" : "Show files"}
       >
         <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
         </svg>
-        <span className="text-[10px] font-medium">Workspace</span>
+        <span className="text-[10px] font-medium">Files</span>
       </button>
 
       <button

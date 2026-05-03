@@ -112,7 +112,7 @@ export function WorkspaceSidebarHeader({
               setIsSettingsOpen(true);
               setQuery("");
             }}
-            title="Workspace settings"
+            title="Files settings"
           >
             <svg
               className="h-3.5 w-3.5"
@@ -148,7 +148,7 @@ export function WorkspaceSidebarHeader({
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                        Workspace Settings
+                        Files Settings
                       </p>
                       <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                         Choose the timezone used in agent prompt context.
@@ -181,7 +181,7 @@ export function WorkspaceSidebarHeader({
                 <div className="p-4">
                   <div className="mb-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-950">
                     <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400">
-                      Workspace Git
+                      Files Git
                     </p>
                     <div className="mt-2 flex items-center justify-between gap-2">
                       <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
@@ -320,7 +320,7 @@ export function WorkspaceSidebarHeader({
         type="button"
         className="mb-1 rounded p-1 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
         onClick={onRefresh}
-        title="Refresh workspace"
+        title="Refresh files"
       >
         <svg
           className="h-3.5 w-3.5"
