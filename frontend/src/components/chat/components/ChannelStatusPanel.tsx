@@ -420,8 +420,8 @@ function EmailSetupActions({ channel }: { channel: ChannelStatus }) {
           Resend helper
         </p>
         <p className="mt-1 text-xs leading-relaxed text-sky-800/80 dark:text-sky-200/80">
-          After RESEND_API_KEY is deployed, Lilo can create the email.received webhook
-          for this deployment. Resend returns the signing secret only once.
+          Once RESEND_API_KEY is live, this creates the email.received webhook for
+          this deployment and returns the one-time signing secret.
         </p>
       </div>
 
@@ -536,8 +536,8 @@ function TelegramSetupActions({
           Telegram helpers
         </p>
         <p className="mt-1 text-xs leading-relaxed text-sky-800/80 dark:text-sky-200/80">
-          Generate a secret for your env var, then use the webhook button after the
-          token and secret are deployed.
+          Generate a secret to add to your env vars, then configure Telegram's webhook
+          after the token and secret are live.
         </p>
       </div>
 
@@ -604,14 +604,13 @@ function TelegramSetupActions({
 function getSetupSteps(channelId: ChannelStatus["id"]): string[] {
   if (channelId === "email") {
     return [
-      "In Resend, create an API key with permission to send email and read received emails. Set RESEND_API_KEY to that key.",
-      "In Resend, open Emails, then the Receiving tab. Use the Resend-managed receiving address, or enable receiving on your own domain by adding the required DNS records.",
-      "Choose the exact address people will email, such as hi@your-resend-domain.resend.app. Set LILO_EMAIL_AGENT_ADDRESS to that address.",
-      "Set LILO_EMAIL_REPLY_FROM to the sender identity replies should come from, such as Lilo <lilo@yourdomain.com>. This address/domain must be allowed by Resend for sending.",
-      "Create a Resend webhook for the email.received event with endpoint URL " + getWebhookUrl("/api/inbound-email") + ". After RESEND_API_KEY is deployed, you can use the Create Resend webhook button below.",
-      "After creating the Resend webhook, copy its signing secret and set RESEND_WEBHOOK_SECRET to that value. Resend only shows this secret when the webhook is created.",
-      "Set LILO_EMAIL_ALLOWED_SENDERS to the exact email addresses allowed to talk to the agent, separated by commas.",
-      "Redeploy the backend. Then send an email to LILO_EMAIL_AGENT_ADDRESS from one of the allowed addresses and confirm Lilo replies in the same thread.",
+      "In Resend, create an API key that can send email and manage webhooks. Set RESEND_API_KEY, then redeploy so Lilo can call Resend.",
+      "In Resend, choose the address people will email. You can use a Resend-managed receiving address or configure your own receiving domain with the required DNS records.",
+      "Set LILO_EMAIL_AGENT_ADDRESS to that receiving address. Set LILO_EMAIL_REPLY_FROM to the verified sender Lilo should reply from, such as Lilo <lilo@yourdomain.com>.",
+      "Set LILO_EMAIL_ALLOWED_SENDERS to the exact sender email addresses allowed to talk to Lilo, separated by commas. Redeploy if you changed any email env vars.",
+      "Click Create Resend webhook below. Lilo creates the email.received webhook for " + getWebhookUrl("/api/inbound-email") + " and shows the one-time signing secret.",
+      "Copy the returned signing secret into RESEND_WEBHOOK_SECRET, redeploy again, then send a test email from an allowed sender to LILO_EMAIL_AGENT_ADDRESS.",
+      "If email does not arrive, check Resend's webhook logs and confirm your deployment URL is public HTTPS and the receiving address matches LILO_EMAIL_AGENT_ADDRESS.",
     ];
   }
 
@@ -619,12 +618,12 @@ function getSetupSteps(channelId: ChannelStatus["id"]): string[] {
     return [
       "In Telegram, open BotFather and send /newbot. Choose the bot name and username, then copy the token BotFather gives you.",
       "Set TELEGRAM_BOT_TOKEN to the BotFather token.",
-      "Find your numeric Telegram user ID. You can message @userinfobot, @getidsbot, or send your bot a message and inspect getUpdates from the Telegram Bot API.",
-      "Set LILO_TELEGRAM_ALLOWED_USER_IDS to the numeric user IDs allowed to talk to Lilo, separated by commas. Do not use group chat IDs here.",
-      "Generate a long random secret, set TELEGRAM_WEBHOOK_SECRET to it, and redeploy the backend. You can use the Generate webhook secret button below.",
-      "Configure the Telegram webhook to " + getWebhookUrl("/api/inbound-telegram") + " and pass the same secret as secret_token. After TELEGRAM_BOT_TOKEN and TELEGRAM_WEBHOOK_SECRET are deployed, you can use the Configure webhook button below. Manual example: curl -X POST https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook -d url=" + getWebhookUrl("/api/inbound-telegram") + " -d secret_token=<TELEGRAM_WEBHOOK_SECRET>.",
-      "Open your bot in Telegram and send a message from one of the allowed user IDs. Lilo should create a persistent chat for that Telegram conversation.",
-      "If messages do not arrive, call getWebhookInfo for the bot token and check Telegram's last_error_message.",
+      "Click Generate webhook secret below, copy the value into TELEGRAM_WEBHOOK_SECRET, then redeploy so the secret is live.",
+      "Find your numeric Telegram user ID. You can message @userinfobot or @getidsbot, or send your bot a message and inspect getUpdates from the Telegram Bot API.",
+      "Set LILO_TELEGRAM_ALLOWED_USER_IDS to the numeric user IDs allowed to talk to Lilo, separated by commas. Do not use group chat IDs. Redeploy if you changed it.",
+      "Click Configure webhook below. Lilo calls Telegram setWebhook for " + getWebhookUrl("/api/inbound-telegram") + " and passes your deployed TELEGRAM_WEBHOOK_SECRET as secret_token.",
+      "Open your bot in Telegram and send a message from one of the allowed user IDs. Lilo should create or resume that Telegram chat.",
+      "If messages do not arrive, call Telegram getWebhookInfo for the bot token and check last_error_message, then confirm the sender's numeric user ID is allowlisted.",
     ];
   }
 
