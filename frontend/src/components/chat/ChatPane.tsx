@@ -340,7 +340,6 @@ export function ChatPane({
       selectedElements,
     });
 
-    requestAnimationFrame(() => scrollChatToBottom("auto"));
     inputRef.current?.focus();
   };
 
@@ -433,7 +432,6 @@ export function ChatPane({
       await onSendMessage(chat.id, response, [], {
         viewerPath: viewerPath ?? undefined,
       });
-      requestAnimationFrame(() => scrollChatToBottom("auto"));
     } finally {
       setSubmittingQuestionId(null);
     }
