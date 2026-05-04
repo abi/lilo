@@ -12,6 +12,7 @@ import { formatSetupError, parseErrorMessage } from "./workspace/utils";
 const DEFAULT_WORKSPACE_TIME_ZONE = "America/New_York";
 const SELECTED_VIEWER_PATH_STORAGE_KEY = "lilo-selected-viewer-path";
 const VIEWER_URL_PARAM = "viewer";
+const NATIVE_DESKTOP_APP_NAME = "desktop";
 
 const normalizeViewerPath = (value: string | null): string | null => {
   if (!value) {
@@ -74,16 +75,17 @@ const reorderWorkspaceApps = (
 ): WorkspaceAppLink[] => {
   const uniqueNames = [...new Set(appNames)];
   const currentNames = workspaceApps.map((app) => app.name);
+  const orderedNames = [
+    ...uniqueNames.filter((name) => currentNames.includes(name)),
+    ...currentNames.filter((name) => !uniqueNames.includes(name)),
+  ];
 
-  if (
-    uniqueNames.length !== currentNames.length ||
-    currentNames.some((name) => !uniqueNames.includes(name))
-  ) {
-    throw new Error("appNames must include every workspace app exactly once");
+  if (orderedNames.length !== currentNames.length) {
+    throw new Error("appNames contains duplicate or unknown workspace apps");
   }
 
   const appByName = new Map(workspaceApps.map((app) => [app.name, app]));
-  return uniqueNames.map((name) => {
+  return orderedNames.map((name) => {
     const app = appByName.get(name);
     if (!app) {
       throw new Error(`Unknown workspace app: ${name}`);
@@ -168,7 +170,9 @@ export function useWorkspaceCatalog({
         preferences?: Partial<WorkspacePreferences>;
       };
 
-      const apps = payload.apps ?? [];
+      const apps = (payload.apps ?? []).filter(
+        (app) => app.name !== NATIVE_DESKTOP_APP_NAME,
+      );
       const entries = payload.entries ?? [];
       const updates = payload.templateUpdates ?? [];
       setWorkspaceApps(apps);

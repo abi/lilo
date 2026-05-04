@@ -9,6 +9,17 @@ import type {
 const LEFT_PANE_DEFAULT_WIDTH = 288;
 const LEFT_PANE_MIN_WIDTH = 240;
 const LEFT_PANE_MAX_WIDTH = 520;
+const hasInitialViewerPath = (): boolean => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    return new URL(window.location.href).searchParams.has("viewer");
+  } catch {
+    return false;
+  }
+};
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(Math.max(value, min), max);
@@ -17,11 +28,13 @@ export function useShellNavigation() {
   const [leftPaneWidth, setLeftPaneWidth] = useState(LEFT_PANE_DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
   const [showArchivedInStrip, setShowArchivedInStrip] = useState(false);
-  const [mobileView, setMobileView] = useState<MobileView>("viewer");
+  const [mobileView, setMobileView] = useState<MobileView>(() =>
+    hasInitialViewerPath() ? "viewer" : "home",
+  );
   const [mobileChatMode, setMobileChatMode] = useState<MobileChatMode>("list");
 
   const [desktopMainView, setDesktopMainView] =
-    useState<DesktopMainView>("viewer");
+    useState<DesktopMainView>(() => hasInitialViewerPath() ? "viewer" : "desktop");
   const [desktopSidebarPanel, setDesktopSidebarPanel] =
     useState<DesktopSidebarPanelKind | null>(null);
   const resizeRef = useRef<{
@@ -108,8 +121,16 @@ export function useShellNavigation() {
     setMobileView("viewer");
   }, []);
 
+  const openMobileHome = useCallback(() => {
+    setMobileView("home");
+  }, []);
+
   const openDesktopViewer = useCallback(() => {
     setDesktopMainView("viewer");
+  }, []);
+
+  const openDesktopHome = useCallback(() => {
+    setDesktopMainView("desktop");
   }, []);
 
   const openChatsTab = useCallback(() => {
@@ -187,7 +208,9 @@ export function useShellNavigation() {
     hiddenDesktopSidebar: desktopSidebarPanel === null,
     openConversation,
     openMobileViewer,
+    openMobileHome,
     openDesktopViewer,
+    openDesktopHome,
     openChatsTab,
     openWorkspaceOrViewer,
     openAutomationsTab,

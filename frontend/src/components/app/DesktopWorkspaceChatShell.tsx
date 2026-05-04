@@ -16,6 +16,7 @@ import type {
   WorkspaceEntry,
 } from "../workspace/types";
 import { AutomationsScreen } from "./AutomationsScreen";
+import { NativeDesktopHome } from "./NativeDesktopHome";
 import type { DesktopMainView } from "./types";
 
 interface DesktopWorkspaceChatShellProps {
@@ -36,6 +37,8 @@ interface DesktopWorkspaceChatShellProps {
   onRefreshViewer: () => void;
   onOpenViewerApp: (viewerPath: string) => void;
   onOpenViewerPath: (viewerPath: string) => void;
+  onReorderApps: (appNames: string[]) => void;
+  onSetAppArchived: (appName: string, archived: boolean) => void;
   onSetDraft: (chatId: string, draft: string) => void;
   onRemoveDraftSelectedElement: (chatId: string, index: number) => void;
   onClearDraftSelectedElements: (chatId: string) => void;
@@ -107,6 +110,8 @@ export function DesktopWorkspaceChatShell({
   onRefreshViewer,
   onOpenViewerApp,
   onOpenViewerPath,
+  onReorderApps,
+  onSetAppArchived,
   onSetDraft,
   onRemoveDraftSelectedElement,
   onClearDraftSelectedElements,
@@ -156,7 +161,14 @@ export function DesktopWorkspaceChatShell({
         minSize="30%"
         className="relative z-0 flex min-h-0 min-w-0"
       >
-        {mainView === "automations" ? (
+        {mainView === "desktop" ? (
+          <NativeDesktopHome
+            workspaceApps={workspaceApps}
+            onOpenApp={onOpenViewerApp}
+            onReorderApps={onReorderApps}
+            onSetAppArchived={onSetAppArchived}
+          />
+        ) : mainView === "automations" ? (
           <AutomationsScreen
             automationOutputChannel={automationOutputChannel}
             onAutomationOutputChannelChange={onAutomationOutputChannelChange}

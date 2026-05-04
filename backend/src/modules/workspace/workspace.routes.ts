@@ -1797,15 +1797,17 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
 
     const prefs = await readWorkspaceAppPrefs(WORKSPACE_ROOT);
     const entries = await readdir(WORKSPACE_ROOT, { withFileTypes: true });
-    const apps: WorkspaceAppRecord[] = (await listWorkspaceApps()).map((app) => ({
-      name: app.name,
-      displayName: app.displayName,
-      description: app.description,
-      href: app.rootHref,
-      viewerPath: app.viewerPath,
-      iconHref: app.iconHref,
-      archived: prefs.archivedAppNames.includes(app.name) || undefined,
-    }));
+    const apps: WorkspaceAppRecord[] = (await listWorkspaceApps())
+      .filter((app) => app.name !== PINNED_APP_NAME)
+      .map((app) => ({
+        name: app.name,
+        displayName: app.displayName,
+        description: app.description,
+        href: app.rootHref,
+        viewerPath: app.viewerPath,
+        iconHref: app.iconHref,
+        archived: prefs.archivedAppNames.includes(app.name) || undefined,
+      }));
     const files: WorkspaceLegacyFile[] = [];
 
     for (const entry of entries) {

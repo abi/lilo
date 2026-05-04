@@ -10,6 +10,7 @@ import { MobileConversationScreen } from "./components/app/MobileConversationScr
 import { MobileViewerScreen } from "./components/app/MobileViewerScreen";
 import { MobileTabBar } from "./components/app/MobileTabBar";
 import { MobileWorkspaceScreen } from "./components/app/MobileWorkspaceScreen";
+import { NativeDesktopHome } from "./components/app/NativeDesktopHome";
 import { StartupErrorBanner } from "./components/app/StartupErrorBanner";
 import { useAgentActivity } from "./hooks/useAgentActivity";
 import { useAppChats } from "./hooks/useAppChats";
@@ -372,15 +373,20 @@ function App() {
     [workspace, shell],
   );
 
-  /** Mobile "Home" = the built-in desktop workspace app. */
+  /** Mobile "Home" is Lilo's native desktop launcher. */
   const handleOpenMobileHome = useCallback(() => {
-    const desktopApp = workspace.workspaceApps.find((app) => app.name === "desktop");
-    if (!desktopApp) {
-      return;
-    }
-    workspace.setSelectedViewerPath(desktopApp.viewerPath);
-    shell.openMobileViewer();
-  }, [workspace, shell]);
+    shell.openMobileHome();
+  }, [shell]);
+
+  const handleCreateChatFromHome = useCallback(
+    async (message: string) => {
+      const chatId = await createChat({ select: true });
+      await selectChat(chatId);
+      shell.openConversation();
+      await sendMessage(chatId, message);
+    },
+    [createChat, selectChat, sendMessage, shell],
+  );
 
   const handleOpenAppFromPalette = useCallback(
     (app: WorkspaceAppLink) => {
@@ -453,6 +459,7 @@ function App() {
             defaultChatModelSelection={workspace.workspacePreferences.defaultChatModelSelection}
             templateUpdates={workspace.templateUpdates}
             onToggleWorkspacePanel={shell.toggleWorkspacePanel}
+            onOpenDesktop={shell.openDesktopHome}
             onOpenAutomations={shell.openDesktopAutomations}
             onToggleArchived={shell.toggleArchivedInStrip}
             onSelectApp={handleOpenViewerApp}
@@ -542,6 +549,17 @@ function App() {
         />
       ) : null}
 
+      {!isDesktop && shell.mobileView === "home" ? (
+        <NativeDesktopHome
+          mobile
+          workspaceApps={workspace.workspaceApps}
+          onOpenApp={handleOpenMobileViewerApp}
+          onReorderApps={workspace.saveAppOrder}
+          onSetAppArchived={workspace.saveArchivedApps}
+          onCreateChatMessage={handleCreateChatFromHome}
+        />
+      ) : null}
+
       {isDesktop ? (
       <div className="min-h-0 min-w-0 flex-1 flex">
         <DesktopWorkspaceChatShell
@@ -562,6 +580,8 @@ function App() {
           onRefreshViewer={workspace.refreshViewer}
           onOpenViewerApp={handleOpenViewerApp}
           onOpenViewerPath={handleOpenViewerApp}
+          onReorderApps={workspace.saveAppOrder}
+          onSetAppArchived={workspace.saveArchivedApps}
           onSetDraft={setDraft}
           onRemoveDraftSelectedElement={removeDraftSelectedElement}
           onClearDraftSelectedElements={clearDraftSelectedElements}

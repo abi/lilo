@@ -46,25 +46,21 @@ export function MobileTabBar({
   onDismissTemplateUpdate,
   onSelectTheme,
 }: MobileTabBarProps) {
-  // The "Home" tab is the built-in `desktop` workspace app. The third tab
-  // shows whatever app is currently selected (if any) — collapsing into the
-  // Home tab when desktop itself is selected. We also remember the most
-  // recent non-desktop app so the third tab keeps that app's icon/name even
-  // after the user navigates back to Home.
+  // The "Home" tab is Lilo's native launcher. The third tab shows whatever
+  // app is currently selected, and remembers the most recent app so the tab
+  // keeps that app's icon/name after the user navigates back home.
   const currentApp = workspaceApps.find(
     (app) =>
       selectedViewerPath === app.href ||
       selectedViewerPath === app.viewerPath ||
       selectedViewerPath?.startsWith(`${app.href}/`),
   );
-  const isOnDesktop =
-    mobileView === "viewer" && currentApp?.name === "desktop";
   const isOnOtherApp =
-    (mobileView === "viewer" || mobileView === "workspace") && !isOnDesktop;
+    mobileView === "viewer" || mobileView === "workspace";
 
   const [rememberedAppName, setRememberedAppName] = useState<string | null>(null);
   useEffect(() => {
-    if (currentApp && currentApp.name !== "desktop") {
+    if (currentApp) {
       setRememberedAppName(currentApp.name);
     }
   }, [currentApp]);
@@ -77,8 +73,7 @@ export function MobileTabBar({
     return workspaceApps.find((app) => app.name === rememberedAppName) ?? null;
   }, [rememberedAppName, workspaceApps]);
 
-  const otherApp =
-    currentApp && currentApp.name !== "desktop" ? currentApp : rememberedApp;
+  const otherApp = currentApp ?? rememberedApp;
   const tabClass = (active: boolean) =>
     `flex flex-1 flex-col items-center justify-center gap-1 py-3 text-[11px] font-medium transition min-h-[56px] ${
       active ? "text-neutral-900 dark:text-neutral-100" : "text-neutral-400"
@@ -99,7 +94,7 @@ export function MobileTabBar({
       <button
         type="button"
         onClick={onOpenHome}
-        className={tabClass(isOnDesktop)}
+        className={tabClass(mobileView === "home")}
       >
         <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 10.5 12 3l9 7.5" />

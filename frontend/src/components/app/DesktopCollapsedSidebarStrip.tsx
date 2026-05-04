@@ -21,6 +21,7 @@ interface DesktopCollapsedSidebarStripProps {
   defaultChatModelSelection?: WorkspacePreferences["defaultChatModelSelection"];
   templateUpdates: WorkspaceTemplateUpdate[];
   onToggleWorkspacePanel: () => void;
+  onOpenDesktop: () => void;
   onOpenAutomations: () => void;
   onToggleArchived: () => void;
   onSelectApp: (href: string) => void;
@@ -174,6 +175,7 @@ export function DesktopCollapsedSidebarStrip({
   defaultChatModelSelection,
   templateUpdates,
   onToggleWorkspacePanel,
+  onOpenDesktop,
   onOpenAutomations,
   onToggleArchived,
   onSelectApp,
@@ -191,13 +193,8 @@ export function DesktopCollapsedSidebarStrip({
 }: DesktopCollapsedSidebarStripProps) {
   const [draggedAppName, setDraggedAppName] = useState<string | null>(null);
   const [dropTargetAppName, setDropTargetAppName] = useState<string | null>(null);
-  const desktopApp = workspaceApps.find((app) => app.name === "desktop");
-  const activeApps = workspaceApps.filter(
-    (app) => !app.archived && app.name !== "desktop",
-  );
-  const archivedApps = workspaceApps.filter(
-    (app) => app.archived && app.name !== "desktop",
-  );
+  const activeApps = workspaceApps.filter((app) => !app.archived);
+  const archivedApps = workspaceApps.filter((app) => app.archived);
   const handleDropOnApp = useCallback(
     (targetAppName: string) => {
       if (!draggedAppName || draggedAppName === targetAppName) {
@@ -226,8 +223,7 @@ export function DesktopCollapsedSidebarStrip({
     [activeApps, archivedApps, draggedAppName, onReorderApps, workspaceApps],
   );
 
-  const isDesktopActive =
-    desktopApp && selectedViewerPath?.startsWith(desktopApp.href);
+  const isDesktopActive = desktopMainView === "desktop";
   const isWorkspacePanelActive = desktopSidebarPanel === "workspace";
   const isAutomationsActive = desktopMainView === "automations";
 
@@ -235,18 +231,13 @@ export function DesktopCollapsedSidebarStrip({
     <div className="hidden min-h-0 w-24 shrink-0 flex-col items-center gap-2 border-r border-neutral-200 bg-white px-2 py-3 dark:border-neutral-700 dark:bg-neutral-900 md:flex">
       <button
         type="button"
-        onClick={() => {
-          if (desktopApp) {
-            onSelectApp(desktopApp.viewerPath);
-          }
-        }}
-        disabled={!desktopApp}
+        onClick={onOpenDesktop}
         className={`flex w-full flex-col items-center gap-1 rounded-xl px-1 py-1.5 transition disabled:cursor-default disabled:opacity-100 ${
           isDesktopActive
             ? "bg-neutral-100 dark:bg-neutral-800"
             : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
         }`}
-        title={desktopApp ? "Open Desktop" : "Lilo"}
+        title="Open Desktop"
       >
         <img
           src="/favicon.svg"
