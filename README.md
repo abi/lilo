@@ -34,6 +34,8 @@ https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
 <tr><td><b>🗂️ Full workspace</b></td><td>Store anything as files in the filesystem and preview markdown, code, images, and PDFs inline — accessible to both you and the agent.</td></tr>
 <tr><td><b>💬 Talk to Lilo anywhere</b></td><td>Inbound message webhooks for <b>Email</b> (Resend), <b>WhatsApp</b> (Twilio), and <b>Telegram</b>. The agent replies in the same channel and keeps a persistent chat per contact.</td></tr>
 <tr><td><b>🧠 Memory</b></td><td>Remembers details about you, your tasks, and your work.</td></tr>
+<tr><td><b>⏰ Reminders & automations</b></td><td>Schedule recurring prompts and reminders that run in fresh chats, update workspace state, and notify you through configured messaging channels only when needed.</td></tr>
+<tr><td><b>🧩 Skills</b></td><td>Teach Lilo reusable workflows with workspace skills so the agent can load specialized instructions when a task calls for them.</td></tr>
 <tr><td><b>🎨 Rich tool suite</b></td><td>Image generation (Replicate), web search & scraping (Firecrawl), headless browser automation (Browserbase), filesystem ops, shell execution, network fetch — all callable by apps and the agent when configured.</td></tr>
 <tr><td><b>📱 Mobile-ready</b></td><td>Optimized for phones. All apps render seamlessly on desktop and mobile.</td></tr>
 <tr><td><b>🔐 Password-gated and private</b></td><td>One env var locks down the entire web app and all backend APIs (REST + WebSocket). Webhooks stay accessible with their own provider-signed requests.</td></tr>
