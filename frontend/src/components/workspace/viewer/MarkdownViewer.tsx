@@ -24,7 +24,7 @@ export function MarkdownViewer({
   basePath,
   onOpenWorkspacePath,
 }: MarkdownViewerProps) {
-  const [editorKind, setEditorKind] = useState<EditorKind>("milkdown");
+  const [editorKind, setEditorKind] = useState<EditorKind>("tiptap");
   const [draft, setDraft] = useState(content);
   // Server-synced snapshot of the file — initialized from props, then
   // updated on external refresh (new `content`) and on successful save.

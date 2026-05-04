@@ -4,7 +4,7 @@ import type {
   KeyboardEventHandler,
   RefObject,
 } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   ChatElementSelection,
   ChatModelId,
@@ -13,9 +13,64 @@ import type {
 } from "../../../store/chatStore";
 import { FileAttachmentChip } from "./FileAttachmentChip";
 import { ChatModelSelect } from "./ChatModelSelect";
+import {
+  ComposerAttachmentPreviewDialog,
+  type ComposerAttachmentPreview,
+} from "./ComposerAttachmentPreviewDialog";
 import { QueuedMessagesPanel } from "./QueuedMessagesPanel";
 import { SelectedElementAttachmentChip } from "./SelectedElementAttachmentChip";
 import { toChatModelOption } from "../modelOptions";
+
+const TEXT_PREVIEW_BYTE_LIMIT = 200_000;
+
+const TEXT_FILE_EXTENSIONS = new Set([
+  "css",
+  "csv",
+  "html",
+  "js",
+  "json",
+  "jsx",
+  "log",
+  "md",
+  "mjs",
+  "py",
+  "sh",
+  "ts",
+  "tsx",
+  "txt",
+  "xml",
+  "yaml",
+  "yml",
+]);
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  const units = ["KB", "MB", "GB"] as const;
+  let size = bytes / 1024;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${size >= 10 ? size.toFixed(0) : size.toFixed(1)} ${units[unitIndex]}`;
+};
+
+const getFileExtension = (name: string): string =>
+  name.split(".").pop()?.toLowerCase() ?? "";
+
+const isTextLikeFile = (file: File): boolean =>
+  file.type.startsWith("text/") ||
+  file.type === "application/json" ||
+  file.type === "application/xml" ||
+  TEXT_FILE_EXTENSIONS.has(getFileExtension(file.name));
+
+const isPdfFile = (file: File): boolean =>
+  file.type === "application/pdf" || getFileExtension(file.name) === "pdf";
 
 interface ChatComposerProps {
   chatId: string;
@@ -104,12 +159,91 @@ export function ChatComposer({
   viewerPicker,
 }: ChatComposerProps) {
   const [modelChangeError, setModelChangeError] = useState<string | null>(null);
+  const [attachmentPreview, setAttachmentPreview] =
+    useState<ComposerAttachmentPreview | null>(null);
+  const [filePreviewUrls, setFilePreviewUrls] = useState<Map<File, string>>(
+    () => new Map(),
+  );
   const hasComposerContent =
     draft.trim().length > 0 ||
     selectedFiles.length > 0 ||
     draftSelectedElements.length > 0;
 
   const currentModelLabel = toChatModelOption({ provider: modelProvider, modelId })?.label ?? "the previous model";
+
+  useEffect(() => {
+    const urls = new Map<File, string>();
+    selectedFiles.forEach((file) => {
+      urls.set(file, URL.createObjectURL(file));
+    });
+    setFilePreviewUrls(urls);
+
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [selectedFiles]);
+
+  const previewSelectedElement = (selectedElement: ChatElementSelection) => {
+    setAttachmentPreview({
+      kind: "text",
+      title: selectedElement.label,
+      subtitle: `Selected <${selectedElement.tagName}> element`,
+      content: [
+        selectedElement.textPreview,
+        selectedElement.html ? `\n\nHTML\n${selectedElement.html}` : "",
+      ].join(""),
+    });
+  };
+
+  const previewFile = async (file: File) => {
+    const previewUrl = filePreviewUrls.get(file);
+    if (!previewUrl) {
+      return;
+    }
+
+    const subtitle = `${file.type || "application/octet-stream"} · ${formatFileSize(file.size)}`;
+
+    if (isPdfFile(file)) {
+      setAttachmentPreview({
+        kind: "pdf",
+        title: file.name,
+        subtitle,
+        src: previewUrl,
+      });
+      return;
+    }
+
+    if (file.type.startsWith("image/")) {
+      setAttachmentPreview({
+        kind: "image",
+        title: file.name,
+        subtitle,
+        src: previewUrl,
+      });
+      return;
+    }
+
+    if (isTextLikeFile(file)) {
+      const isTruncated = file.size > TEXT_PREVIEW_BYTE_LIMIT;
+      const content = await file.slice(0, TEXT_PREVIEW_BYTE_LIMIT).text();
+      setAttachmentPreview({
+        kind: "text",
+        title: file.name,
+        subtitle,
+        content,
+        isTruncated,
+      });
+      return;
+    }
+
+    setAttachmentPreview({
+      kind: "file",
+      title: file.name,
+      subtitle,
+      src: previewUrl,
+      type: file.type || "application/octet-stream",
+    });
+  };
 
   const handleModelChange = async (
     modelSelection: {
@@ -317,6 +451,7 @@ export function ChatComposer({
                   onPreviewClick={
                     selectedElement.previewUrl ? onPreviewSelectedElement : undefined
                   }
+                  onOpen={() => previewSelectedElement(selectedElement)}
                   onRemove={() => onRemoveSelectedElement(chatId, index)}
                 />
               ))}
@@ -335,8 +470,11 @@ export function ChatComposer({
                   attachment={{
                     name: file.name,
                     type: file.type,
-                    previewUrl: "",
+                    previewUrl: filePreviewUrls.get(file) ?? "",
                     kind: file.type.startsWith("image/") ? "image" : "file",
+                  }}
+                  onOpen={() => {
+                    void previewFile(file);
                   }}
                   onRemove={() => onRemoveSelectedFile(index)}
                 />
@@ -474,6 +612,11 @@ export function ChatComposer({
           </div>
         </div>
       </form>
+
+      <ComposerAttachmentPreviewDialog
+        preview={attachmentPreview}
+        onClose={() => setAttachmentPreview(null)}
+      />
     </div>
   );
 }

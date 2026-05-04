@@ -14,6 +14,7 @@ import type {
   AutomationOutputChannel,
   WorkspaceAppLink,
   WorkspaceEntry,
+  WorkspaceFrequentDocument,
 } from "../workspace/types";
 import { AutomationsScreen } from "./AutomationsScreen";
 import { NativeDesktopHome } from "./NativeDesktopHome";
@@ -29,6 +30,7 @@ interface DesktopWorkspaceChatShellProps {
   selectedWorkspaceEntry: WorkspaceEntry | null;
   workspaceApps: WorkspaceAppLink[];
   workspaceEntries: WorkspaceEntry[];
+  frequentDocuments: WorkspaceFrequentDocument[];
   fileViewerText: string | null;
   fileViewerError: string | null;
   isLoadingFileViewer: boolean;
@@ -102,6 +104,7 @@ export function DesktopWorkspaceChatShell({
   selectedWorkspaceEntry,
   workspaceApps,
   workspaceEntries,
+  frequentDocuments,
   fileViewerText,
   fileViewerError,
   isLoadingFileViewer,
@@ -164,7 +167,9 @@ export function DesktopWorkspaceChatShell({
         {mainView === "desktop" ? (
           <NativeDesktopHome
             workspaceApps={workspaceApps}
+            frequentDocuments={frequentDocuments}
             onOpenApp={onOpenViewerApp}
+            onOpenDocument={onOpenViewerPath}
             onReorderApps={onReorderApps}
             onSetAppArchived={onSetAppArchived}
           />

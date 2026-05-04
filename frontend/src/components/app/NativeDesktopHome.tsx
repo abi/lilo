@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import type { WorkspaceAppLink } from "../workspace/types";
+import type { WorkspaceAppLink, WorkspaceFrequentDocument } from "../workspace/types";
 
 interface NativeDesktopHomeProps {
   workspaceApps: WorkspaceAppLink[];
+  frequentDocuments?: WorkspaceFrequentDocument[];
   mobile?: boolean;
   onOpenApp: (viewerPath: string) => void;
+  onOpenDocument?: (viewerPath: string) => void;
   onReorderApps: (appNames: string[]) => void;
   onSetAppArchived: (appName: string, archived: boolean) => void;
   onCreateChatMessage?: (message: string) => Promise<void> | void;
@@ -22,6 +24,25 @@ const NATIVE_DESKTOP_APP_NAME = "desktop";
 const DRAG_THRESHOLD = 6;
 
 const getAppLabel = (app: WorkspaceAppLink): string => app.displayName ?? app.name;
+
+const documentKindLabel: Record<string, string> = {
+  code: "Code",
+  json: "JSON",
+  markdown: "Markdown",
+  text: "Text",
+};
+
+const formatOpenCount = (count: number): string =>
+  count === 1 ? "Opened once" : `Opened ${count} times`;
+
+const formatDocumentLocation = (relativePath: string): string => {
+  const segments = relativePath.split("/").filter(Boolean);
+  if (segments.length <= 1) {
+    return "Files";
+  }
+
+  return segments.slice(0, -1).join("/");
+};
 
 const buildVisibleReorder = (
   allApps: WorkspaceAppLink[],
@@ -82,8 +103,10 @@ function NativeAppIcon({ app, large = false }: { app: WorkspaceAppLink; large?: 
 
 export function NativeDesktopHome({
   workspaceApps,
+  frequentDocuments = [],
   mobile = false,
   onOpenApp,
+  onOpenDocument = onOpenApp,
   onReorderApps,
   onSetAppArchived,
   onCreateChatMessage,
@@ -267,8 +290,8 @@ export function NativeDesktopHome({
           mobile ? "max-sm:pb-40" : ""
         }`}
       >
-        <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col">
-          <div className="grid flex-1 grid-cols-6 content-center gap-x-4 gap-y-8 max-xl:grid-cols-5 max-lg:grid-cols-4 max-sm:grid-cols-3 max-sm:gap-x-2 max-sm:gap-y-6">
+        <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col justify-center">
+          <div className="grid grid-cols-6 gap-x-4 gap-y-8 max-xl:grid-cols-5 max-lg:grid-cols-4 max-sm:grid-cols-3 max-sm:gap-x-2 max-sm:gap-y-6">
             {renderedApps.length === 0 ? (
               <div className="col-span-full rounded-3xl border border-dashed border-neutral-300 bg-white/60 p-10 text-center text-sm font-medium text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-400">
                 No apps found.
@@ -366,6 +389,61 @@ export function NativeDesktopHome({
               </button>
             </footer>
           ) : null}
+
+          <section className="mt-10 rounded-[2rem] bg-white/70 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.08),0_1px_3px_rgba(15,23,42,0.08)] ring-1 ring-black/5 backdrop-blur dark:bg-neutral-900/70 dark:ring-white/10 max-sm:mt-8 max-sm:rounded-3xl max-sm:p-4">
+            <div className="mb-4 flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-[0.16em] text-neutral-950 dark:text-neutral-50">
+                  Frequently opened
+                </h2>
+                <p className="mt-1 text-sm font-medium text-neutral-500 dark:text-neutral-400">
+                  Quick access to the documents you keep coming back to.
+                </p>
+              </div>
+              {frequentDocuments.length > 0 ? (
+                <span className="rounded-full bg-neutral-950 px-3 py-1 text-xs font-bold text-white dark:bg-neutral-50 dark:text-neutral-950">
+                  Top {frequentDocuments.length}
+                </span>
+              ) : null}
+            </div>
+
+            {frequentDocuments.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-neutral-300 bg-white/60 px-4 py-5 text-sm font-medium text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950/40 dark:text-neutral-400">
+                Open a markdown, text, code, or JSON file and it will show up here.
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 max-lg:grid-cols-1">
+                {frequentDocuments.map(({ entry, openCount }) => (
+                  <button
+                    key={entry.viewerPath}
+                    type="button"
+                    onClick={() => entry.viewerPath && onOpenDocument(entry.viewerPath)}
+                    className="group flex min-w-0 items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
+                  >
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-950 to-neutral-700 text-sm font-black uppercase text-white shadow-inner dark:from-neutral-100 dark:to-neutral-300 dark:text-neutral-950">
+                      {entry.name.split(".").pop()?.slice(0, 2) ?? "F"}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-extrabold text-neutral-950 dark:text-neutral-50">
+                        {entry.name}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+                        {formatDocumentLocation(entry.relativePath)}
+                      </span>
+                    </span>
+                    <span className="hidden shrink-0 flex-col items-end sm:flex">
+                      <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-bold text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                        {documentKindLabel[entry.kind] ?? "File"}
+                      </span>
+                      <span className="mt-1 text-[11px] font-semibold text-neutral-400">
+                        {formatOpenCount(openCount)}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       </div>
 

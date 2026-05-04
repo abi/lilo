@@ -1,4 +1,10 @@
-import type { ComponentPropsWithoutRef } from "react";
+import {
+  Children,
+  isValidElement,
+  useState,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { WorkspaceAppLink, WorkspaceEntry } from "./workspace/types";
@@ -161,6 +167,93 @@ const MarkdownCode = ({
   );
 };
 
+const extractText = (node: ReactNode): string => {
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node);
+  }
+
+  if (Array.isArray(node)) {
+    return node.map(extractText).join("");
+  }
+
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return extractText(node.props.children);
+  }
+
+  return "";
+};
+
+const copyText = async (text: string) => {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+  } catch {
+    // Fall back below when clipboard permissions block the modern API.
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  const didCopy = document.execCommand("copy");
+  textarea.remove();
+
+  if (!didCopy) {
+    throw new Error("Copy command failed");
+  }
+};
+
+const MarkdownPre = ({
+  children,
+  ...props
+}: ComponentPropsWithoutRef<"pre">) => {
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
+  const codeText = extractText(Children.toArray(children)).replace(/\n$/, "");
+  const copyLabel =
+    copyStatus === "copied" ? "Copied" : copyStatus === "failed" ? "Copy failed" : "Copy";
+
+  return (
+    <div className="group/code my-4 overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="flex items-center justify-end border-b border-neutral-200 bg-white/75 px-2 py-1.5 dark:border-neutral-700 dark:bg-neutral-950/40">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void copyText(codeText)
+              .then(() => setCopyStatus("copied"))
+              .catch(() => setCopyStatus("failed"))
+              .finally(() => {
+                window.setTimeout(() => setCopyStatus("idle"), 1400);
+              });
+          }}
+          className={`rounded-lg border bg-white/90 px-2.5 py-1 text-xs font-bold shadow-sm backdrop-blur transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-neutral-950/90 ${
+            copyStatus === "failed"
+              ? "border-red-300 text-red-600 dark:border-red-900 dark:text-red-300"
+              : "border-neutral-300 text-neutral-600 hover:border-neutral-400 hover:text-neutral-950 dark:border-neutral-700 dark:text-neutral-300 dark:hover:border-neutral-500 dark:hover:text-white"
+          }`}
+          aria-label="Copy code"
+        >
+          {copyLabel}
+        </button>
+      </div>
+      <pre
+        className="overflow-x-auto p-4"
+        {...props}
+      >
+        {children}
+      </pre>
+    </div>
+  );
+};
+
 const linkablePlainTextParentTypes = new Set([
   "paragraph",
   "heading",
@@ -313,14 +406,7 @@ export function MarkdownRenderer({
           hr: (props: ComponentPropsWithoutRef<"hr">) => (
             <hr className="my-6 border-0 border-t border-neutral-200 dark:border-neutral-700" {...props} />
           ),
-          pre: ({ children, ...props }: ComponentPropsWithoutRef<"pre">) => (
-            <pre
-              className="my-4 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-900"
-              {...props}
-            >
-              {children}
-            </pre>
-          ),
+          pre: MarkdownPre,
           code: MarkdownCode,
           table: ({ children, ...props }: ComponentPropsWithoutRef<"table">) => (
             <div className="my-4 overflow-x-auto">

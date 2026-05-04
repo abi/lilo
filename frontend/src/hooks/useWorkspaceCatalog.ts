@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { config } from "../config/config";
 import { UnauthorizedError, authFetch } from "../lib/auth";
 import type {
   WorkspaceAppLink,
   WorkspaceEntry,
+  WorkspaceFrequentDocument,
   WorkspacePreferences,
   WorkspaceTemplateUpdate,
 } from "../components/workspace/types";
@@ -11,8 +12,24 @@ import { formatSetupError, parseErrorMessage } from "./workspace/utils";
 
 const DEFAULT_WORKSPACE_TIME_ZONE = "America/New_York";
 const SELECTED_VIEWER_PATH_STORAGE_KEY = "lilo-selected-viewer-path";
+const VIEWER_OPEN_STATS_STORAGE_KEY = "lilo-viewer-open-stats";
 const VIEWER_URL_PARAM = "viewer";
 const NATIVE_DESKTOP_APP_NAME = "desktop";
+const DOCUMENT_ENTRY_KINDS = new Set<WorkspaceEntry["kind"]>([
+  "code",
+  "json",
+  "markdown",
+  "text",
+]);
+const MAX_TRACKED_VIEWER_PATHS = 100;
+
+type ViewerOpenStats = Record<
+  string,
+  {
+    count: number;
+    lastOpenedAt: number;
+  }
+>;
 
 const normalizeViewerPath = (value: string | null): string | null => {
   if (!value) {
@@ -68,6 +85,61 @@ const writeStoredSelectedViewerPath = (viewerPath: string | null) => {
     // ignore storage failures
   }
 };
+
+const readViewerOpenStats = (): ViewerOpenStats => {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(VIEWER_OPEN_STATS_STORAGE_KEY) ?? "{}",
+    ) as Record<string, unknown>;
+
+    return Object.fromEntries(
+      Object.entries(parsed).flatMap(([viewerPath, rawValue]) => {
+        if (!normalizeViewerPath(viewerPath) || !rawValue || typeof rawValue !== "object") {
+          return [];
+        }
+
+        const value = rawValue as { count?: unknown; lastOpenedAt?: unknown };
+        const count = typeof value.count === "number" ? value.count : 0;
+        const lastOpenedAt =
+          typeof value.lastOpenedAt === "number" ? value.lastOpenedAt : 0;
+
+        if (count <= 0 || lastOpenedAt <= 0) {
+          return [];
+        }
+
+        return [[viewerPath, { count, lastOpenedAt }] as const];
+      }),
+    );
+  } catch {
+    return {};
+  }
+};
+
+const writeViewerOpenStats = (stats: ViewerOpenStats) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const trimmed = Object.fromEntries(
+      Object.entries(stats)
+        .sort((left, right) => right[1].lastOpenedAt - left[1].lastOpenedAt)
+        .slice(0, MAX_TRACKED_VIEWER_PATHS),
+    );
+    localStorage.setItem(VIEWER_OPEN_STATS_STORAGE_KEY, JSON.stringify(trimmed));
+  } catch {
+    // ignore storage failures
+  }
+};
+
+const isDocumentEntry = (
+  entry: WorkspaceEntry | null | undefined,
+): entry is WorkspaceEntry & { viewerPath: string } =>
+  Boolean(entry?.viewerPath && DOCUMENT_ENTRY_KINDS.has(entry.kind));
 
 const reorderWorkspaceApps = (
   workspaceApps: WorkspaceAppLink[],
@@ -139,6 +211,8 @@ export function useWorkspaceCatalog({
 }: UseWorkspaceCatalogOptions) {
   const [workspaceApps, setWorkspaceApps] = useState<WorkspaceAppLink[]>([]);
   const [workspaceEntries, setWorkspaceEntries] = useState<WorkspaceEntry[]>([]);
+  const [viewerOpenStats, setViewerOpenStats] =
+    useState<ViewerOpenStats>(() => readViewerOpenStats());
   const [templateUpdates, setTemplateUpdates] = useState<WorkspaceTemplateUpdate[]>([]);
   const [selectedViewerPath, setSelectedViewerPath] = useState<string | null>(() =>
     readInitialSelectedViewerPath(),
@@ -146,6 +220,7 @@ export function useWorkspaceCatalog({
   const [viewerRefreshKey, setViewerRefreshKey] = useState(0);
   const [silentSyncError, setSilentSyncError] = useState<string | null>(null);
   const [workspaceLoadError, setWorkspaceLoadError] = useState<string | null>(null);
+  const lastTrackedViewerPathRef = useRef<string | null>(null);
   const [workspacePreferences, setWorkspacePreferences] = useState<WorkspacePreferences>({
     timeZone: DEFAULT_WORKSPACE_TIME_ZONE,
   });
@@ -496,6 +571,60 @@ export function useWorkspaceCatalog({
     [workspaceEntries, selectedViewerPath],
   );
 
+  useEffect(() => {
+    if (!isDocumentEntry(selectedWorkspaceEntry)) {
+      lastTrackedViewerPathRef.current = null;
+      return;
+    }
+
+    if (lastTrackedViewerPathRef.current === selectedWorkspaceEntry.viewerPath) {
+      return;
+    }
+    lastTrackedViewerPathRef.current = selectedWorkspaceEntry.viewerPath;
+
+    setViewerOpenStats((current) => {
+      const previous = current[selectedWorkspaceEntry.viewerPath] ?? {
+        count: 0,
+        lastOpenedAt: 0,
+      };
+      const next = {
+        ...current,
+        [selectedWorkspaceEntry.viewerPath]: {
+          count: previous.count + 1,
+          lastOpenedAt: Date.now(),
+        },
+      };
+      writeViewerOpenStats(next);
+      return next;
+    });
+  }, [selectedWorkspaceEntry]);
+
+  const frequentDocuments = useMemo<WorkspaceFrequentDocument[]>(() => {
+    return workspaceEntries
+      .filter(isDocumentEntry)
+      .flatMap((entry) => {
+        const stats = viewerOpenStats[entry.viewerPath];
+        if (!stats) {
+          return [];
+        }
+
+        return [
+          {
+            entry,
+            openCount: stats.count,
+            lastOpenedAt: stats.lastOpenedAt,
+          },
+        ];
+      })
+      .sort((left, right) => {
+        if (right.openCount !== left.openCount) {
+          return right.openCount - left.openCount;
+        }
+        return right.lastOpenedAt - left.lastOpenedAt;
+      })
+      .slice(0, 6);
+  }, [viewerOpenStats, workspaceEntries]);
+
   const startupError = initializationError ?? workspaceLoadError;
   const startupErrorMessage = startupError ? formatSetupError(startupError) : null;
   const selectedViewerUrl = selectedViewerPath ? `${config.apiBaseUrl}${selectedViewerPath}` : null;
@@ -509,6 +638,7 @@ export function useWorkspaceCatalog({
     silentSyncError,
     workspacePreferences,
     selectedWorkspaceEntry,
+    frequentDocuments,
     selectedViewerUrl,
     startupErrorMessage,
     setSelectedViewerPath,

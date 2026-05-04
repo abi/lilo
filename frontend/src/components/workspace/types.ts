@@ -30,6 +30,12 @@ export type WorkspaceEntry = {
   archived?: boolean;
 };
 
+export type WorkspaceFrequentDocument = {
+  entry: WorkspaceEntry;
+  openCount: number;
+  lastOpenedAt: number;
+};
+
 export type WorkspacePreferences = {
   timeZone: string;
   defaultChatModelSelection?: {

@@ -553,7 +553,9 @@ function App() {
         <NativeDesktopHome
           mobile
           workspaceApps={workspace.workspaceApps}
+          frequentDocuments={workspace.frequentDocuments}
           onOpenApp={handleOpenMobileViewerApp}
+          onOpenDocument={handleOpenMobileViewerApp}
           onReorderApps={workspace.saveAppOrder}
           onSetAppArchived={workspace.saveArchivedApps}
           onCreateChatMessage={handleCreateChatFromHome}
@@ -572,6 +574,7 @@ function App() {
           selectedWorkspaceEntry={workspace.selectedWorkspaceEntry}
           workspaceApps={workspace.workspaceApps}
           workspaceEntries={workspace.workspaceEntries}
+          frequentDocuments={workspace.frequentDocuments}
           fileViewerText={workspace.fileViewerText}
           fileViewerError={workspace.fileViewerError}
           isLoadingFileViewer={workspace.isLoadingFileViewer}
