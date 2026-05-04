@@ -7,7 +7,7 @@
 <br/>
 
 
-Lilo is a personal AI assistant that can help you with everything in life. It can track and execute your TODOs, remembers things, write documents, build apps, conduct research as well as remind you about things. You can reach it from anywhere: WhatsApp, Telegram, desktop, mobile or email.
+Lilo is a personal AI assistant that can help you with everything in life. It can track and execute your TODOs, remembers things, writes documents, builds apps, conducts research as well as remind you about things. You can reach it from anywhere: WhatsApp, Telegram, desktop, mobile or email.
 
 [![Join the Lilo Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/RAKmnS2G)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
@@ -35,7 +35,7 @@ https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
 <tr><td><b>💬 Talk to Lilo anywhere</b></td><td>Inbound message webhooks for <b>Email</b> (Resend), <b>WhatsApp</b> (Twilio), and <b>Telegram</b>. The agent replies in the same channel and keeps a persistent chat per contact.</td></tr>
 <tr><td><b>🧠 Memory</b></td><td>Remembers details about you, your tasks, and your work.</td></tr>
 <tr><td><b>🎨 Rich tool suite</b></td><td>Image generation (Replicate), web search & scraping (Firecrawl), headless browser automation (Browserbase), filesystem ops, shell execution, network fetch — all callable by apps and the agent when configured.</td></tr>
-<tr><td><b>📱 Mobile-ready</b></td><td>Optimized for phones. All apps render seamlessly on both.</td></tr>
+<tr><td><b>📱 Mobile-ready</b></td><td>Optimized for phones. All apps render seamlessly on desktop and mobile.</td></tr>
 <tr><td><b>🔐 Password-gated and private</b></td><td>One env var locks down the entire web app and all backend APIs (REST + WebSocket). Webhooks stay accessible with their own provider-signed requests.</td></tr>
 <tr><td><b>🧰 Model-agnostic</b></td><td>Pick between <b>GPT 5.5</b>, <b>GPT 5.4 Mini</b>, <b>Claude Opus 4.7</b>, and <b>Kimi K2.6</b> per chat. Route through OpenAI, Anthropic, or OpenRouter depending on configured keys.</td></tr>
 <tr><td><b>🔄 Git-backed cloud sync</b></td><td>Optionally sync your workspace to a git remote so the entire workspace (apps, data, and memories) is versioned and portable across devices.</td></tr>
