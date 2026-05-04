@@ -2,14 +2,12 @@
 
 <img src="./frontend/public/readme-logo.png" alt="Lilo" width="300px" />
 
+</div>
+
 <br/>
 
 
-**Lilo is an agentic personal OS — your apps, your memories, your files, your agent, in one workspace.**
-
-Ask your agent to build apps, customize your OS, remember things, and tackle your TODOs using everything in your workspace.
-
-Reach it from desktop, mobile, WhatsApp, Telegram, or email. Ships with a starter set of apps; reshape anything.
+Lilo is a personal AI assistant that can help you with everything in life. It can track and execute your TODOs, remembers things, write documents, build apps, conduct research as well as remind you about things. You can reach it from anywhere: WhatsApp, Telegram, desktop, mobile or email.
 
 [![Join the Lilo Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/RAKmnS2G)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
@@ -18,7 +16,6 @@ https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Mobile app](#mobile-app) · [Security](#security) · [Deployment](#deployment)
 
-</div>
 
 ---
 
