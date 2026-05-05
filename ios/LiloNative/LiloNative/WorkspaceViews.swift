@@ -198,11 +198,16 @@ struct ViewerScreen: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(isWorkspaceAppViewerPath(targetPath) ? .hidden : .automatic, for: .navigationBar)
     }
 
     private var title: String {
         viewerTargetPath(path).split(separator: "/").last.map(String.init) ?? "Viewer"
     }
+}
+
+private func isWorkspaceAppViewerPath(_ path: String) -> Bool {
+    path.starts(with: "/workspace/") && !path.starts(with: "/workspace-file/")
 }
 
 private func viewerTargetPath(_ rawPath: String) -> String {
