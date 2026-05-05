@@ -9,6 +9,7 @@ import { registerAutomationRoutes } from "../modules/automations/automation.rout
 import { registerAutomationService } from "../modules/automations/automation.registry.js";
 import { AutomationService } from "../modules/automations/automation.service.js";
 import { registerChannelStatusRoutes } from "../modules/channels/channelStatus.routes.js";
+import { registerOutboundMediaRoutes } from "../modules/channels/outboundMedia.routes.js";
 import { registerChatRoutes } from "../modules/chat/chat.routes.js";
 import { PiSdkChatService } from "../modules/chat/chat.service.js";
 import { registerEmailRoutes } from "../modules/email/email.routes.js";
@@ -38,6 +39,7 @@ const shouldLogBackendRequest = (path: string): boolean =>
   path.startsWith("/auth/") ||
   path.startsWith("/workspace") ||
   path.startsWith("/workspace-file/") ||
+  path.startsWith("/channel-media/") ||
   path.startsWith("/chats") ||
   path.startsWith("/api/inbound-");
 
@@ -91,6 +93,7 @@ export const createApp = ({
 
   // Health and webhook endpoints stay ahead of auth for external callers.
   app.get("/health", (c) => c.json({ status: "ok" }));
+  registerOutboundMediaRoutes(app);
   registerEmailRoutes(app, chatService);
   registerTelegramRoutes(app, chatService);
   registerWhatsAppRoutes(app, chatService);

@@ -13,8 +13,17 @@ import {
 } from "../../shared/audio/transcription.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
 import { ASK_USER_QUESTION_TOOL_NAME } from "../../shared/tools/askUserQuestionTool.js";
+import {
+  CHANNEL_RESPONSE_TOOL_NAME,
+  isSendChannelResponseDetails,
+  type SendChannelResponseDetails,
+} from "../../shared/tools/channelResponseTool.js";
 import { readWorkspaceAppPrefs } from "../../shared/workspace/appPrefs.js";
 import { formatMessagingOutput } from "../channels/channelOutput.format.js";
+import {
+  getPublicUrlForChannelMedia,
+  prepareChannelResponseMedia,
+} from "../channels/channelResponse.js";
 import { normalizeWhatsAppAddress } from "./whatsapp.address.js";
 import { resolveDailyWhatsAppChatId, storeDailyWhatsAppChatId } from "./threadStore.js";
 
@@ -297,6 +306,7 @@ const splitWhatsAppReply = (body: string): string[] => {
 const sendWhatsAppReply = async (
   to: string,
   body: string,
+  mediaUrl?: string,
   meta: { chunkIndex?: number; chunkCount?: number } = {},
 ): Promise<{ sid: string | null; status: string | null }> => {
   const accountSid = requireConfigValue(
@@ -317,8 +327,17 @@ const sendWhatsAppReply = async (
   const params = new URLSearchParams({
     To: normalizeWhatsAppAddress(to),
     From: from,
-    Body: body,
   });
+  const trimmedBody = body.trim();
+  if (trimmedBody) {
+    params.set("Body", trimmedBody);
+  }
+  if (mediaUrl) {
+    params.append("MediaUrl", mediaUrl);
+  }
+  if (!trimmedBody && !mediaUrl) {
+    throw new Error("WhatsApp reply requires body or mediaUrl");
+  }
 
   let lastError: unknown = null;
 
@@ -399,6 +418,8 @@ const sendWhatsAppReply = async (
             responseBody: responseText,
             responseJson,
             messageLength: body.length,
+            hasMedia: Boolean(mediaUrl),
+            mediaUrl,
             maxReplyChunkChars: MAX_WHATSAPP_REPLY_CHARS,
             chunkIndex: meta.chunkIndex ?? null,
             chunkCount: meta.chunkCount ?? null,
@@ -442,6 +463,8 @@ const sendWhatsAppReply = async (
           },
           extras: {
             messageLength: body.length,
+            hasMedia: Boolean(mediaUrl),
+            mediaUrl,
             maxReplyChunkChars: MAX_WHATSAPP_REPLY_CHARS,
             chunkIndex: meta.chunkIndex ?? null,
             chunkCount: meta.chunkCount ?? null,
@@ -473,7 +496,7 @@ export const sendWhatsAppReplyChunked = async (
 
   for (const [index, chunk] of chunks.entries()) {
     results.push(
-      await sendWhatsAppReply(to, chunk, {
+      await sendWhatsAppReply(to, chunk, undefined, {
         chunkIndex: index + 1,
         chunkCount: chunks.length,
       }),
@@ -481,6 +504,43 @@ export const sendWhatsAppReplyChunked = async (
   }
 
   return results;
+};
+
+const sendWhatsAppChannelResponse = async (
+  to: string,
+  details: SendChannelResponseDetails,
+): Promise<Array<{ sid: string | null; status: string | null }>> => {
+  const media = await prepareChannelResponseMedia(details);
+  const mediaUrl = getPublicUrlForChannelMedia(media);
+
+  try {
+    return [
+      await sendWhatsAppReply(to, media.caption ?? "", mediaUrl, {
+        chunkIndex: 1,
+        chunkCount: 1,
+      }),
+    ];
+  } catch (error) {
+    captureBackendException(error, {
+      tags: {
+        area: "whatsapp",
+        provider: "twilio",
+        operation: "send_channel_response",
+        to: normalizeWhatsAppAddress(to),
+        response_type: media.responseType,
+        mime_type: media.mimeType,
+      },
+      extras: {
+        filename: media.filename,
+        mediaUrl,
+        hasUrl: Boolean(media.url),
+        byteLength: media.bytes?.byteLength ?? null,
+      },
+      level: "error",
+      fingerprint: ["whatsapp", "send_channel_response", media.responseType],
+    });
+    throw error;
+  }
 };
 
 export const sendWhatsAppAutomationMessage = async (
@@ -1027,6 +1087,23 @@ export const registerWhatsAppRoutes = (app: Hono, chatService: PiSdkChatService)
                   const fallback = formatWhatsAppQuestionFallback(details);
                   responseText += `\n\n${fallback}`;
                   enqueueWhatsAppSend(fallback, "question_fallback");
+                }
+              }
+
+              if (toolName === CHANNEL_RESPONSE_TOOL_NAME) {
+                flushAssistantMessage();
+                const details = (event.data as { details?: unknown }).details;
+                if (isSendChannelResponseDetails(details)) {
+                  sendQueue = sendQueue.then(async () => {
+                    const sendResults = await sendWhatsAppChannelResponse(from, details);
+                    sentMessageCount += sendResults.length;
+                    const lastSendResult = sendResults[sendResults.length - 1];
+                    console.log(
+                      `[whatsapp] sent channel response chat=${chatId} to=${from} responseType=${details.responseType} sentMessageCount=${sentMessageCount} sid=${
+                        lastSendResult?.sid ?? "unknown"
+                      } status=${lastSendResult?.status ?? "unknown"}`,
+                    );
+                  });
                 }
               }
             }

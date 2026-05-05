@@ -8,6 +8,10 @@ export type ImageGenerationModel =
 const FALLBACK_IMAGE_MODEL: ImageGenerationModel = "nano-banana";
 const AUDIO_TRANSCRIPTION_MAX_BYTES = 25 * 1024 * 1024;
 const AUDIO_TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
+const AUDIO_SPEECH_MAX_CHARS = 4_000;
+const AUDIO_SPEECH_MODEL = "gpt-4o-mini-tts";
+const AUDIO_SPEECH_RESPONSE_FORMAT = "opus";
+const AUDIO_SPEECH_VOICE = "alloy";
 
 loadBackendEnv();
 
@@ -90,6 +94,15 @@ export const backendConfig = {
       openaiApiKey: readEnv("OPENAI_API_KEY"),
       model: AUDIO_TRANSCRIPTION_MODEL,
       maxBytes: AUDIO_TRANSCRIPTION_MAX_BYTES,
+    },
+    audioSpeech: {
+      openaiApiKey: readEnv("OPENAI_API_KEY"),
+      model: AUDIO_SPEECH_MODEL,
+      voice: AUDIO_SPEECH_VOICE,
+      responseFormat: AUDIO_SPEECH_RESPONSE_FORMAT,
+      mimeType: "audio/ogg",
+      extension: ".ogg",
+      maxChars: AUDIO_SPEECH_MAX_CHARS,
     },
   },
   channels: {

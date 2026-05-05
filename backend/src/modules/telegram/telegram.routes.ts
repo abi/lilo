@@ -14,8 +14,14 @@ import {
 } from "../../shared/audio/transcription.js";
 import { captureBackendException } from "../../shared/observability/sentry.js";
 import { ASK_USER_QUESTION_TOOL_NAME } from "../../shared/tools/askUserQuestionTool.js";
+import {
+  CHANNEL_RESPONSE_TOOL_NAME,
+  isSendChannelResponseDetails,
+  type SendChannelResponseDetails,
+} from "../../shared/tools/channelResponseTool.js";
 import { readWorkspaceAppPrefs } from "../../shared/workspace/appPrefs.js";
 import { formatMessagingOutput } from "../channels/channelOutput.format.js";
+import { prepareChannelResponseMedia } from "../channels/channelResponse.js";
 import { resolveDailyTelegramChatId, storeDailyTelegramChatId } from "./threadStore.js";
 
 type TelegramChat = {
@@ -321,6 +327,59 @@ const telegramApiFetch = async <T>(
     : new Error(`Telegram API ${method} failed for an unknown reason`));
 };
 
+const telegramApiFetchFormData = async <T>(
+  botToken: string,
+  method: string,
+  body: FormData,
+): Promise<T> => {
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
+      method: "POST",
+      body,
+    });
+
+    const responseText = await response.text();
+    let payload: TelegramApiResponse<T> | null = null;
+    try {
+      payload = JSON.parse(responseText) as TelegramApiResponse<T>;
+    } catch {
+      payload = null;
+    }
+
+    if (response.ok && payload?.ok === true) {
+      return payload.result;
+    }
+
+    const description =
+      payload && payload.ok === false
+        ? payload.description ?? `Telegram API ${method} failed`
+        : `Telegram API ${method} failed`;
+    lastError = new Error(description);
+    const retryAfter =
+      payload && payload.ok === false && typeof payload.parameters?.retry_after === "number"
+        ? payload.parameters.retry_after * 1_000
+        : null;
+    const isRetryable =
+      attempt < 3 && (TELEGRAM_RETRYABLE_STATUS_CODES.has(response.status) || Boolean(retryAfter));
+
+    console.error(
+      `[telegram] API ${method} failed attempt=${attempt} status=${response.status} retryable=${isRetryable} description=${description}`,
+    );
+
+    if (!isRetryable) {
+      throw lastError;
+    }
+
+    await sleep(retryAfter ?? 500 * attempt);
+  }
+
+  throw (lastError instanceof Error
+    ? lastError
+    : new Error(`Telegram API ${method} failed for an unknown reason`));
+};
+
 const findTelegramReplySplitIndex = (text: string): number => {
   const search = text.slice(0, MAX_TELEGRAM_REPLY_CHARS + 1);
   const minimumCleanBoundary = Math.floor(MAX_TELEGRAM_REPLY_CHARS * 0.45);
@@ -433,6 +492,75 @@ const sendTelegramReplyChunked = async (chatId: number, body: string): Promise<n
   }
 
   return chunks.length;
+};
+
+const sendTelegramChannelResponse = async (
+  chatId: number,
+  details: SendChannelResponseDetails,
+): Promise<number> => {
+  const botToken = getTelegramBotToken();
+  const media = await prepareChannelResponseMedia(details);
+  const method =
+    media.responseType === "voice"
+      ? "sendVoice"
+      : media.responseType === "image"
+        ? "sendPhoto"
+        : "sendDocument";
+  const field =
+    media.responseType === "voice"
+      ? "voice"
+      : media.responseType === "image"
+        ? "photo"
+        : "document";
+  const action =
+    media.responseType === "voice"
+      ? "upload_voice"
+      : media.responseType === "image"
+        ? "upload_photo"
+        : "upload_document";
+
+  await sendTelegramChatAction(chatId, action);
+
+  const formData = new FormData();
+  formData.set("chat_id", String(chatId));
+  if (media.caption) {
+    formData.set("caption", media.caption);
+  }
+  if (media.url) {
+    formData.set(field, media.url);
+  } else if (media.bytes) {
+    const audioBuffer = media.bytes.buffer.slice(
+      media.bytes.byteOffset,
+      media.bytes.byteOffset + media.bytes.byteLength,
+    ) as ArrayBuffer;
+    formData.set(field, new Blob([audioBuffer], { type: media.mimeType }), media.filename);
+  } else {
+    throw new Error("Telegram channel response media has no URL or bytes");
+  }
+
+  try {
+    await telegramApiFetchFormData<unknown>(botToken, method, formData);
+    return 1;
+  } catch (error) {
+    captureBackendException(error, {
+      tags: {
+        area: "telegram",
+        provider: "telegram",
+        operation: "send_channel_response",
+        chat_id: chatId,
+        response_type: media.responseType,
+        mime_type: media.mimeType,
+      },
+      extras: {
+        filename: media.filename,
+        hasUrl: Boolean(media.url),
+        byteLength: media.bytes?.byteLength ?? null,
+      },
+      level: "error",
+      fingerprint: ["telegram", "send_channel_response", media.responseType],
+    });
+    throw error;
+  }
 };
 
 export const sendTelegramAutomationMessage = async (body: string): Promise<void> => {
@@ -918,6 +1046,20 @@ export const registerTelegramRoutes = (app: Hono, chatService: PiSdkChatService)
                   const fallback = formatTelegramQuestionFallback(details);
                   responseText += `\n\n${fallback}`;
                   enqueueTelegramSend(fallback, "question_fallback");
+                }
+              }
+
+              if (toolName === CHANNEL_RESPONSE_TOOL_NAME) {
+                flushAssistantMessage();
+                const details = (event.data as { details?: unknown }).details;
+                if (isSendChannelResponseDetails(details)) {
+                  sendQueue = sendQueue.then(async () => {
+                    const sentCount = await sendTelegramChannelResponse(message.chat.id, details);
+                    sentMessageCount += sentCount;
+                    console.log(
+                      `[telegram] sent channel response chat=${chatId} thread=${threadKey} responseType=${details.responseType} sentMessageCount=${sentMessageCount}`,
+                    );
+                  });
                 }
               }
             }

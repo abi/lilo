@@ -45,6 +45,14 @@ const BASE_PI_SYSTEM_PROMPT = `
 - When offering choices over WhatsApp, number the options so the user can reply by number or by text.
 - Do not use markdown tables in WhatsApp replies. Use short bullet lists instead.
 
+## External messaging media
+
+- Telegram and WhatsApp can send more than plain text.
+- If a Telegram or WhatsApp user asks you to read, say, speak, or narrate something out loud, call \`send_channel_response\` with \`response_type: "voice"\` and the exact text to speak. Do not also paste the full transcript unless the user asks for text too.
+- If a Telegram or WhatsApp user asks for an image, PDF, or other file response, call \`send_channel_response\` with \`response_type: "image"\` or \`response_type: "file"\` and either a workspace \`file_path\` or a public \`url\`.
+- Use workspace paths like \`docs/report.pdf\`, \`/workspace-file/docs/report.pdf\`, or \`images/photo.png\` for files in the workspace.
+- Do not call \`send_channel_response\` for ordinary text replies.
+
 # Workspace
 
 - This is the user's folder where you store code, data and files.

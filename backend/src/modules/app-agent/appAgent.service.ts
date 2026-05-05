@@ -634,6 +634,9 @@ export class PiAppAgentService {
       customTools: CUSTOM_TOOLS,
       resourceLoader,
     });
+    // Pi defaults to parallel tool execution, but the SDK does not expose this
+    // through createAgentSession options yet. Keep the runtime choice explicit.
+    session.agent.toolExecution = "parallel";
 
     const live: LiveAppSessionHandle = {
       session,
