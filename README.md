@@ -301,8 +301,8 @@ Lilo is built for a **single, self-hosted user** — not multi-tenant SaaS.
   keep credentials in env vars, not the workspace.
 - **Webhooks** (`/api/inbound-*`) skip the password gate on purpose and use
   provider-signed verification instead.
-- **Report issues privately** — email `abimanyuraja@gmail.com` or DM on
-  [Discord](https://discord.gg/RAKmnS2G). Please don't open public issues.
+- **Report security issues privately** through GitHub Security Advisories.
+  Please don't open public issues for sensitive reports.
 
 ---
 
