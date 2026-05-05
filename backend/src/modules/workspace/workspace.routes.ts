@@ -261,7 +261,15 @@ const buildRawWorkspaceFilePath = (relativePath: string): string =>
 const buildViewerDeepLinkPath = (viewerPath: string): string =>
   `/?viewer=${encodeURIComponent(viewerPath)}`;
 
+const isNativeViewerRequest = (request: Request): boolean =>
+  request.headers.get("x-lilo-native-viewer") === "1" ||
+  request.headers.get("user-agent")?.includes("LiloNative") === true;
+
 const isTopLevelDocumentNavigation = (request: Request): boolean => {
+  if (isNativeViewerRequest(request)) {
+    return false;
+  }
+
   const fetchDest = request.headers.get("sec-fetch-dest");
   if (fetchDest) {
     return fetchDest === "document";

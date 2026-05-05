@@ -8,6 +8,7 @@ struct WebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        configuration.applicationNameForUserAgent = "LiloNative"
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.allowsBackForwardNavigationGestures = true
         webView.scrollView.contentInsetAdjustmentBehavior = .automatic
@@ -16,7 +17,9 @@ struct WebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         if webView.url != url {
-            webView.load(URLRequest(url: url))
+            var request = URLRequest(url: url)
+            request.setValue("1", forHTTPHeaderField: "X-Lilo-Native-Viewer")
+            webView.load(request)
         }
     }
 }
