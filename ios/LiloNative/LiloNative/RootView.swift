@@ -88,8 +88,11 @@ struct NativeHomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Lilo")
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                    HStack(spacing: 12) {
+                        LiloLogo(size: 48)
+                        Text("Lilo")
+                            .font(.system(size: 42, weight: .bold, design: .rounded))
+                    }
                     Text("Your workspace, chats, automations, and apps in one native shell.")
                         .foregroundStyle(.secondary)
                 }
@@ -125,6 +128,28 @@ struct NativeHomeView: View {
         }
         .navigationTitle("Home")
         .refreshable { await model.refreshAll() }
+    }
+}
+
+struct LiloLogo: View {
+    var size: CGFloat = 32
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [Color(red: 0.16, green: 0, blue: 0.46), Color(red: 0, green: 0.22, blue: 0.91)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+                .rotationEffect(.degrees(-1.5))
+            Circle()
+                .fill(Color(.systemBackground))
+                .frame(width: size * 0.28, height: size * 0.28)
+                .offset(x: size * 0.05, y: -size * 0.03)
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel("Lilo")
     }
 }
 

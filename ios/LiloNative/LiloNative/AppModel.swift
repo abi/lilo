@@ -13,8 +13,11 @@ final class AppModel: ObservableObject {
     @Published var selectedChat: ChatDetail.ChatPayload?
     @Published var activeRunId: String?
     @Published var isStreaming = false
+    @Published var isSocketReady = false
+    @Published var pendingChatNavigationId: String?
     @Published var composerText = ""
     @Published var attachments: [PickedFile] = []
+    @Published var focusComposerRequest = 0
 
     @Published var workspaceApps: [WorkspaceAppLink] = []
     @Published var workspaceEntries: [WorkspaceEntry] = []
@@ -88,6 +91,8 @@ final class AppModel: ObservableObject {
             chats.insert(response.chat, at: 0)
             await selectChat(response.chat.id)
             selectedTab = .chats
+            pendingChatNavigationId = response.chat.id
+            focusComposerRequest += 1
         } catch {
             handle(error)
         }
@@ -105,6 +110,18 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func refreshSelectedChatDetail() async {
+        guard let chatId = selectedChat?.id else { return }
+        do {
+            let response: ChatDetail = try await api.request("/chats/\(chatId)")
+            selectedChat = response.chat
+            activeRunId = response.chat.activeRunId
+            isStreaming = response.chat.status == "streaming"
+        } catch {
+            handle(error)
+        }
+    }
+
     func sendMessage() async {
         guard let chatId = selectedChat?.id else { return }
         let text = composerText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -116,14 +133,16 @@ final class AppModel: ObservableObject {
         do {
             if socket == nil {
                 await startSocket(chatId: chatId, runId: nil, afterSeq: 0)
-                try await Task.sleep(nanoseconds: 250_000_000)
+            }
+            guard let socket, isSocketReady else {
+                throw LiloAPIError.backend("Lilo is still connecting. Try sending again in a moment.")
             }
             var uploadIds: [String] = []
             if !files.isEmpty {
                 uploadIds = try await api.upload(chatId: chatId, files: files)
             }
             appendLocalUserMessage(text, files: files)
-            try await socket?.prompt(text, uploadIds: uploadIds)
+            try await socket.prompt(text, uploadIds: uploadIds)
         } catch {
             handle(error)
         }
@@ -245,6 +264,7 @@ final class AppModel: ObservableObject {
             await socket.close()
         }
         socket = nil
+        isSocketReady = false
         await bootstrap()
     }
 
@@ -253,22 +273,28 @@ final class AppModel: ObservableObject {
             await socket.close()
         }
         socketTask?.cancel()
+        isSocketReady = false
         do {
             let socket = try ChatSocket(chatId: chatId)
+            try await socket.connect()
+            try await socket.subscribe(runId: runId, afterSeq: afterSeq)
             self.socket = socket
-            await socket.connect()
-            socketTask = Task { [weak self] in
+            isSocketReady = true
+            socketTask = Task { [weak self, socket] in
                 do {
-                    try await socket.subscribe(runId: runId, afterSeq: afterSeq)
                     while !Task.isCancelled {
                         let message = try await socket.receive()
                         self?.handle(socketMessage: message)
                     }
                 } catch {
-                    self?.handle(error)
+                    if !Task.isCancelled {
+                        self?.handle(error)
+                    }
                 }
             }
         } catch {
+            socket = nil
+            isSocketReady = false
             handle(error)
         }
     }
@@ -283,7 +309,12 @@ final class AppModel: ObservableObject {
             apply(streamEvent: envelope.event)
             isStreaming = envelope.status == "streaming"
         case "chat_updated":
-            Task { await refreshChats() }
+            Task {
+                await refreshChats()
+                if socketMessage.chatId == selectedChat?.id {
+                    await refreshSelectedChatDetail()
+                }
+            }
         case "socket_error":
             errorMessage = socketMessage.message
         default:
@@ -303,35 +334,47 @@ final class AppModel: ObservableObject {
                 timestamp: Date().timeIntervalSince1970 * 1000
             ))
         case "text_delta":
-            let text = streamEvent.data.value(for: "text")?.stringValue ?? ""
+            let text =
+                streamEvent.data.value(for: "delta")?.stringValue ??
+                streamEvent.data.value(for: "text")?.stringValue ??
+                ""
             appendAssistantText(text)
         case "thinking_delta":
-            break
+            let text = streamEvent.data.value(for: "delta")?.stringValue ?? ""
+            appendThinkingText(text)
         case "tool_call":
             let toolName = streamEvent.data.value(for: "toolName")?.stringValue
+            let input = streamEvent.data.value(for: "input")?.prettyString
             let content = toolName.map { "Using \($0)" } ?? "Using a tool"
             selectedChat?.messages.append(ChatMessage(
                 id: UUID().uuidString,
                 role: .toolCall,
                 content: content,
                 timestamp: Date().timeIntervalSince1970 * 1000,
-                toolName: toolName
+                toolName: toolName,
+                toolInput: input
             ))
         case "tool_result":
             let toolName = streamEvent.data.value(for: "toolName")?.stringValue
+            let output = streamEvent.data.value(for: "output")?.stringValue ?? toolName.map { "Completed \($0)" } ?? "Tool completed"
             selectedChat?.messages.append(ChatMessage(
                 id: UUID().uuidString,
                 role: .toolResult,
-                content: toolName.map { "Completed \($0)" } ?? "Tool completed",
+                content: output,
                 timestamp: Date().timeIntervalSince1970 * 1000,
-                toolName: toolName
+                toolName: toolName,
+                toolDetails: streamEvent.data.value(for: "details"),
+                isError: streamEvent.data.value(for: "isError") == .bool(true)
             ))
         case "error":
             errorMessage = streamEvent.data.value(for: "message")?.stringValue ?? "Streaming failed"
         case "done":
             isStreaming = false
             activeRunId = nil
-            Task { await refreshChats() }
+            Task {
+                await refreshChats()
+                await refreshSelectedChatDetail()
+            }
         default:
             break
         }
@@ -344,6 +387,19 @@ final class AppModel: ObservableObject {
             selectedChat?.messages.append(ChatMessage(
                 id: UUID().uuidString,
                 role: .assistant,
+                content: text,
+                timestamp: Date().timeIntervalSince1970 * 1000
+            ))
+        }
+    }
+
+    private func appendThinkingText(_ text: String) {
+        if let index = selectedChat?.messages.lastIndex(where: { $0.role == .thinking }) {
+            selectedChat?.messages[index].content += text
+        } else {
+            selectedChat?.messages.append(ChatMessage(
+                id: UUID().uuidString,
+                role: .thinking,
                 content: text,
                 timestamp: Date().timeIntervalSince1970 * 1000
             ))

@@ -25,5 +25,10 @@ Thumbs.db
 .claude/
 .idea/
 DerivedData/
+build/
+*.xcresult
+*.xcarchive
+*.dSYM
+*.ipa
 *.xcuserstate
 **/xcuserdata/

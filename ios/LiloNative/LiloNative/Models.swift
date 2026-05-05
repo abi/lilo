@@ -50,6 +50,7 @@ struct ChatMessage: Codable, Identifiable, Hashable {
     var timestamp: Double
     var toolName: String?
     var toolInput: String?
+    var toolDetails: JSONValue?
     var isError: Bool?
     var attachments: [ChatAttachment]?
     var viewerPath: String?

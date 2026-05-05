@@ -2,6 +2,7 @@ import Foundation
 
 final class APIClient: @unchecked Sendable {
     static let shared = APIClient()
+    private static let defaultBackendURL = "http://127.0.0.1:8787"
 
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
@@ -19,10 +20,10 @@ final class APIClient: @unchecked Sendable {
 
     var baseURLString: String {
         get {
-            UserDefaults.standard.string(forKey: "lilo.backendURL") ?? "http://localhost:8787"
+            normalizeBackendURL(UserDefaults.standard.string(forKey: "lilo.backendURL") ?? Self.defaultBackendURL)
         }
         set {
-            UserDefaults.standard.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "lilo.backendURL")
+            UserDefaults.standard.set(normalizeBackendURL(newValue), forKey: "lilo.backendURL")
         }
     }
 
@@ -155,6 +156,16 @@ final class APIClient: @unchecked Sendable {
             throw LiloAPIError.backend("Request failed with status \(http.statusCode)")
         }
     }
+}
+
+private func normalizeBackendURL(_ value: String) -> String {
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard var components = URLComponents(string: trimmed),
+          components.host == "localhost" else {
+        return trimmed
+    }
+    components.host = "127.0.0.1"
+    return components.string ?? trimmed.replacingOccurrences(of: "localhost", with: "127.0.0.1")
 }
 
 private struct AnyEncodable: Encodable {

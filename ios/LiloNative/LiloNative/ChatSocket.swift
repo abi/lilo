@@ -30,7 +30,7 @@ struct ChatStreamEvent: Decodable {
     var data: JSONValue
 }
 
-enum JSONValue: Decodable, Hashable {
+enum JSONValue: Codable, Hashable {
     case string(String)
     case number(Double)
     case bool(Bool)
@@ -64,18 +64,70 @@ enum JSONValue: Decodable, Hashable {
     func value(for key: String) -> JSONValue? {
         if case .object(let object) = self { object[key] } else { nil }
     }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .string(let value):
+            try container.encode(value)
+        case .number(let value):
+            try container.encode(value)
+        case .bool(let value):
+            try container.encode(value)
+        case .object(let value):
+            try container.encode(value)
+        case .array(let value):
+            try container.encode(value)
+        case .null:
+            try container.encodeNil()
+        }
+    }
+
+    var prettyString: String {
+        switch self {
+        case .string(let value):
+            return value
+        case .number(let value):
+            return value.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(value)) : String(value)
+        case .bool(let value):
+            return value ? "true" : "false"
+        case .object, .array:
+            if let data = try? JSONEncoder.prettyPrinted.encode(self),
+               let text = String(data: data, encoding: .utf8) {
+                return text
+            }
+            return String(describing: self)
+        case .null:
+            return "null"
+        }
+    }
+}
+
+private extension JSONEncoder {
+    static var prettyPrinted: JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return encoder
+    }
 }
 
 actor ChatSocket {
+    private let delegate: ChatSocketDelegate
+    private let session: URLSession
     private let task: URLSessionWebSocketTask
     private let decoder = JSONDecoder()
 
     init(chatId: String) throws {
-        task = URLSession.shared.webSocketTask(with: try APIClient.shared.webSocketURL(chatId: chatId))
+        let delegate = ChatSocketDelegate()
+        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        self.delegate = delegate
+        self.session = session
+        task = session.webSocketTask(with: try APIClient.shared.webSocketURL(chatId: chatId))
     }
 
-    func connect() {
+    func connect() async throws {
         task.resume()
+        try await delegate.waitUntilOpen()
     }
 
     func subscribe(runId: String? = nil, afterSeq: Int = 0) async throws {
@@ -108,6 +160,7 @@ actor ChatSocket {
 
     func close() {
         task.cancel(with: .goingAway, reason: nil)
+        session.invalidateAndCancel()
     }
 
     private func send(_ object: [String: Any]) async throws {
@@ -116,5 +169,68 @@ actor ChatSocket {
             throw LiloAPIError.invalidResponse
         }
         try await task.send(.string(text))
+    }
+}
+
+private final class ChatSocketDelegate: NSObject, URLSessionWebSocketDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var isOpen = false
+    private var openContinuation: CheckedContinuation<Void, Error>?
+
+    func waitUntilOpen() async throws {
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                lock.lock()
+                if isOpen {
+                    lock.unlock()
+                    continuation.resume()
+                    return
+                }
+                openContinuation = continuation
+                lock.unlock()
+            }
+        } onCancel: {
+            resumeOpen(throwing: CancellationError())
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        webSocketTask: URLSessionWebSocketTask,
+        didOpenWithProtocol protocol: String?
+    ) {
+        lock.lock()
+        isOpen = true
+        let continuation = openContinuation
+        openContinuation = nil
+        lock.unlock()
+        continuation?.resume()
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        webSocketTask: URLSessionWebSocketTask,
+        didCloseWith closeCode: URLSessionWebSocketTask.CloseCode,
+        reason: Data?
+    ) {
+        resumeOpen(throwing: LiloAPIError.backend("Socket closed before connecting"))
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: Error?
+    ) {
+        if let error {
+            resumeOpen(throwing: error)
+        }
+    }
+
+    private func resumeOpen(throwing error: Error) {
+        lock.lock()
+        let continuation = openContinuation
+        openContinuation = nil
+        lock.unlock()
+        continuation?.resume(throwing: error)
     }
 }

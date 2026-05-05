@@ -1,10 +1,15 @@
 import SwiftUI
+import WebKit
 
 struct FilesView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var expandedPaths: Set<String> = []
 
     var body: some View {
-        List {
+        List(selection: Binding(
+            get: { model.selectedViewerPath },
+            set: { if let path = $0 { model.openViewer(path) } }
+        )) {
             if let path = model.selectedViewerPath {
                 Section("Viewer") {
                     NavigationLink {
@@ -16,46 +21,8 @@ struct FilesView: View {
                 }
             }
 
-            Section("Apps") {
-                ForEach(model.workspaceApps.filter { $0.archived != true }) { app in
-                    Button {
-                        model.openViewer(app.viewerPath)
-                    } label: {
-                        HStack {
-                            AppIcon(app: app)
-                            VStack(alignment: .leading) {
-                                Text(app.label)
-                                    .font(.headline)
-                                if let description = app.description {
-                                    Text(description)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(2)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Section("Files") {
-                ForEach(model.workspaceEntries.filter { $0.viewerPath != nil && $0.archived != true }) { entry in
-                    Button {
-                        if let viewerPath = entry.viewerPath {
-                            model.openViewer(viewerPath)
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: symbol(for: entry.kind))
-                            VStack(alignment: .leading) {
-                                Text(entry.name)
-                                Text(entry.parentRelativePath ?? "workspace")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
+            Section("Workspace") {
+                WorkspaceTreeList(expandedPaths: $expandedPaths)
             }
         }
         .navigationTitle("Files")
@@ -76,8 +43,119 @@ struct FilesView: View {
         }
         .refreshable { await model.refreshWorkspace() }
     }
+}
 
-    private func symbol(for kind: String) -> String {
+struct WorkspaceTreeList: View {
+    @EnvironmentObject private var model: AppModel
+    @Binding var expandedPaths: Set<String>
+
+    private var childrenByParent: [String: [WorkspaceEntry]] {
+        Dictionary(grouping: visibleEntries) { $0.parentRelativePath ?? "" }
+            .mapValues { entries in
+                entries.sorted { left, right in
+                    if isContainer(left) != isContainer(right) {
+                        return isContainer(left)
+                    }
+                    return left.name.localizedCaseInsensitiveCompare(right.name) == .orderedAscending
+                }
+            }
+    }
+
+    private var visibleEntries: [WorkspaceEntry] {
+        model.workspaceEntries.filter { $0.archived != true }
+    }
+
+    var body: some View {
+        ForEach(childrenByParent[""] ?? []) { entry in
+            WorkspaceTreeRow(
+                entry: entry,
+                depth: 0,
+                childrenByParent: childrenByParent,
+                expandedPaths: $expandedPaths
+            )
+        }
+    }
+}
+
+struct WorkspaceTreeRow: View {
+    @EnvironmentObject private var model: AppModel
+    var entry: WorkspaceEntry
+    var depth: Int
+    var childrenByParent: [String: [WorkspaceEntry]]
+    @Binding var expandedPaths: Set<String>
+
+    private var children: [WorkspaceEntry] {
+        childrenByParent[entry.relativePath] ?? []
+    }
+
+    private var expanded: Bool {
+        expandedPaths.contains(entry.relativePath)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button {
+                if isContainer(entry) {
+                    if expanded {
+                        expandedPaths.remove(entry.relativePath)
+                    } else {
+                        expandedPaths.insert(entry.relativePath)
+                    }
+                    if entry.kind == "app", let viewerPath = entry.viewerPath {
+                        model.openViewer(viewerPath)
+                    }
+                } else if let viewerPath = entry.viewerPath {
+                    model.openViewer(viewerPath)
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Color.clear.frame(width: CGFloat(depth) * 14)
+                    if isContainer(entry) {
+                        Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 12)
+                    } else {
+                        Color.clear.frame(width: 12)
+                    }
+                    Image(systemName: symbol(for: entry.kind))
+                        .foregroundStyle(entry.kind == "directory" || entry.kind == "app" ? .blue : .secondary)
+                    Text(entry.name)
+                        .lineLimit(1)
+                    Spacer()
+                    if let badge = entryBadge(for: entry.kind) {
+                        Text(badge)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Color(.secondarySystemBackground), in: Capsule())
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.vertical, 5)
+
+            if expanded {
+                ForEach(children) { child in
+                    WorkspaceTreeRow(
+                        entry: child,
+                        depth: depth + 1,
+                        childrenByParent: childrenByParent,
+                        expandedPaths: $expandedPaths
+                    )
+                }
+            }
+        }
+    }
+}
+
+private func isContainer(_ entry: WorkspaceEntry) -> Bool {
+    entry.kind == "directory" || entry.kind == "app"
+}
+
+private func symbol(for kind: String) -> String {
         switch kind {
         case "markdown": "doc.richtext"
         case "image": "photo"
@@ -86,6 +164,16 @@ struct FilesView: View {
         case "app": "app"
         default: "doc"
         }
+    }
+
+private func entryBadge(for kind: String) -> String? {
+    switch kind {
+    case "markdown": "MD"
+    case "json": "JSON"
+    case "image": "IMG"
+    case "code": "CODE"
+    case "text": "TXT"
+    default: nil
     }
 }
 
@@ -98,10 +186,11 @@ struct ViewerScreen: View {
     var path: String
 
     var body: some View {
+        let targetPath = viewerTargetPath(path)
         Group {
-            if path.starts(with: "/workspace-file/") {
-                NativeFileViewer(path: path)
-            } else if let url = APIClient.shared.absoluteURL(for: path) {
+            if targetPath.starts(with: "/workspace-file/") {
+                NativeFileViewer(path: targetPath)
+            } else if let url = APIClient.shared.absoluteURL(for: targetPath) {
                 WebView(url: url)
             } else {
                 ContentUnavailableView("Cannot open file", systemImage: "exclamationmark.triangle")
@@ -112,8 +201,18 @@ struct ViewerScreen: View {
     }
 
     private var title: String {
-        path.split(separator: "/").last.map(String.init) ?? "Viewer"
+        viewerTargetPath(path).split(separator: "/").last.map(String.init) ?? "Viewer"
     }
+}
+
+private func viewerTargetPath(_ rawPath: String) -> String {
+    guard rawPath.starts(with: "/?") || rawPath.starts(with: "?"),
+          let components = URLComponents(string: rawPath),
+          let encodedViewer = components.queryItems?.first(where: { $0.name == "viewer" })?.value,
+          !encodedViewer.isEmpty else {
+        return rawPath
+    }
+    return encodedViewer
 }
 
 struct NativeFileViewer: View {
@@ -131,7 +230,13 @@ struct NativeFileViewer: View {
                 ProgressView("Loading...")
             } else if let errorMessage {
                 ContentUnavailableView("Could not open file", systemImage: "exclamationmark.triangle", description: Text(errorMessage))
-            } else if isTextLike {
+            } else if isMarkdown {
+                MarkdownPreview(text: text)
+            } else if isHTML {
+                HTMLPreview(html: text, baseURL: APIClient.shared.absoluteURL(for: path))
+            } else if isJSON {
+                JSONPreview(text: text)
+            } else if isEditableTextLike {
                 TextEditor(text: Binding(
                     get: { text },
                     set: {
@@ -142,12 +247,7 @@ struct NativeFileViewer: View {
                 .font(.system(.body, design: .monospaced))
                 .padding(.horizontal)
             } else if mimeType.starts(with: "image/"), let image = UIImage(data: data) {
-                ScrollView([.horizontal, .vertical]) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .padding()
-                }
+                ZoomableImageView(image: image)
             } else if mimeType.contains("pdf") {
                 PDFPreview(data: data)
             } else {
@@ -156,7 +256,7 @@ struct NativeFileViewer: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                if isTextLike {
+                if isEditableTextLike && !isMarkdown && !isHTML && !isJSON {
                     Button("Save") {
                         Task { await save() }
                     }
@@ -174,7 +274,19 @@ struct NativeFileViewer: View {
         }
     }
 
-    private var isTextLike: Bool {
+    private var isMarkdown: Bool {
+        path.localizedCaseInsensitiveContains(".md") || mimeType.contains("markdown")
+    }
+
+    private var isHTML: Bool {
+        path.localizedCaseInsensitiveContains(".html") || mimeType.contains("html")
+    }
+
+    private var isJSON: Bool {
+        path.localizedCaseInsensitiveContains(".json") || mimeType.contains("json")
+    }
+
+    private var isEditableTextLike: Bool {
         mimeType.starts(with: "text/")
             || mimeType.contains("json")
             || path.hasSuffix(".md")
@@ -208,6 +320,142 @@ struct NativeFileViewer: View {
             isDirty = false
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+struct MarkdownPreview: View {
+    var text: String
+
+    var body: some View {
+        ScrollView {
+            Text(rendered)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+        }
+    }
+
+    private var rendered: AttributedString {
+        (try? AttributedString(markdown: text)) ?? AttributedString(text)
+    }
+}
+
+struct HTMLPreview: UIViewRepresentable {
+    var html: String
+    var baseURL: URL?
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        return WKWebView(frame: .zero, configuration: configuration)
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        webView.loadHTMLString(html, baseURL: baseURL)
+    }
+}
+
+struct JSONPreview: View {
+    var text: String
+
+    var body: some View {
+        JSONHighlightedText(text: prettyJSON(text))
+    }
+}
+
+private func prettyJSON(_ text: String) -> String {
+    guard let data = text.data(using: .utf8),
+          let object = try? JSONSerialization.jsonObject(with: data),
+          JSONSerialization.isValidJSONObject(object),
+          let prettyData = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
+          let pretty = String(data: prettyData, encoding: .utf8) else {
+        return text
+    }
+    return pretty
+}
+
+struct JSONHighlightedText: UIViewRepresentable {
+    var text: String
+
+    func makeUIView(context: Context) -> UITextView {
+        let view = UITextView()
+        view.isEditable = false
+        view.backgroundColor = .systemBackground
+        view.font = .monospacedSystemFont(ofSize: 14, weight: .regular)
+        view.textContainerInset = UIEdgeInsets(top: 16, left: 12, bottom: 16, right: 12)
+        return view
+    }
+
+    func updateUIView(_ textView: UITextView, context: Context) {
+        textView.attributedText = highlightedJSON(text)
+    }
+
+    private func highlightedJSON(_ value: String) -> NSAttributedString {
+        let attributed = NSMutableAttributedString(
+            string: value,
+            attributes: [
+                .font: UIFont.monospacedSystemFont(ofSize: 14, weight: .regular),
+                .foregroundColor: UIColor.label,
+            ]
+        )
+        let fullRange = NSRange(location: 0, length: attributed.length)
+        let patterns: [(String, UIColor)] = [
+            ("-?\\b\\d+(?:\\.\\d+)?\\b", .systemOrange),
+            ("\\b(?:true|false|null)\\b", .systemPurple),
+            ("\"(?:[^\"\\\\]|\\\\.)*\"", .systemGreen),
+            ("\"(?:[^\"\\\\]|\\\\.)*\"\\s*:", .systemBlue),
+        ]
+        for (pattern, color) in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+            regex.enumerateMatches(in: value, range: fullRange) { match, _, _ in
+                if let range = match?.range {
+                    attributed.addAttribute(.foregroundColor, value: color, range: range)
+                }
+            }
+        }
+        return attributed
+    }
+}
+
+struct ZoomableImageView: UIViewRepresentable {
+    var image: UIImage
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIView(context: Context) -> UIScrollView {
+        let scrollView = UIScrollView()
+        scrollView.delegate = context.coordinator
+        scrollView.minimumZoomScale = 1
+        scrollView.maximumZoomScale = 6
+        scrollView.backgroundColor = .systemBackground
+        let imageView = UIImageView(image: image)
+        imageView.contentMode = .scaleAspectFit
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(imageView)
+        context.coordinator.imageView = imageView
+        NSLayoutConstraint.activate([
+            imageView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+            imageView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+            imageView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+            imageView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
+            imageView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor),
+        ])
+        return scrollView
+    }
+
+    func updateUIView(_ scrollView: UIScrollView, context: Context) {
+        context.coordinator.imageView?.image = image
+    }
+
+    final class Coordinator: NSObject, UIScrollViewDelegate {
+        weak var imageView: UIImageView?
+
+        func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+            imageView
         }
     }
 }
