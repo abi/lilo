@@ -4,6 +4,15 @@ import WebKit
 struct FilesView: View {
     @EnvironmentObject private var model: AppModel
     @State private var expandedPaths: Set<String> = []
+    @State private var searchText = ""
+
+    private var trimmedSearchText: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var isSearching: Bool {
+        !trimmedSearchText.isEmpty
+    }
 
     var body: some View {
         List(selection: Binding(
@@ -21,11 +30,50 @@ struct FilesView: View {
                 }
             }
 
-            Section("Workspace") {
-                WorkspaceTreeList(expandedPaths: $expandedPaths)
+            if isSearching {
+                Section("Apps") {
+                    ForEach(searchApps) { app in
+                        Button {
+                            model.openViewer(app.viewerPath)
+                            searchText = ""
+                        } label: {
+                            SearchResultRow(
+                                title: app.label,
+                                subtitle: app.description ?? app.name,
+                                systemImage: "app.fill"
+                            )
+                        }
+                    }
+                }
+
+                Section("Files") {
+                    ForEach(searchFiles) { entry in
+                        Button {
+                            if let viewerPath = entry.viewerPath {
+                                model.openViewer(viewerPath)
+                                searchText = ""
+                            }
+                        } label: {
+                            SearchResultRow(
+                                title: entry.name,
+                                subtitle: entry.parentRelativePath ?? "workspace",
+                                systemImage: symbol(for: entry.kind)
+                            )
+                        }
+                    }
+                }
+
+                if searchApps.isEmpty && searchFiles.isEmpty {
+                    ContentUnavailableView("No matches", systemImage: "magnifyingglass", description: Text("Try an app, folder, or file name."))
+                }
+            } else {
+                Section("Workspace") {
+                    WorkspaceTreeList(expandedPaths: $expandedPaths)
+                }
             }
         }
         .navigationTitle("Files")
+        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search apps and files")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -42,6 +90,53 @@ struct FilesView: View {
             ViewerScreen(path: route.path)
         }
         .refreshable { await model.refreshWorkspace() }
+    }
+
+    private var searchApps: [WorkspaceAppLink] {
+        let query = trimmedSearchText.localizedLowercase
+        return model.workspaceApps
+            .filter { $0.archived != true }
+            .filter { app in
+                [app.name, app.displayName, app.description].compactMap(\.self).contains {
+                    $0.localizedLowercase.contains(query)
+                }
+            }
+            .sorted { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending }
+    }
+
+    private var searchFiles: [WorkspaceEntry] {
+        let query = trimmedSearchText.localizedLowercase
+        return model.workspaceEntries
+            .filter { $0.archived != true && $0.viewerPath != nil && $0.kind != "app" && $0.kind != "directory" }
+            .filter { entry in
+                [entry.name, entry.relativePath, entry.parentRelativePath].compactMap(\.self).contains {
+                    $0.localizedLowercase.contains(query)
+                }
+            }
+            .sorted { $0.relativePath.localizedCaseInsensitiveCompare($1.relativePath) == .orderedAscending }
+    }
+}
+
+struct SearchResultRow: View {
+    var title: String
+    var subtitle: String
+    var systemImage: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .foregroundStyle(.blue)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.body.weight(.semibold))
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
     }
 }
 
@@ -123,14 +218,6 @@ struct WorkspaceTreeRow: View {
                     Text(entry.name)
                         .lineLimit(1)
                     Spacer()
-                    if let badge = entryBadge(for: entry.kind) {
-                        Text(badge)
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Color(.secondarySystemBackground), in: Capsule())
-                    }
                 }
                 .contentShape(Rectangle())
             }
@@ -165,17 +252,6 @@ private func symbol(for kind: String) -> String {
         default: "doc"
         }
     }
-
-private func entryBadge(for kind: String) -> String? {
-    switch kind {
-    case "markdown": "MD"
-    case "json": "JSON"
-    case "image": "IMG"
-    case "code": "CODE"
-    case "text": "TXT"
-    default: nil
-    }
-}
 
 struct ViewerRoute: Identifiable, Hashable {
     var path: String
@@ -334,15 +410,11 @@ struct MarkdownPreview: View {
 
     var body: some View {
         ScrollView {
-            Text(rendered)
+            MarkdownContentView(markdown: text)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
         }
-    }
-
-    private var rendered: AttributedString {
-        (try? AttributedString(markdown: text)) ?? AttributedString(text)
     }
 }
 

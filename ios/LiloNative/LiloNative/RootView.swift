@@ -16,16 +16,16 @@ struct RootView: View {
                     .tag(MainTab.chats)
 
                     NavigationStack {
-                        NativeHomeView()
-                    }
-                    .tabItem { Label("Home", systemImage: "house") }
-                    .tag(MainTab.home)
-
-                    NavigationStack {
                         FilesView()
                     }
                     .tabItem { Label("Files", systemImage: "folder") }
                     .tag(MainTab.files)
+
+                    NavigationStack {
+                        NativeHomeView()
+                    }
+                    .tabItem { Label("Home", systemImage: "house") }
+                    .tag(MainTab.home)
 
                     NavigationStack {
                         AutomationsView()

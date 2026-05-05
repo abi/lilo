@@ -166,6 +166,12 @@ struct MessageBubble: View {
                 ThinkingBubble(content: message.content)
             } else if message.role == .toolCall || message.role == .toolResult {
                 ToolMessageCard(message: message)
+            } else if message.role == .assistant || message.role == .system {
+                MarkdownContentView(markdown: displayContent)
+                    .textSelection(.enabled)
+                    .padding(12)
+                    .foregroundStyle(.primary)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             } else {
                 Text(displayContent.isEmpty ? " " : displayContent)
                     .textSelection(.enabled)
@@ -371,4 +377,183 @@ func stripAdditionalContext(from content: String) -> String {
         with: ""
     )
     .trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
+struct MarkdownContentView: View {
+    var markdown: String
+
+    private var blocks: [MarkdownBlock] {
+        parseMarkdownBlocks(markdown)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                switch block {
+                case .heading(let level, let text):
+                    Text(inlineMarkdown(text))
+                        .font(headingFont(level))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                case .paragraph(let text):
+                    Text(inlineMarkdown(text))
+                        .font(.body)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                case .bullet(let level, let text):
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("•")
+                            .font(.body.weight(.semibold))
+                            .frame(width: 12 + CGFloat(level) * 14, alignment: .trailing)
+                        Text(inlineMarkdown(text))
+                            .font(.body)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                case .quote(let text):
+                    HStack(alignment: .top, spacing: 10) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.secondary.opacity(0.35))
+                            .frame(width: 3)
+                        Text(inlineMarkdown(text))
+                            .font(.body.italic())
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                case .code(let text):
+                    ScrollView(.horizontal, showsIndicators: true) {
+                        Text(text)
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                            .padding(10)
+                    }
+                    .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color(.separator), lineWidth: 0.5)
+                    }
+                case .rule:
+                    Rectangle()
+                        .fill(Color(.separator))
+                        .frame(height: 1)
+                }
+            }
+        }
+    }
+
+    private func headingFont(_ level: Int) -> Font {
+        switch level {
+        case 1: .title2.weight(.bold)
+        case 2: .title3.weight(.bold)
+        case 3: .headline.weight(.bold)
+        default: .subheadline.weight(.bold)
+        }
+    }
+}
+
+private enum MarkdownBlock {
+    case heading(level: Int, text: String)
+    case paragraph(String)
+    case bullet(level: Int, text: String)
+    case quote(String)
+    case code(String)
+    case rule
+}
+
+private func parseMarkdownBlocks(_ markdown: String) -> [MarkdownBlock] {
+    let lines = markdown.replacingOccurrences(of: "\r\n", with: "\n").split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    var blocks: [MarkdownBlock] = []
+    var paragraph: [String] = []
+    var codeLines: [String] = []
+    var inCodeFence = false
+
+    func flushParagraph() {
+        let text = paragraph.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !text.isEmpty {
+            blocks.append(.paragraph(text))
+        }
+        paragraph.removeAll()
+    }
+
+    for line in lines {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("```") {
+            if inCodeFence {
+                blocks.append(.code(codeLines.joined(separator: "\n")))
+                codeLines.removeAll()
+                inCodeFence = false
+            } else {
+                flushParagraph()
+                inCodeFence = true
+            }
+            continue
+        }
+
+        if inCodeFence {
+            codeLines.append(line)
+            continue
+        }
+
+        if trimmed.isEmpty {
+            flushParagraph()
+            continue
+        }
+
+        if trimmed == "---" || trimmed == "***" || trimmed == "___" {
+            flushParagraph()
+            blocks.append(.rule)
+            continue
+        }
+
+        if let heading = parseHeading(trimmed) {
+            flushParagraph()
+            blocks.append(.heading(level: heading.level, text: heading.text))
+            continue
+        }
+
+        if let bullet = parseBullet(line) {
+            flushParagraph()
+            blocks.append(.bullet(level: bullet.level, text: bullet.text))
+            continue
+        }
+
+        if trimmed.hasPrefix(">") {
+            flushParagraph()
+            blocks.append(.quote(String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces)))
+            continue
+        }
+
+        paragraph.append(trimmed)
+    }
+
+    if inCodeFence {
+        blocks.append(.code(codeLines.joined(separator: "\n")))
+    }
+    flushParagraph()
+    return blocks.isEmpty ? [.paragraph(markdown)] : blocks
+}
+
+private func parseHeading(_ line: String) -> (level: Int, text: String)? {
+    let hashes = line.prefix { $0 == "#" }.count
+    guard hashes > 0, hashes <= 6, line.dropFirst(hashes).first == " " else {
+        return nil
+    }
+    return (hashes, String(line.dropFirst(hashes)).trimmingCharacters(in: .whitespaces))
+}
+
+private func parseBullet(_ line: String) -> (level: Int, text: String)? {
+    let leadingSpaces = line.prefix { $0 == " " }.count
+    let trimmed = line.trimmingCharacters(in: .whitespaces)
+    for marker in ["- ", "* ", "+ "] {
+        if trimmed.hasPrefix(marker) {
+            return (leadingSpaces / 2, String(trimmed.dropFirst(marker.count)))
+        }
+    }
+    if let match = trimmed.firstMatch(of: /^\d+\.\s+(.+)$/) {
+        return (leadingSpaces / 2, String(match.1))
+    }
+    return nil
+}
+
+private func inlineMarkdown(_ text: String) -> AttributedString {
+    var options = AttributedString.MarkdownParsingOptions()
+    options.interpretedSyntax = .inlineOnlyPreservingWhitespace
+    return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
 }
