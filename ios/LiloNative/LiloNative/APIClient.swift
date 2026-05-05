@@ -1,0 +1,201 @@
+import Foundation
+
+final class APIClient: @unchecked Sendable {
+    static let shared = APIClient()
+
+    private let decoder: JSONDecoder
+    private let encoder: JSONEncoder
+    private let session: URLSession
+
+    private init() {
+        decoder = JSONDecoder()
+        encoder = JSONEncoder()
+        let configuration = URLSessionConfiguration.default
+        configuration.httpCookieAcceptPolicy = .always
+        configuration.httpShouldSetCookies = true
+        configuration.httpCookieStorage = .shared
+        session = URLSession(configuration: configuration)
+    }
+
+    var baseURLString: String {
+        get {
+            UserDefaults.standard.string(forKey: "lilo.backendURL") ?? "http://localhost:8787"
+        }
+        set {
+            UserDefaults.standard.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "lilo.backendURL")
+        }
+    }
+
+    var baseURL: URL? {
+        URL(string: baseURLString.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    func url(path: String) throws -> URL {
+        guard let baseURL else { throw LiloAPIError.invalidBaseURL }
+        return baseURL.appending(path: path)
+    }
+
+    func webSocketURL(chatId: String) throws -> URL {
+        guard var components = URLComponents(url: try url(path: "/ws/chats/\(chatId)"), resolvingAgainstBaseURL: false) else {
+            throw LiloAPIError.invalidBaseURL
+        }
+        if components.scheme == "https" {
+            components.scheme = "wss"
+        } else {
+            components.scheme = "ws"
+        }
+        guard let url = components.url else { throw LiloAPIError.invalidBaseURL }
+        return url
+    }
+
+    func absoluteURL(for pathOrURL: String) -> URL? {
+        if let url = URL(string: pathOrURL), url.scheme != nil {
+            return url
+        }
+        guard let baseURL else { return nil }
+        var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+        components?.path = pathOrURL.hasPrefix("/") ? pathOrURL : "/\(pathOrURL)"
+        components?.query = nil
+        components?.fragment = nil
+        return components?.url
+    }
+
+    func request<T: Decodable>(
+        _ path: String,
+        method: String = "GET",
+        body: Encodable? = nil
+    ) async throws -> T {
+        var request = URLRequest(url: try url(path: path))
+        request.httpMethod = method
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try encoder.encode(AnyEncodable(body))
+        }
+        return try await decode(request)
+    }
+
+    func requestNoBody(
+        _ path: String,
+        method: String = "POST"
+    ) async throws {
+        var request = URLRequest(url: try url(path: path))
+        request.httpMethod = method
+        let (_, response) = try await session.data(for: request)
+        try validate(response: response, data: Data())
+    }
+
+    func rawData(_ path: String) async throws -> (Data, String?) {
+        var request = URLRequest(url: try url(path: path))
+        request.setValue("*/*", forHTTPHeaderField: "Accept")
+        let (data, response) = try await session.data(for: request)
+        try validate(response: response, data: data)
+        let mimeType = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type")
+        return (data, mimeType)
+    }
+
+    func writeWorkspaceFile(_ path: String, text: String) async throws {
+        struct Body: Encodable { var text: String }
+        var request = URLRequest(url: try url(path: path))
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(Body(text: text))
+        let (data, response) = try await session.data(for: request)
+        try validate(response: response, data: data)
+    }
+
+    func login(password: String) async throws {
+        struct Body: Encodable { var password: String }
+        var request = URLRequest(url: try url(path: "/auth/login"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(Body(password: password))
+        let (data, response) = try await session.data(for: request)
+        try validate(response: response, data: data)
+    }
+
+    func upload(chatId: String, files: [PickedFile]) async throws -> [String] {
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var request = URLRequest(url: try url(path: "/chats/\(chatId)/uploads"))
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.httpBody = MultipartFormData(boundary: boundary, files: files).data
+        let response: UploadIdsResponse = try await decode(request)
+        return response.uploadIds
+    }
+
+    func configureTelegramWebhook() async throws -> TelegramWebhookSetupResponse {
+        try await request("/api/channels/telegram/webhook", method: "POST")
+    }
+
+    func createResendWebhook() async throws -> ResendWebhookSetupResponse {
+        try await request("/api/channels/email/resend-webhook", method: "POST")
+    }
+
+    private func decode<T: Decodable>(_ request: URLRequest) async throws -> T {
+        let (data, response) = try await session.data(for: request)
+        try validate(response: response, data: data)
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            throw LiloAPIError.invalidResponse
+        }
+    }
+
+    private func validate(response: URLResponse, data: Data) throws {
+        guard let http = response as? HTTPURLResponse else { throw LiloAPIError.invalidResponse }
+        if http.statusCode == 401 {
+            throw LiloAPIError.unauthorized
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            if let payload = try? decoder.decode(BackendErrorResponse.self, from: data),
+               let error = payload.error {
+                let message = payload.details.map { "\(error): \($0)" } ?? error
+                throw LiloAPIError.backend(message)
+            }
+            throw LiloAPIError.backend("Request failed with status \(http.statusCode)")
+        }
+    }
+}
+
+private struct AnyEncodable: Encodable {
+    private let encode: (Encoder) throws -> Void
+
+    init(_ wrapped: Encodable) {
+        encode = wrapped.encode
+    }
+
+    func encode(to encoder: Encoder) throws {
+        try encode(encoder)
+    }
+}
+
+struct PickedFile: Identifiable, Hashable {
+    var id = UUID()
+    var name: String
+    var mimeType: String
+    var data: Data
+}
+
+private struct MultipartFormData {
+    var boundary: String
+    var files: [PickedFile]
+
+    var data: Data {
+        var body = Data()
+        for file in files {
+            body.append("--\(boundary)\r\n")
+            body.append("Content-Disposition: form-data; name=\"files\"; filename=\"\(file.name)\"\r\n")
+            body.append("Content-Type: \(file.mimeType)\r\n\r\n")
+            body.append(file.data)
+            body.append("\r\n")
+        }
+        body.append("--\(boundary)--\r\n")
+        return body
+    }
+}
+
+private extension Data {
+    mutating func append(_ string: String) {
+        append(Data(string.utf8))
+    }
+}
