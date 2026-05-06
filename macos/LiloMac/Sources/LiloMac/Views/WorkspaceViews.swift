@@ -420,12 +420,21 @@ struct WebView: NSViewRepresentable {
         }
         if context.coordinator.lastRequestedURL != url {
             context.coordinator.lastRequestedURL = url
-            var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
-            request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
-            request.setValue("no-cache", forHTTPHeaderField: "Pragma")
-            request.setValue("1", forHTTPHeaderField: "X-Lilo-Native-Viewer")
-            request.setValue("LiloNativeMac", forHTTPHeaderField: "User-Agent")
-            webView.load(request)
+            let requestedURL = url
+            Task { @MainActor in
+                await APIClient.shared.syncCookiesToWebKit(for: requestedURL)
+                guard context.coordinator.lastRequestedURL == requestedURL else { return }
+
+                var request = URLRequest(url: requestedURL, cachePolicy: .reloadIgnoringLocalCacheData)
+                request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
+                request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+                request.setValue("1", forHTTPHeaderField: "X-Lilo-Native-Viewer")
+                request.setValue("LiloNativeMac", forHTTPHeaderField: "User-Agent")
+                if let cookieHeader = APIClient.shared.cookieHeader(for: requestedURL) {
+                    request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+                }
+                webView.load(request)
+            }
         }
     }
 

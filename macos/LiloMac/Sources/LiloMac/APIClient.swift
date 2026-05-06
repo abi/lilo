@@ -1,4 +1,5 @@
 import Foundation
+import WebKit
 
 final class APIClient: @unchecked Sendable {
     static let shared = APIClient()
@@ -91,6 +92,27 @@ final class APIClient: @unchecked Sendable {
         try validate(response: response, data: data)
         let mimeType = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type")
         return (data, mimeType)
+    }
+
+    @MainActor
+    func syncCookiesToWebKit(for url: URL) async {
+        let cookies = HTTPCookieStorage.shared.cookies(for: url) ?? []
+        guard !cookies.isEmpty else { return }
+
+        let cookieStore = WKWebsiteDataStore.default().httpCookieStore
+        for cookie in cookies {
+            await withCheckedContinuation { continuation in
+                cookieStore.setCookie(cookie) {
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    func cookieHeader(for url: URL) -> String? {
+        let cookies = HTTPCookieStorage.shared.cookies(for: url) ?? []
+        guard !cookies.isEmpty else { return nil }
+        return HTTPCookie.requestHeaderFields(with: cookies)["Cookie"]
     }
 
     func writeWorkspaceFile(_ path: String, text: String) async throws {
