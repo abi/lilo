@@ -11,6 +11,11 @@ let package = Package(
         .executable(name: "LiloMac", targets: ["LiloMac"]),
     ],
     targets: [
-        .executableTarget(name: "LiloMac"),
+        .executableTarget(
+            name: "LiloMac",
+            resources: [
+                .process("Resources"),
+            ]
+        ),
     ]
 )

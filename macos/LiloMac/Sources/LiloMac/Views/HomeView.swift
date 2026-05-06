@@ -3,56 +3,84 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var model: AppModel
     @Binding var selection: AppSection
+    @State private var isAppReady = false
 
     var body: some View {
-        Group {
-            if let path = model.selectedViewerPath, path.starts(with: "/workspace/") {
-                ViewerScreen(path: path)
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
-                        Text("Home")
-                            .font(.largeTitle.weight(.bold))
+        let appURL = selectedAppURL
+        ZStack {
+            HomeDashboardContent(selection: $selection)
+                .opacity(appURL != nil && isAppReady ? 0 : 1)
+                .allowsHitTesting(appURL == nil || !isAppReady)
 
-                        SectionHeader("Apps")
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: 14)], spacing: 14) {
-                            ForEach(model.workspaceApps.filter { $0.archived != true }) { app in
-                                Button {
-                                    selection = .home
-                                    model.openViewer(app.viewerPath)
-                                } label: {
-                                    VStack(spacing: 10) {
-                                        AppIcon(app: app, size: 54)
-                                        Text(app.label)
-                                            .font(.callout.weight(.medium))
-                                            .lineLimit(1)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(12)
-                                }
-                                .buttonStyle(.plain)
-                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            }
-                        }
-
-                        SectionHeader("Recent chats")
-                        VStack(spacing: 8) {
-                            ForEach(model.chats.prefix(6)) { chat in
-                                Button {
-                                    Task { await model.selectChat(chat.id) }
-                                } label: {
-                                    ChatHistoryRow(chat: chat)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                    .padding(24)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
+            WebView(url: appURL, isReady: $isAppReady)
+                .opacity(appURL != nil && isAppReady ? 1 : 0)
+                .allowsHitTesting(appURL != nil && isAppReady)
+        }
+        .animation(.easeOut(duration: 0.12), value: isAppReady)
+        .onChange(of: selectedAppPath) { _, _ in
+            isAppReady = false
         }
         .navigationTitle("Home")
+    }
+
+    private var selectedAppPath: String? {
+        guard let path = model.selectedViewerPath, path.starts(with: "/workspace/") else {
+            return nil
+        }
+        return viewerTargetPath(path)
+    }
+
+    private var selectedAppURL: URL? {
+        selectedAppPath.flatMap { APIClient.shared.absoluteURL(for: $0) }
+    }
+}
+
+struct HomeDashboardContent: View {
+    @EnvironmentObject private var model: AppModel
+    @Binding var selection: AppSection
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                Text("Home")
+                    .font(.largeTitle.weight(.bold))
+
+                SectionHeader("Apps")
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: 14)], spacing: 14) {
+                    ForEach(model.workspaceApps.filter { $0.archived != true }) { app in
+                        Button {
+                            selection = .home
+                            model.openViewer(app.viewerPath)
+                        } label: {
+                            VStack(spacing: 10) {
+                                AppIcon(app: app, size: 54)
+                                Text(app.label)
+                                    .font(.callout.weight(.medium))
+                                    .lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(12)
+                        }
+                        .buttonStyle(.plain)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                }
+
+                SectionHeader("Recent chats")
+                VStack(spacing: 8) {
+                    ForEach(model.chats.prefix(6)) { chat in
+                        Button {
+                            Task { await model.selectChat(chat.id) }
+                        } label: {
+                            ChatHistoryRow(chat: chat)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 

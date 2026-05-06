@@ -13,6 +13,8 @@ final class APIClient: @unchecked Sendable {
         configuration.httpCookieAcceptPolicy = .always
         configuration.httpShouldSetCookies = true
         configuration.httpCookieStorage = .shared
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.urlCache = nil
         session = URLSession(configuration: configuration)
     }
 
@@ -73,8 +75,18 @@ final class APIClient: @unchecked Sendable {
     }
 
     func rawData(_ path: String) async throws -> (Data, String?) {
-        var request = URLRequest(url: try url(path: path))
+        var resourceURL = try url(path: path)
+        if var components = URLComponents(url: resourceURL, resolvingAgainstBaseURL: false) {
+            var queryItems = components.queryItems ?? []
+            queryItems.append(URLQueryItem(name: "_liloNativeCacheBust", value: String(Int(Date().timeIntervalSince1970 * 1000))))
+            components.queryItems = queryItems
+            resourceURL = components.url ?? resourceURL
+        }
+        var request = URLRequest(url: resourceURL, cachePolicy: .reloadIgnoringLocalCacheData)
         request.setValue("*/*", forHTTPHeaderField: "Accept")
+        request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+        request.setValue("1", forHTTPHeaderField: "X-Lilo-Native-Viewer")
         let (data, response) = try await session.data(for: request)
         try validate(response: response, data: data)
         let mimeType = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type")

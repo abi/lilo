@@ -50,6 +50,12 @@ struct SidebarView: View {
         List(AppSection.allCases, selection: $selection) { section in
             Label(section.label, systemImage: section.symbol)
                 .tag(section)
+                .onTapGesture(count: 2) {
+                    if section == .home {
+                        selection = .home
+                        model.clearViewer()
+                    }
+                }
         }
         .listStyle(.sidebar)
         .navigationTitle("Lilo")
@@ -80,7 +86,10 @@ struct WorkspaceColumn: View {
             case .files:
                 HSplitView {
                     FilesView()
-                        .frame(minWidth: 220, idealWidth: 280)
+                        .frame(minWidth: 292, idealWidth: 300, maxWidth: 320)
+                        .transaction { transaction in
+                            transaction.animation = nil
+                        }
                     ViewerPane()
                         .frame(minWidth: 420)
                 }

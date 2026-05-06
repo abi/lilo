@@ -1900,7 +1900,7 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
       }
 
       const headers = workspaceFileHeaders(absolutePath, info);
-      if (isWorkspaceFileNotModified(c.req.raw, info)) {
+      if (!isNativeViewerRequest(c.req.raw) && isWorkspaceFileNotModified(c.req.raw, info)) {
         return new Response(null, {
           status: 304,
           headers,
@@ -2589,7 +2589,7 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
       }
 
       const headers = workspaceFileHeaders(absolutePath, info);
-      if (isWorkspaceFileNotModified(c.req.raw, info)) {
+      if (!isNativeViewerRequest(c.req.raw) && isWorkspaceFileNotModified(c.req.raw, info)) {
         return new Response(null, {
           status: 304,
           headers,

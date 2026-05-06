@@ -183,8 +183,13 @@ final class AppModel: ObservableObject {
     }
 
     func openViewer(_ path: String) {
+        guard selectedViewerPath != path else { return }
         selectedViewerPath = path
         selectedTab = .files
+    }
+
+    func clearViewer() {
+        selectedViewerPath = nil
     }
 
     func refreshAutomations() async {

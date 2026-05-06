@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import PDFKit
 
 struct FilesView: View {
     @EnvironmentObject private var model: AppModel
@@ -51,6 +52,9 @@ struct FilesView: View {
         }
         .searchable(text: $searchText, prompt: "Search workspace")
         .navigationTitle("Files")
+        .transaction { transaction in
+            transaction.animation = nil
+        }
     }
 }
 
@@ -153,6 +157,7 @@ struct ViewerScreen: View {
                 ContentUnavailableView("Cannot open item", systemImage: "exclamationmark.triangle")
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(targetPath.split(separator: "/").last.map(String.init) ?? "Viewer")
     }
 }
@@ -164,75 +169,142 @@ struct NativeFileViewer: View {
     @State private var text = ""
     @State private var isDirty = false
     @State private var isLoading = true
+    @State private var loadedPath: String?
+    @State private var loadingPath: String?
+    @State private var activeLoadID: UUID?
     @State private var errorMessage: String?
 
     var body: some View {
         Group {
-            if isLoading {
-                ProgressView("Loading...")
+            if let loadedPath {
+                preview(for: loadedPath)
+                    .allowsHitTesting(loadedPath == path)
+                    .overlay(alignment: .topTrailing) {
+                        if loadedPath != path && isLoading {
+                            ProgressView()
+                                .controlSize(.small)
+                                .padding(10)
+                                .background(.regularMaterial, in: Capsule())
+                                .padding()
+                        }
+                    }
+            } else if isLoading {
+                ProgressView()
+                    .controlSize(.small)
             } else if let errorMessage {
                 ContentUnavailableView("Could not open file", systemImage: "exclamationmark.triangle", description: Text(errorMessage))
-            } else if isEditableTextLike {
-                TextEditor(text: Binding(
-                    get: { isJSON ? prettyJSON(text) : text },
-                    set: {
-                        text = $0
-                        isDirty = true
-                    }
-                ))
-                .font(.system(.body, design: .monospaced))
-                .scrollContentBackground(.hidden)
-                .padding()
-            } else if mimeType.starts(with: "image/"), let image = NSImage(data: data) {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .padding()
             } else {
-                ContentUnavailableView("Preview unavailable", systemImage: "doc", description: Text("\(data.count) bytes"))
+                ProgressView()
+                    .controlSize(.small)
             }
         }
         .toolbar {
             ToolbarItemGroup {
-                if isEditableTextLike {
+                if canSaveCurrentFile {
                     Button("Save") {
                         Task { await save() }
                     }
                     .disabled(!isDirty)
                 }
                 Button {
-                    Task { await load() }
+                    Task { await load(force: true) }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
             }
         }
-        .task(id: path) { await load() }
+        .task(id: path) { await loadIfNeeded() }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var isJSON: Bool {
-        path.hasSuffix(".json") || mimeType.contains("json")
+    @ViewBuilder
+    private func preview(for previewPath: String) -> some View {
+        if isMarkdown(previewPath) {
+            MarkdownPreview(text: text)
+        } else if isHTML(previewPath) {
+            HTMLPreview(html: text, baseURL: APIClient.shared.absoluteURL(for: previewPath))
+        } else if isJSON(previewPath) {
+            JSONPreview(text: text)
+        } else if isEditableTextLike(previewPath) {
+            TextEditor(text: Binding(
+                get: { text },
+                set: {
+                    text = $0
+                    isDirty = true
+                }
+            ))
+            .font(.system(.body, design: .monospaced))
+            .scrollContentBackground(.hidden)
+            .padding()
+        } else if mimeType.starts(with: "image/"), let image = NSImage(data: data) {
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFit()
+                .padding()
+        } else if mimeType.contains("pdf") {
+            PDFPreview(data: data)
+        } else {
+            ContentUnavailableView("Preview unavailable", systemImage: "doc", description: Text("\(data.count) bytes"))
+        }
     }
 
-    private var isEditableTextLike: Bool {
+    private func isJSON(_ previewPath: String) -> Bool {
+        previewPath.localizedCaseInsensitiveContains(".json") || mimeType.contains("json")
+    }
+
+    private func isMarkdown(_ previewPath: String) -> Bool {
+        previewPath.localizedCaseInsensitiveContains(".md") || mimeType.contains("markdown")
+    }
+
+    private func isHTML(_ previewPath: String) -> Bool {
+        previewPath.localizedCaseInsensitiveContains(".html") || mimeType.contains("html")
+    }
+
+    private func isEditableTextLike(_ previewPath: String) -> Bool {
         mimeType.starts(with: "text/")
             || mimeType.contains("json")
-            || [".md", ".json", ".txt", ".html", ".css", ".js", ".ts", ".tsx"].contains { path.hasSuffix($0) }
+            || [".md", ".json", ".txt", ".html", ".css", ".js", ".ts", ".tsx"].contains { previewPath.hasSuffix($0) }
     }
 
-    private func load() async {
-        isLoading = true
+    private var canSaveCurrentFile: Bool {
+        guard loadedPath == path else { return false }
+        return isEditableTextLike(path) && !isMarkdown(path) && !isHTML(path) && !isJSON(path)
+    }
+
+    private func loadIfNeeded() async {
+        guard loadedPath != path, loadingPath != path else { return }
+        await load(force: false)
+    }
+
+    private func load(force: Bool) async {
+        guard force || (loadedPath != path && loadingPath != path) else { return }
+        let requestedPath = path
+        let loadID = UUID()
+        activeLoadID = loadID
+        loadingPath = requestedPath
+        if loadedPath != requestedPath {
+            isLoading = true
+        }
         errorMessage = nil
         do {
-            let result = try await APIClient.shared.rawData(path)
+            let result = try await APIClient.shared.rawData(requestedPath)
+            guard activeLoadID == loadID && path == requestedPath else { return }
             data = result.0
             mimeType = result.1 ?? "application/octet-stream"
             text = String(data: result.0, encoding: .utf8) ?? ""
+            loadedPath = requestedPath
             isDirty = false
         } catch {
-            errorMessage = error.localizedDescription
+            guard activeLoadID == loadID && path == requestedPath else { return }
+            if loadedPath == nil {
+                errorMessage = error.localizedDescription
+            }
         }
-        isLoading = false
+        if activeLoadID == loadID && loadingPath == requestedPath {
+            loadingPath = nil
+            activeLoadID = nil
+            isLoading = false
+        }
     }
 
     private func save() async {
@@ -245,8 +317,26 @@ struct NativeFileViewer: View {
     }
 }
 
-struct WebView: NSViewRepresentable {
-    var url: URL
+struct MarkdownPreview: View {
+    var text: String
+
+    var body: some View {
+        ScrollView {
+            MarkdownContentView(markdown: text)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+        }
+    }
+}
+
+struct HTMLPreview: NSViewRepresentable {
+    var html: String
+    var baseURL: URL?
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
 
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -255,8 +345,111 @@ struct WebView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        if webView.url != url {
-            webView.load(URLRequest(url: url))
+        let fingerprint = "\(html.hashValue):\(baseURL?.absoluteString ?? "")"
+        if context.coordinator.lastFingerprint != fingerprint {
+            context.coordinator.lastFingerprint = fingerprint
+            webView.loadHTMLString(html, baseURL: baseURL)
+        }
+    }
+
+    final class Coordinator {
+        var lastFingerprint: String?
+    }
+}
+
+struct JSONPreview: View {
+    var text: String
+
+    var body: some View {
+        ScrollView([.vertical, .horizontal]) {
+            Text(prettyJSON(text))
+                .font(.system(.body, design: .monospaced))
+                .textSelection(.enabled)
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+struct PDFPreview: NSViewRepresentable {
+    var data: Data
+
+    func makeNSView(context: Context) -> PDFView {
+        let view = PDFView()
+        view.autoScales = true
+        view.displayMode = .singlePageContinuous
+        view.displayDirection = .vertical
+        return view
+    }
+
+    func updateNSView(_ view: PDFView, context: Context) {
+        if view.document?.dataRepresentation() != data {
+            view.document = PDFDocument(data: data)
+        }
+    }
+}
+
+struct WebView: NSViewRepresentable {
+    var url: URL?
+    @Binding var isReady: Bool
+
+    init(url: URL?, isReady: Binding<Bool> = .constant(true)) {
+        self.url = url
+        _isReady = isReady
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeNSView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.customUserAgent = "LiloNativeMac"
+        webView.navigationDelegate = context.coordinator
+        webView.setValue(false, forKey: "drawsBackground")
+        return webView
+    }
+
+    func updateNSView(_ webView: WKWebView, context: Context) {
+        context.coordinator.parent = self
+        guard let url else {
+            context.coordinator.lastRequestedURL = nil
+            return
+        }
+        if context.coordinator.lastRequestedURL != url {
+            context.coordinator.lastRequestedURL = url
+            var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
+            request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
+            request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+            request.setValue("1", forHTTPHeaderField: "X-Lilo-Native-Viewer")
+            request.setValue("LiloNativeMac", forHTTPHeaderField: "User-Agent")
+            webView.load(request)
+        }
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        var parent: WebView
+        var lastRequestedURL: URL?
+
+        init(_ parent: WebView) {
+            self.parent = parent
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 120_000_000)
+                self?.parent.isReady = true
+            }
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            parent.isReady = true
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            parent.isReady = true
         }
     }
 }
@@ -276,7 +469,7 @@ private func isContainer(_ entry: WorkspaceEntry) -> Bool {
     entry.kind == "directory" || entry.kind == "app"
 }
 
-private func viewerTargetPath(_ rawPath: String) -> String {
+func viewerTargetPath(_ rawPath: String) -> String {
     guard rawPath.starts(with: "/?") || rawPath.starts(with: "?"),
           let components = URLComponents(string: rawPath),
           let encodedViewer = components.queryItems?.first(where: { $0.name == "viewer" })?.value,
