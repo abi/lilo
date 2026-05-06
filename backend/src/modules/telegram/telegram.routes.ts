@@ -465,6 +465,10 @@ const sendTelegramReply = async (chatId: number, body: string): Promise<void> =>
     await telegramApiFetch(botToken, "sendMessage", {
       chat_id: chatId,
       text: body,
+      parse_mode: "HTML",
+      link_preview_options: {
+        is_disabled: true,
+      },
     });
   } catch (error) {
     captureBackendException(error, {
@@ -484,6 +488,7 @@ const sendTelegramReply = async (chatId: number, body: string): Promise<void> =>
 const sendTelegramReplyChunked = async (chatId: number, body: string): Promise<number> => {
   const formattedBody = formatMessagingOutput(body, {
     publicAppUrl: backendConfig.server.publicAppUrl,
+    target: "telegram",
   });
   const chunks = splitTelegramReply(formattedBody);
 

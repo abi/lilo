@@ -2,6 +2,7 @@ const WORKSPACE_FILE_PREFIX = "/workspace-file/";
 
 interface FormatMessagingOutputOptions {
   publicAppUrl?: string | null;
+  target?: "plain" | "telegram";
 }
 
 const isFenceLine = (line: string): boolean => /^(```|~~~)/.test(line.trim());
@@ -166,10 +167,99 @@ const formatWorkspaceFileLinksForMessaging = (
   );
 };
 
+const escapeTelegramHtml = (value: string): string =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+const formatTelegramInlineMarkdown = (value: string): string => {
+  let output = "";
+  let index = 0;
+
+  while (index < value.length) {
+    const codeStart = value.indexOf("`", index);
+    if (codeStart < 0) {
+      output += formatTelegramInlineText(value.slice(index));
+      break;
+    }
+
+    output += formatTelegramInlineText(value.slice(index, codeStart));
+    const codeEnd = value.indexOf("`", codeStart + 1);
+    if (codeEnd < 0) {
+      output += escapeTelegramHtml(value.slice(codeStart));
+      break;
+    }
+
+    output += `<code>${escapeTelegramHtml(value.slice(codeStart + 1, codeEnd))}</code>`;
+    index = codeEnd + 1;
+  }
+
+  return output;
+};
+
+const formatTelegramInlineText = (value: string): string =>
+  escapeTelegramHtml(value)
+    .replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\*\*([^*\n][\s\S]*?[^*\n])\*\*/g, "<b>$1</b>")
+    .replace(/__([^_\n][\s\S]*?[^_\n])__/g, "<u>$1</u>")
+    .replace(/~~([^~\n][\s\S]*?[^~\n])~~/g, "<s>$1</s>")
+    .replace(/\*([^*\n][^*\n]*?[^*\n])\*/g, "<b>$1</b>")
+    .replace(/_([^_\n][^_\n]*?[^_\n])_/g, "<i>$1</i>")
+    .replace(/\|\|([^|\n][\s\S]*?[^|\n])\|\|/g, "<tg-spoiler>$1</tg-spoiler>");
+
+const formatTelegramHtmlForMessaging = (body: string): string => {
+  const lines = body.replace(/\r\n/g, "\n").split("\n");
+  const output: string[] = [];
+  let inFence = false;
+  let fenceLines: string[] = [];
+
+  const flushFence = () => {
+    output.push(`<pre>${escapeTelegramHtml(fenceLines.join("\n"))}</pre>`);
+    fenceLines = [];
+  };
+
+  for (const line of lines) {
+    if (isFenceLine(line)) {
+      if (inFence) {
+        flushFence();
+        inFence = false;
+      } else {
+        inFence = true;
+        fenceLines = [];
+      }
+      continue;
+    }
+
+    if (inFence) {
+      fenceLines.push(line);
+      continue;
+    }
+
+    const heading = line.match(/^\s{0,3}#{1,6}\s+(.+)$/);
+    if (heading) {
+      output.push(`<b>${formatTelegramInlineMarkdown(heading[1].trim())}</b>`);
+      continue;
+    }
+
+    output.push(formatTelegramInlineMarkdown(line));
+  }
+
+  if (inFence) {
+    flushFence();
+  }
+
+  return output.join("\n");
+};
+
 export const formatMessagingOutput = (
   body: string,
   options: FormatMessagingOutputOptions = {},
 ): string => {
   const withoutTables = formatMarkdownTablesForMessaging(body);
-  return formatWorkspaceFileLinksForMessaging(withoutTables, options).trim();
+  const withWorkspaceLinks = formatWorkspaceFileLinksForMessaging(withoutTables, options);
+  if (options.target === "telegram") {
+    return formatTelegramHtmlForMessaging(withWorkspaceLinks).trim();
+  }
+  return withWorkspaceLinks.trim();
 };
