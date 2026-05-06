@@ -19,12 +19,22 @@ pnpm-debug.log*
 
 # OS / editor
 .DS_Store
+**/.DS_Store
 Thumbs.db
 .vscode/
 .claude/
 .idea/
+
+# Swift / macOS development
+.build/
+**/.build/
+.swiftpm/
+**/.swiftpm/
+Package.resolved
 DerivedData/
+**/DerivedData/
 build/
+**/build/
 *.xcresult
 *.xcarchive
 *.dSYM
