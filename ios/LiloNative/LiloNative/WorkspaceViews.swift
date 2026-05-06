@@ -34,8 +34,8 @@ struct FilesView: View {
                 Section("Apps") {
                     ForEach(searchApps) { app in
                         Button {
-                            model.openViewer(app.viewerPath)
                             searchText = ""
+                            expandedPaths.insert(app.name)
                         } label: {
                             SearchResultRow(
                                 title: app.label,
@@ -195,9 +195,6 @@ struct WorkspaceTreeRow: View {
                         expandedPaths.remove(entry.relativePath)
                     } else {
                         expandedPaths.insert(entry.relativePath)
-                    }
-                    if entry.kind == "app", let viewerPath = entry.viewerPath {
-                        model.openViewer(viewerPath)
                     }
                 } else if let viewerPath = entry.viewerPath {
                     model.openViewer(viewerPath)

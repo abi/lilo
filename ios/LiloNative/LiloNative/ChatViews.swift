@@ -3,19 +3,32 @@ import SwiftUI
 struct ChatListView: View {
     @EnvironmentObject private var model: AppModel
 
+    private var groups: [ChatDateGroup] {
+        groupChatsByDate(model.chats)
+    }
+
     var body: some View {
         List {
             if model.chats.isEmpty {
                 ContentUnavailableView("No chats yet", systemImage: "bubble.left", description: Text("Start a new chat with Lilo."))
             } else {
-                ForEach(model.chats) { chat in
-                    NavigationLink {
-                        ChatDetailView(chatId: chat.id)
-                    } label: {
-                        ChatRow(chat: chat)
+                ForEach(groups) { group in
+                    Section {
+                        ForEach(group.chats) { chat in
+                            NavigationLink {
+                                ChatDetailView(chatId: chat.id)
+                            } label: {
+                                ChatRow(chat: chat)
+                            }
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                        }
+                    } header: {
+                        Text(group.label)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.secondary)
+                            .tracking(1.2)
                     }
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                 }
             }
         }
@@ -60,7 +73,6 @@ struct ChatRow: View {
                     } else {
                         Text(relativeDate(chat.updatedAt))
                     }
-                    Text(chat.modelId)
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -80,6 +92,7 @@ struct ChatDetailView: View {
     @EnvironmentObject private var model: AppModel
     var chatId: String
     @State private var showFiles = false
+    @State private var showCamera = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -99,17 +112,24 @@ struct ChatDetailView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal)
                         }
+                        Color.clear
+                            .frame(height: 1)
+                            .id(ChatBottomAnchor.id)
                     }
                     .padding()
                 }
+                .task(id: model.selectedChat?.id) {
+                    try? await Task.sleep(nanoseconds: 120_000_000)
+                    proxy.scrollTo(ChatBottomAnchor.id, anchor: .bottom)
+                }
                 .onChange(of: model.selectedChat?.messages.last?.content) { _, _ in
-                    if let id = model.selectedChat?.messages.last?.id {
-                        withAnimation { proxy.scrollTo(id, anchor: .bottom) }
+                    if model.selectedChat?.id == chatId {
+                        withAnimation { proxy.scrollTo(ChatBottomAnchor.id, anchor: .bottom) }
                     }
                 }
             }
 
-            ComposerView(showFiles: $showFiles)
+            ComposerView(showFiles: $showFiles, showCamera: $showCamera)
         }
         .navigationTitle(displayChatTitle(model.selectedChat?.title))
         .navigationBarTitleDisplayMode(.inline)
@@ -141,12 +161,21 @@ struct ChatDetailView: View {
                 model.attachments.append(contentsOf: files)
             }
         }
+        .sheet(isPresented: $showCamera) {
+            CameraPicker { file in
+                model.attachments.append(file)
+            }
+        }
         .task {
             if model.selectedChat?.id != chatId {
                 await model.selectChat(chatId)
             }
         }
     }
+}
+
+private enum ChatBottomAnchor {
+    static let id = "chat-bottom-anchor"
 }
 
 struct MessageBubble: View {
@@ -302,6 +331,7 @@ struct ToolBlock: View {
 struct ComposerView: View {
     @EnvironmentObject private var model: AppModel
     @Binding var showFiles: Bool
+    @Binding var showCamera: Bool
     @FocusState private var isComposerFocused: Bool
 
     var body: some View {
@@ -325,6 +355,13 @@ struct ComposerView: View {
                     showFiles = true
                 } label: {
                     Image(systemName: "paperclip")
+                        .font(.title3)
+                }
+
+                Button {
+                    showCamera = true
+                } label: {
+                    Image(systemName: "camera.fill")
                         .font(.title3)
                 }
 
@@ -380,6 +417,7 @@ func stripAdditionalContext(from content: String) -> String {
 }
 
 struct MarkdownContentView: View {
+    @EnvironmentObject private var model: AppModel
     var markdown: String
 
     private var blocks: [MarkdownBlock] {
@@ -436,6 +474,13 @@ struct MarkdownContentView: View {
                 }
             }
         }
+        .environment(\.openURL, OpenURLAction { url in
+            if let viewerPath = workspaceViewerPath(from: url) {
+                model.openViewer(viewerPath)
+                return .handled
+            }
+            return .systemAction
+        })
     }
 
     private func headingFont(_ level: Int) -> Font {
@@ -556,4 +601,76 @@ private func inlineMarkdown(_ text: String) -> AttributedString {
     var options = AttributedString.MarkdownParsingOptions()
     options.interpretedSyntax = .inlineOnlyPreservingWhitespace
     return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
+}
+
+private func workspaceViewerPath(from url: URL) -> String? {
+    let raw = url.absoluteString.removingPercentEncoding ?? url.absoluteString
+    let path = url.path.removingPercentEncoding ?? url.path
+
+    for value in [path, raw] {
+        if value.starts(with: "/workspace-file/") || value.starts(with: "/workspace/") {
+            return value
+        }
+    }
+
+    if url.scheme == nil {
+        return raw.starts(with: "/") ? raw : "/workspace-file/\(raw)"
+    }
+
+    return nil
+}
+
+struct ChatDateGroup: Identifiable {
+    var label: String
+    var chats: [ChatSummary]
+
+    var id: String { label }
+}
+
+func groupChatsByDate(_ chats: [ChatSummary]) -> [ChatDateGroup] {
+    let calendar = Calendar.current
+    let now = Date()
+    let todayStart = calendar.startOfDay(for: now)
+    let yesterdayStart = calendar.date(byAdding: .day, value: -1, to: todayStart) ?? todayStart
+    let weekStart = calendar.date(byAdding: .day, value: -6, to: todayStart) ?? todayStart
+    var groups: [String: [ChatSummary]] = [:]
+    var order: [String] = []
+
+    for chat in chats {
+        let date = parseISODate(chat.updatedAt) ?? now
+        let label: String
+        if date >= todayStart {
+            label = "Today"
+        } else if date >= yesterdayStart {
+            label = "Yesterday"
+        } else if date >= weekStart {
+            label = "This Week"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = date.year == now.year ? "MMMM" : "MMMM yyyy"
+            label = formatter.string(from: date)
+        }
+
+        if groups[label] == nil {
+            groups[label] = []
+            order.append(label)
+        }
+        groups[label]?.append(chat)
+    }
+
+    return order.map { ChatDateGroup(label: $0, chats: groups[$0] ?? []) }
+}
+
+private func parseISODate(_ isoString: String) -> Date? {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    if let date = formatter.date(from: isoString) { return date }
+    formatter.formatOptions = [.withInternetDateTime]
+    return formatter.date(from: isoString)
+}
+
+private extension Date {
+    var year: Int {
+        Calendar.current.component(.year, from: self)
+    }
 }

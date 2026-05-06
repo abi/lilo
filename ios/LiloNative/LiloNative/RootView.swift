@@ -87,16 +87,6 @@ struct NativeHomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 12) {
-                        LiloLogo(size: 48)
-                        Text("Lilo")
-                            .font(.system(size: 42, weight: .bold, design: .rounded))
-                    }
-                    Text("Your workspace, chats, automations, and apps in one native shell.")
-                        .foregroundStyle(.secondary)
-                }
-
                 SectionHeader("Apps")
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 14)], spacing: 14) {
                     ForEach(model.workspaceApps.filter { $0.archived != true }) { app in
@@ -126,7 +116,7 @@ struct NativeHomeView: View {
             }
             .padding()
         }
-        .navigationTitle("Home")
+        .toolbar(.hidden, for: .navigationBar)
         .refreshable { await model.refreshAll() }
     }
 }
