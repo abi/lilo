@@ -254,7 +254,7 @@ const extractWorkspaceLinkButtons = (
   return buttons;
 };
 
-const removeStandaloneWorkspaceMarkdownLinkLines = (
+const removeStandaloneWorkspaceLinkLines = (
   body: string,
   buttons: MessagingLinkButton[],
 ): string => {
@@ -267,8 +267,18 @@ const removeStandaloneWorkspaceMarkdownLinkLines = (
     .replace(/\r\n/g, "\n")
     .split("\n")
     .filter((line) => {
-      const match = line.trim().match(/^(?:[-*]\s*)?\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)$/);
-      return !match || !buttonUrls.has(match[2]);
+      const trimmed = line.trim();
+      const markdownMatch = trimmed.match(/^(?:[-*]\s*)?\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)$/);
+      if (markdownMatch) {
+        return !buttonUrls.has(markdownMatch[2]);
+      }
+
+      const labelUrlMatch = trimmed.match(/^(?:[-*]\s*)?([^:\n]{1,80}):\s*(https?:\/\/[^\s)]+)$/);
+      if (labelUrlMatch) {
+        return !buttonUrls.has(labelUrlMatch[2]);
+      }
+
+      return true;
     })
     .join("\n")
     .replace(/\n{3,}/g, "\n\n");
@@ -381,7 +391,7 @@ export const formatTelegramMessagingOutput = (
     target: "telegram",
   });
   const linkButtons = extractWorkspaceLinkButtons(withWorkspaceLinks, options);
-  const textBody = removeStandaloneWorkspaceMarkdownLinkLines(withWorkspaceLinks, linkButtons);
+  const textBody = removeStandaloneWorkspaceLinkLines(withWorkspaceLinks, linkButtons);
   const text = formatTelegramHtmlForMessaging(textBody).trim();
 
   return {
