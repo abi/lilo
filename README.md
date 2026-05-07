@@ -8,7 +8,7 @@
 
 **Lilo is a personal AI assistant you can message like a human PA.**
 
-It starts in Telegram, where you can text it, send photos, forward receipts, or drop voice notes whenever something comes up. Lilo remembers the things you tell it and keeps track of the files you send. Need an old receipt? Just ask.
+Reach it on Telegram, where you can text it, send photos, forward receipts, or drop voice notes whenever something comes up. Lilo remembers the things you tell it and keeps track of the files you send. Need an old receipt? Just ask.
 
 You can talk to Lilo naturally, and it can reply by text or voice. It can give you daily briefings, research questions, manage your calendar, build and connect with apps, organize information.
 
@@ -23,10 +23,12 @@ As you can see in the demo,
 
 Lilo can:
 
-- Remember things about you
-- Store your photos and files
-- Remind you about things
-- Track and execute on your TODOs
+- You can send it a photo of your food, and it updates your calorie tracker.
+- You can leave a quick voice note about your sore forearm, and it remembers it for later, and suggests some exercises.
+- You can tell it to pause your supplements, and it adds the TODO.
+- You can have it follow a Knicks game, send score updates and give you a voice recap.
+- You can ask for an old MacBook receipt, and it sends along the file.
+- You can ask it to schedule a meeting, check how far away it is, and remind you when it’s time to leave.
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Mobile app](#mobile-app) · [Security](#security) · [Deployment](#deployment)
 
