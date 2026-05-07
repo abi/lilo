@@ -1,8 +1,21 @@
 const WORKSPACE_FILE_PREFIX = "/workspace-file/";
+const WORKSPACE_APP_PREFIX = "/workspace/";
+const MAX_LINK_BUTTONS = 4;
+const MAX_LINK_BUTTON_TEXT_LENGTH = 64;
 
 interface FormatMessagingOutputOptions {
   publicAppUrl?: string | null;
   target?: "plain" | "telegram";
+}
+
+export interface MessagingLinkButton {
+  text: string;
+  url: string;
+}
+
+export interface TelegramMessagingOutput {
+  text: string;
+  linkButtons: MessagingLinkButton[];
 }
 
 const isFenceLine = (line: string): boolean => /^(```|~~~)/.test(line.trim());
@@ -98,20 +111,23 @@ const formatMarkdownTablesForMessaging = (body: string): string => {
   return output.join("\n");
 };
 
-const getWorkspaceFilePath = (href: string): string | null => {
+const isWorkspaceViewerPath = (pathname: string): boolean =>
+  pathname.startsWith(WORKSPACE_FILE_PREFIX) || pathname.startsWith(WORKSPACE_APP_PREFIX);
+
+const getWorkspaceViewerPath = (href: string): string | null => {
   try {
     const parsed = new URL(href, "https://lilo.local");
-    if (!parsed.pathname.startsWith(WORKSPACE_FILE_PREFIX)) {
+    if (!isWorkspaceViewerPath(parsed.pathname)) {
       return null;
     }
 
-    return decodeURIComponent(parsed.pathname.slice(WORKSPACE_FILE_PREFIX.length)).replace(/^\/+/, "");
+    return decodeURIComponent(parsed.pathname).replace(/^\/+/, "");
   } catch {
-    if (!href.startsWith(WORKSPACE_FILE_PREFIX)) {
+    if (!isWorkspaceViewerPath(href)) {
       return null;
     }
 
-    return decodeURIComponent(href.slice(WORKSPACE_FILE_PREFIX.length)).replace(/^\/+/, "");
+    return decodeURIComponent(href).replace(/^\/+/, "");
   }
 };
 
@@ -121,50 +137,141 @@ const encodeWorkspaceFilePath = (path: string): string =>
     .map((segment) => encodeURIComponent(segment))
     .join("/");
 
-const getWorkspaceFileUrl = (
+const getWorkspaceViewerUrl = (
   href: string,
   publicAppUrl?: string | null,
 ): string | null => {
-  const workspacePath = getWorkspaceFilePath(href);
-  if (!workspacePath) {
+  const viewerPath = getWorkspaceViewerPath(href);
+  if (!viewerPath) {
     return null;
   }
 
   if (!publicAppUrl) {
-    return workspacePath;
+    return `/${viewerPath}`;
   }
 
   try {
     const base = new URL(publicAppUrl);
-    base.pathname = `${WORKSPACE_FILE_PREFIX}${encodeWorkspaceFilePath(workspacePath)}`;
+    base.pathname = `/${encodeWorkspaceFilePath(viewerPath)}`;
     base.search = "";
     base.hash = "";
     return base.toString();
   } catch {
-    return workspacePath;
+    return `/${viewerPath}`;
   }
 };
 
-const formatWorkspaceFileLinksForMessaging = (
+const formatWorkspaceLinksForMessaging = (
   body: string,
   options: FormatMessagingOutputOptions,
 ): string => {
   const withMarkdownLinks = body.replace(
-    /\[([^\]\n]+)\]\((\/workspace-file\/[^)\s]+)\)/g,
+    /\[([^\]\n]+)\]\((\/workspace(?:-file)?\/[^)\s]+)\)/g,
     (_match, label: string, href: string) => {
-      const target = getWorkspaceFileUrl(href, options.publicAppUrl);
-      return target ? `${label}: ${target}` : label;
+      const target = getWorkspaceViewerUrl(href, options.publicAppUrl);
+      if (!target) {
+        return label;
+      }
+
+      return options.target === "telegram" && /^https?:\/\//.test(target)
+        ? `[${label}](${target})`
+        : `${label}: ${target}`;
     },
   );
 
   return withMarkdownLinks.replace(
-    /(^|[\s(])\/workspace-file\/[^\s)]+/g,
+    /(^|[\s(])\/workspace(?:-file)?\/[^\s)]+/g,
     (match, prefix: string) => {
       const href = match.slice(prefix.length);
-      const target = getWorkspaceFileUrl(href, options.publicAppUrl);
+      const target = getWorkspaceViewerUrl(href, options.publicAppUrl);
       return target ? `${prefix}${target}` : match;
     },
   );
+};
+
+const normalizeButtonText = (label: string): string =>
+  label
+    .replace(/[`*_~|[\]()]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_LINK_BUTTON_TEXT_LENGTH);
+
+const isWorkspaceViewerUrl = (url: string, publicAppUrl?: string | null): boolean => {
+  try {
+    const parsed = new URL(url);
+    if (!isWorkspaceViewerPath(parsed.pathname)) {
+      return false;
+    }
+
+    if (!publicAppUrl) {
+      return true;
+    }
+
+    const publicUrl = new URL(publicAppUrl);
+    return parsed.origin === publicUrl.origin;
+  } catch {
+    return false;
+  }
+};
+
+const extractWorkspaceLinkButtons = (
+  body: string,
+  options: FormatMessagingOutputOptions,
+): MessagingLinkButton[] => {
+  const buttons: MessagingLinkButton[] = [];
+  const seen = new Set<string>();
+  const addButton = (label: string, url: string) => {
+    if (buttons.length >= MAX_LINK_BUTTONS || seen.has(url)) {
+      return;
+    }
+
+    if (!isWorkspaceViewerUrl(url, options.publicAppUrl)) {
+      return;
+    }
+
+    const text = normalizeButtonText(label);
+    if (!text) {
+      return;
+    }
+
+    seen.add(url);
+    buttons.push({ text, url });
+  };
+
+  body.replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)/g, (_match, label: string, url: string) => {
+    addButton(label, url);
+    return _match;
+  });
+
+  body.replace(
+    /(?:^|\n)\s*(?:[-*]\s*)?([^:\n]{1,80}):\s*(https?:\/\/[^\s)]+)(?=\s*(?:\n|$))/g,
+    (_match, label: string, url: string) => {
+      addButton(label, url);
+      return _match;
+    },
+  );
+
+  return buttons;
+};
+
+const removeStandaloneWorkspaceMarkdownLinkLines = (
+  body: string,
+  buttons: MessagingLinkButton[],
+): string => {
+  if (buttons.length === 0) {
+    return body;
+  }
+
+  const buttonUrls = new Set(buttons.map((button) => button.url));
+  return body
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .filter((line) => {
+      const match = line.trim().match(/^(?:[-*]\s*)?\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)$/);
+      return !match || !buttonUrls.has(match[2]);
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
 };
 
 const escapeTelegramHtml = (value: string): string =>
@@ -257,9 +364,28 @@ export const formatMessagingOutput = (
   options: FormatMessagingOutputOptions = {},
 ): string => {
   const withoutTables = formatMarkdownTablesForMessaging(body);
-  const withWorkspaceLinks = formatWorkspaceFileLinksForMessaging(withoutTables, options);
+  const withWorkspaceLinks = formatWorkspaceLinksForMessaging(withoutTables, options);
   if (options.target === "telegram") {
     return formatTelegramHtmlForMessaging(withWorkspaceLinks).trim();
   }
   return withWorkspaceLinks.trim();
+};
+
+export const formatTelegramMessagingOutput = (
+  body: string,
+  options: FormatMessagingOutputOptions = {},
+): TelegramMessagingOutput => {
+  const withoutTables = formatMarkdownTablesForMessaging(body);
+  const withWorkspaceLinks = formatWorkspaceLinksForMessaging(withoutTables, {
+    ...options,
+    target: "telegram",
+  });
+  const linkButtons = extractWorkspaceLinkButtons(withWorkspaceLinks, options);
+  const textBody = removeStandaloneWorkspaceMarkdownLinkLines(withWorkspaceLinks, linkButtons);
+  const text = formatTelegramHtmlForMessaging(textBody).trim();
+
+  return {
+    text: text || (linkButtons.length > 0 ? "Open in Lilo:" : ""),
+    linkButtons,
+  };
 };

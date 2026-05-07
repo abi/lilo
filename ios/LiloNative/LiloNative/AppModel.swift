@@ -1,8 +1,13 @@
 import Foundation
+import CoreLocation
 import SwiftUI
 
 @MainActor
 final class AppModel: ObservableObject {
+    private static let locationSharingEnabledKey = "lilo.locationSharing.enabled"
+    private static let locationHistoryKey = "lilo.locationSharing.history"
+    private static let maxLocationHistoryCount = 10
+
     @Published var selectedTab: MainTab = .chats
     @Published var isAuthenticated = false
     @Published var authEnabled = false
@@ -32,11 +37,21 @@ final class AppModel: ObservableObject {
     @Published var channels: [ChannelStatus] = []
     @Published var models: [ChatModelOption] = []
     @Published var systemPrompt = ""
+    @Published var isLocationSharingEnabled: Bool
+    @Published var latestLocation: UserLocationSnapshot?
+    @Published var locationHistory: [UserLocationSnapshot]
 
     private var socket: ChatSocket?
     private var socketTask: Task<Void, Never>?
+    private let locationProvider = LocationProvider()
 
     var api = APIClient.shared
+
+    init() {
+        isLocationSharingEnabled = UserDefaults.standard.bool(forKey: Self.locationSharingEnabledKey)
+        locationHistory = Self.loadLocationHistory()
+        latestLocation = locationHistory.first
+    }
 
     func bootstrap() async {
         defer { hasBootstrapped = true }
@@ -176,9 +191,29 @@ final class AppModel: ObservableObject {
                 uploadIds = try await api.upload(chatId: chatId, files: files)
             }
             appendLocalUserMessage(text, files: files)
-            try await socket.prompt(text, uploadIds: uploadIds)
+            let context = await chatPromptContext()
+            try await socket.prompt(text, uploadIds: uploadIds, context: context)
         } catch {
             handle(error)
+        }
+    }
+
+    func setLocationSharingEnabled(_ enabled: Bool) async {
+        isLocationSharingEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: Self.locationSharingEnabledKey)
+        if enabled {
+            await refreshCurrentLocation()
+        }
+    }
+
+    func refreshCurrentLocation() async {
+        do {
+            let snapshot = try await locationProvider.requestLocation()
+            recordLocation(snapshot)
+        } catch {
+            isLocationSharingEnabled = false
+            UserDefaults.standard.set(false, forKey: Self.locationSharingEnabledKey)
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -357,6 +392,22 @@ final class AppModel: ObservableObject {
         await bootstrap()
     }
 
+    func openUniversalLink(_ url: URL) async {
+        guard let viewerPath = viewerPath(fromUniversalLink: url) else { return }
+        refreshWorkspaceProfiles()
+
+        let matchingWorkspaceID = workspaceID(matching: url)
+        if let matchingWorkspaceID, matchingWorkspaceID != activeWorkspaceID {
+            await switchWorkspace(matchingWorkspaceID, attemptStoredLogin: true)
+        } else if matchingWorkspaceID == nil, let host = url.host {
+            errorMessage = "Add https://\(host) as a workspace before opening this link."
+            return
+        }
+
+        selectedViewerPath = viewerPath
+        selectedTab = .files
+    }
+
     private func resetForWorkspaceChange() async {
         selectedChat = nil
         chats = []
@@ -382,6 +433,84 @@ final class AppModel: ObservableObject {
         socket = nil
         socketTask?.cancel()
         socketTask = nil
+    }
+
+    private func chatPromptContext() async -> ChatPromptContext? {
+        var locationContext: UserLocationContext?
+        if isLocationSharingEnabled {
+            if let snapshot = try? await locationProvider.requestLocation() {
+                recordLocation(snapshot)
+            }
+            if let latestLocation {
+                locationContext = UserLocationContext(
+                    current: latestLocation,
+                    recent: Array(locationHistory.dropFirst())
+                )
+            }
+        }
+
+        if selectedViewerPath == nil && locationContext == nil {
+            return nil
+        }
+
+        return ChatPromptContext(
+            viewerPath: selectedViewerPath,
+            location: locationContext
+        )
+    }
+
+    private func recordLocation(_ snapshot: UserLocationSnapshot) {
+        latestLocation = snapshot
+        var nextHistory = [snapshot]
+        nextHistory.append(contentsOf: locationHistory.filter { $0.capturedAt != snapshot.capturedAt })
+        locationHistory = Array(nextHistory.prefix(Self.maxLocationHistoryCount))
+        if let data = try? JSONEncoder().encode(locationHistory) {
+            UserDefaults.standard.set(data, forKey: Self.locationHistoryKey)
+        }
+    }
+
+    private static func loadLocationHistory() -> [UserLocationSnapshot] {
+        guard let data = UserDefaults.standard.data(forKey: locationHistoryKey),
+              let history = try? JSONDecoder().decode([UserLocationSnapshot].self, from: data) else {
+            return []
+        }
+        return history
+    }
+
+    private func viewerPath(fromUniversalLink url: URL) -> String? {
+        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+           let viewer = components.queryItems?.first(where: { $0.name == "viewer" })?.value,
+           isWorkspaceViewerPath(viewer) {
+            return viewer
+        }
+
+        let decodedPath = url.path.removingPercentEncoding ?? url.path
+        return isWorkspaceViewerPath(decodedPath) ? decodedPath : nil
+    }
+
+    private func isWorkspaceViewerPath(_ value: String) -> Bool {
+        value.starts(with: "/workspace/") || value.starts(with: "/workspace-file/")
+    }
+
+    private func workspaceID(matching url: URL) -> String? {
+        guard let linkOrigin = origin(from: url) else { return nil }
+        return workspaceProfiles.first { profile in
+            guard let credentials = WorkspaceProfileStore.shared.credentials(for: profile.id),
+                  let workspaceURL = URL(string: credentials.backendURL),
+                  let workspaceOrigin = origin(from: workspaceURL) else {
+                return false
+            }
+            return workspaceOrigin == linkOrigin
+        }?.id
+    }
+
+    private func origin(from url: URL) -> String? {
+        guard let scheme = url.scheme?.lowercased(),
+              let host = url.host?.lowercased() else {
+            return nil
+        }
+        let port = url.port.map { ":\($0)" } ?? ""
+        return "\(scheme)://\(host)\(port)"
     }
 
     private func loginWithStoredPasswordIfAvailable() async {
@@ -561,5 +690,81 @@ final class AppModel: ObservableObject {
             authEnabled = true
         }
         errorMessage = error.localizedDescription
+    }
+}
+
+private final class LocationProvider: NSObject, CLLocationManagerDelegate, @unchecked Sendable {
+    private let manager = CLLocationManager()
+    private var continuation: CheckedContinuation<UserLocationSnapshot, Error>?
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+    }
+
+    func requestLocation() async throws -> UserLocationSnapshot {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.main.async {
+                guard self.continuation == nil else {
+                    continuation.resume(throwing: LiloAPIError.backend("Lilo is already requesting location."))
+                    return
+                }
+                self.continuation = continuation
+                self.requestLocationWhenAuthorized()
+            }
+        }
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        requestLocationWhenAuthorized()
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else {
+            finish(with: LiloAPIError.backend("Could not read your location."))
+            return
+        }
+        finish(with: UserLocationSnapshot(location: location))
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        finish(with: error)
+    }
+
+    private func requestLocationWhenAuthorized() {
+        switch manager.authorizationStatus {
+        case .notDetermined:
+            manager.requestWhenInUseAuthorization()
+        case .authorizedAlways, .authorizedWhenInUse:
+            manager.requestLocation()
+        case .denied, .restricted:
+            finish(with: LiloAPIError.backend("Location sharing is not enabled for Lilo in Settings."))
+        @unknown default:
+            finish(with: LiloAPIError.backend("Location sharing is unavailable."))
+        }
+    }
+
+    private func finish(with snapshot: UserLocationSnapshot) {
+        continuation?.resume(returning: snapshot)
+        continuation = nil
+    }
+
+    private func finish(with error: Error) {
+        continuation?.resume(throwing: error)
+        continuation = nil
+    }
+}
+
+private extension UserLocationSnapshot {
+    init(location: CLLocation) {
+        latitude = location.coordinate.latitude
+        longitude = location.coordinate.longitude
+        horizontalAccuracyMeters = location.horizontalAccuracy
+        altitudeMeters = location.verticalAccuracy >= 0 ? location.altitude : nil
+        courseDegrees = location.course >= 0 ? location.course : nil
+        speedMetersPerSecond = location.speed >= 0 ? location.speed : nil
+        capturedAt = ISO8601DateFormatter().string(from: location.timestamp)
+        source = "ios_device"
     }
 }

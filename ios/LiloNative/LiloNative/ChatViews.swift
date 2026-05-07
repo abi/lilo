@@ -365,6 +365,14 @@ struct ComposerView: View {
                         .font(.title3)
                 }
 
+                Button {
+                    Task { await model.setLocationSharingEnabled(!model.isLocationSharingEnabled) }
+                } label: {
+                    Image(systemName: model.isLocationSharingEnabled ? "location.fill" : "location")
+                        .font(.title3)
+                        .foregroundStyle(model.isLocationSharingEnabled ? .blue : .primary)
+                }
+
                 TextField("Chat with Lilo...", text: $model.composerText, axis: .vertical)
                     .focused($isComposerFocused)
                     .textFieldStyle(.plain)

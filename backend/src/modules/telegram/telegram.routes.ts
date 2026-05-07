@@ -20,7 +20,10 @@ import {
   type SendChannelResponseDetails,
 } from "../../shared/tools/channelResponseTool.js";
 import { readWorkspaceAppPrefs } from "../../shared/workspace/appPrefs.js";
-import { formatMessagingOutput } from "../channels/channelOutput.format.js";
+import {
+  formatTelegramMessagingOutput,
+  type MessagingLinkButton,
+} from "../channels/channelOutput.format.js";
 import { prepareChannelResponseMedia } from "../channels/channelResponse.js";
 import { resolveDailyTelegramChatId, storeDailyTelegramChatId } from "./threadStore.js";
 
@@ -458,8 +461,30 @@ const splitTelegramReply = (body: string): string[] => {
   return chunks;
 };
 
-const sendTelegramReply = async (chatId: number, body: string): Promise<void> => {
+const buildTelegramInlineKeyboard = (
+  linkButtons: MessagingLinkButton[],
+): { inline_keyboard: Array<Array<{ text: string; url: string }>> } | undefined => {
+  if (linkButtons.length === 0) {
+    return undefined;
+  }
+
+  return {
+    inline_keyboard: linkButtons.map((button) => [
+      {
+        text: button.text,
+        url: button.url,
+      },
+    ]),
+  };
+};
+
+const sendTelegramReply = async (
+  chatId: number,
+  body: string,
+  linkButtons: MessagingLinkButton[] = [],
+): Promise<void> => {
   const botToken = getTelegramBotToken();
+  const replyMarkup = buildTelegramInlineKeyboard(linkButtons);
 
   try {
     await telegramApiFetch(botToken, "sendMessage", {
@@ -469,6 +494,7 @@ const sendTelegramReply = async (chatId: number, body: string): Promise<void> =>
       link_preview_options: {
         is_disabled: true,
       },
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
     });
   } catch (error) {
     captureBackendException(error, {
@@ -486,14 +512,14 @@ const sendTelegramReply = async (chatId: number, body: string): Promise<void> =>
 };
 
 const sendTelegramReplyChunked = async (chatId: number, body: string): Promise<number> => {
-  const formattedBody = formatMessagingOutput(body, {
+  const formatted = formatTelegramMessagingOutput(body, {
     publicAppUrl: backendConfig.server.publicAppUrl,
-    target: "telegram",
   });
-  const chunks = splitTelegramReply(formattedBody);
+  const chunks = splitTelegramReply(formatted.text);
 
-  for (const chunk of chunks) {
-    await sendTelegramReply(chatId, chunk);
+  for (const [index, chunk] of chunks.entries()) {
+    const linkButtons = index === chunks.length - 1 ? formatted.linkButtons : [];
+    await sendTelegramReply(chatId, chunk, linkButtons);
   }
 
   return chunks.length;

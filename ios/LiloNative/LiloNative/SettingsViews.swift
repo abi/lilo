@@ -59,6 +59,26 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Location") {
+                Toggle("Share location with chats", isOn: Binding(
+                    get: { model.isLocationSharingEnabled },
+                    set: { enabled in
+                        Task { await model.setLocationSharingEnabled(enabled) }
+                    }
+                ))
+                if let location = model.latestLocation {
+                    LabeledContent("Last shared", value: location.capturedAt)
+                    LabeledContent("Accuracy", value: "\(Int(location.horizontalAccuracyMeters.rounded())) m")
+                    Button("Refresh location") {
+                        Task { await model.refreshCurrentLocation() }
+                    }
+                    .disabled(!model.isLocationSharingEnabled)
+                } else {
+                    Text("No location has been shared yet.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section("Default model") {
                 if let selection = model.workspacePreferences.defaultChatModelSelection {
                     LabeledContent("Current", value: selection.modelId)
