@@ -25,6 +25,7 @@ import {
   setSessionCookie,
   verifyLoginPassword,
 } from "../shared/auth/sessionAuth.js";
+import { backendConfig } from "../shared/config/config.js";
 import { captureBackendException } from "../shared/observability/sentry.js";
 
 interface CreateAppOptions {
@@ -42,6 +43,26 @@ const shouldLogBackendRequest = (path: string): boolean =>
   path.startsWith("/channel-media/") ||
   path.startsWith("/chats") ||
   path.startsWith("/api/inbound-");
+
+const appleAppSiteAssociationResponse = (): Response =>
+  new Response(
+    JSON.stringify({
+      applinks: {
+        apps: [],
+        details: backendConfig.deepLinks.iosUniversalLinkAppIds.map((appID) => ({
+          appID,
+          paths: ["/workspace/*", "/workspace-file/*"],
+        })),
+      },
+    }),
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, max-age=3600",
+      },
+    },
+  );
 
 export const createApp = ({
   chatService = new PiSdkChatService(),
@@ -93,6 +114,8 @@ export const createApp = ({
 
   // Health and webhook endpoints stay ahead of auth for external callers.
   app.get("/health", (c) => c.json({ status: "ok" }));
+  app.get("/.well-known/apple-app-site-association", () => appleAppSiteAssociationResponse());
+  app.get("/apple-app-site-association", () => appleAppSiteAssociationResponse());
   registerOutboundMediaRoutes(app);
   registerEmailRoutes(app, chatService);
   registerTelegramRoutes(app, chatService);

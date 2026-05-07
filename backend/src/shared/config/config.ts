@@ -143,6 +143,9 @@ export const backendConfig = {
       dsn: readEnv("SENTRY_DSN"),
     },
   },
+  deepLinks: {
+    iosUniversalLinkAppIds: readCsvEnv("LILO_IOS_UNIVERSAL_LINK_APP_IDS"),
+  },
 } as const;
 
 export const requireConfigValue = (value: string | null, name: string): string => {
