@@ -48,7 +48,7 @@ const BASE_PI_SYSTEM_PROMPT = `
 ## External messaging media
 
 - Telegram and WhatsApp can send more than plain text.
-- If a Telegram or WhatsApp user asks you to read, say, speak, or narrate something out loud, call \`send_channel_response\` with \`response_type: "voice"\` and the exact text to speak. Do not also paste the full transcript unless the user asks for text too.
+- If a Telegram or WhatsApp user asks you to read, say, speak, or narrate something out loud, call \`send_channel_response\` with \`response_type: "voice"\` and the exact text to speak. If the spoken text is longer than 3500 characters, split it into natural chunks under 3500 characters each and pass them as ordered \`text_chunks\`; each chunk is sent as a separate voice message. Do not also paste the full transcript unless the user asks for text too.
 - If a Telegram or WhatsApp user asks for an image, PDF, or other file response, call \`send_channel_response\` with \`response_type: "image"\` or \`response_type: "file"\` and either a workspace \`file_path\` or a public \`url\`.
 - Use workspace paths like \`docs/report.pdf\`, \`/workspace-file/docs/report.pdf\`, or \`images/photo.png\` for files in the workspace.
 - Do not call \`send_channel_response\` for ordinary text replies.

@@ -15,6 +15,8 @@ export interface PreparedChannelMedia {
   url?: string;
 }
 
+export type PreparedChannelMediaBatch = PreparedChannelMedia[];
+
 const MIME_TYPE_BY_EXTENSION: Record<string, string> = {
   ".aac": "audio/aac",
   ".amr": "audio/amr",
@@ -100,19 +102,31 @@ export const getPublicUrlForChannelMedia = publicUrlForTemporaryMedia;
 
 export const prepareChannelResponseMedia = async (
   details: SendChannelResponseDetails,
-): Promise<PreparedChannelMedia> => {
+): Promise<PreparedChannelMediaBatch> => {
   if (details.responseType === "voice") {
-    const speech = await generateSpeechWithOpenAi({
-      text: details.text ?? "",
-      instructions: details.voiceInstructions,
-    });
-    return {
-      responseType: "voice",
-      caption: details.caption,
-      filename: sanitizeFilename(details.filename, `lilo-voice${speech.extension}`),
-      mimeType: speech.mimeType,
-      bytes: speech.bytes,
-    };
+    const textChunks = details.textChunks ?? (details.text ? [details.text] : []);
+    return Promise.all(
+      textChunks.map(async (text, index) => {
+        const speech = await generateSpeechWithOpenAi({
+          text,
+          instructions: details.voiceInstructions,
+        });
+        const filename =
+          textChunks.length === 1
+            ? sanitizeFilename(details.filename, `lilo-voice${speech.extension}`)
+            : sanitizeFilename(
+                details.filename,
+                `lilo-voice-${index + 1}-of-${textChunks.length}${speech.extension}`,
+              );
+        return {
+          responseType: "voice",
+          caption: index === 0 ? details.caption : undefined,
+          filename,
+          mimeType: speech.mimeType,
+          bytes: speech.bytes,
+        };
+      }),
+    );
   }
 
   if (details.url) {
@@ -120,13 +134,13 @@ export const prepareChannelResponseMedia = async (
       details.filename,
       details.url.split("/").pop()?.split("?")[0] || `lilo-${details.responseType}`,
     );
-    return {
+    return [{
       responseType: details.responseType,
       caption: details.caption,
       filename,
       mimeType: details.mimeType ?? inferMimeType(filename),
       url: details.url,
-    };
+    }];
   }
 
   if (!details.filePath) {
@@ -140,11 +154,11 @@ export const prepareChannelResponseMedia = async (
   }
 
   const filename = sanitizeFilename(details.filename, basename(absolutePath));
-  return {
+  return [{
     responseType: details.responseType,
     caption: details.caption,
     filename,
     mimeType: details.mimeType ?? inferMimeType(filename),
     bytes: new Uint8Array(await readFile(absolutePath)),
-  };
+  }];
 };

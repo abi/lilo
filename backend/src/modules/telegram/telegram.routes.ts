@@ -504,68 +504,74 @@ const sendTelegramChannelResponse = async (
   details: SendChannelResponseDetails,
 ): Promise<number> => {
   const botToken = getTelegramBotToken();
-  const media = await prepareChannelResponseMedia(details);
-  const method =
-    media.responseType === "voice"
-      ? "sendVoice"
-      : media.responseType === "image"
-        ? "sendPhoto"
-        : "sendDocument";
-  const field =
-    media.responseType === "voice"
-      ? "voice"
-      : media.responseType === "image"
-        ? "photo"
-        : "document";
-  const action =
-    media.responseType === "voice"
-      ? "upload_voice"
-      : media.responseType === "image"
-        ? "upload_photo"
-        : "upload_document";
+  const mediaBatch = await prepareChannelResponseMedia(details);
+  let sentCount = 0;
 
-  await sendTelegramChatAction(chatId, action);
+  for (const media of mediaBatch) {
+    const method =
+      media.responseType === "voice"
+        ? "sendVoice"
+        : media.responseType === "image"
+          ? "sendPhoto"
+          : "sendDocument";
+    const field =
+      media.responseType === "voice"
+        ? "voice"
+        : media.responseType === "image"
+          ? "photo"
+          : "document";
+    const action =
+      media.responseType === "voice"
+        ? "upload_voice"
+        : media.responseType === "image"
+          ? "upload_photo"
+          : "upload_document";
 
-  const formData = new FormData();
-  formData.set("chat_id", String(chatId));
-  if (media.caption) {
-    formData.set("caption", media.caption);
-  }
-  if (media.url) {
-    formData.set(field, media.url);
-  } else if (media.bytes) {
-    const audioBuffer = media.bytes.buffer.slice(
-      media.bytes.byteOffset,
-      media.bytes.byteOffset + media.bytes.byteLength,
-    ) as ArrayBuffer;
-    formData.set(field, new Blob([audioBuffer], { type: media.mimeType }), media.filename);
-  } else {
-    throw new Error("Telegram channel response media has no URL or bytes");
+    await sendTelegramChatAction(chatId, action);
+
+    const formData = new FormData();
+    formData.set("chat_id", String(chatId));
+    if (media.caption) {
+      formData.set("caption", media.caption);
+    }
+    if (media.url) {
+      formData.set(field, media.url);
+    } else if (media.bytes) {
+      const audioBuffer = media.bytes.buffer.slice(
+        media.bytes.byteOffset,
+        media.bytes.byteOffset + media.bytes.byteLength,
+      ) as ArrayBuffer;
+      formData.set(field, new Blob([audioBuffer], { type: media.mimeType }), media.filename);
+    } else {
+      throw new Error("Telegram channel response media has no URL or bytes");
+    }
+
+    try {
+      await telegramApiFetchFormData<unknown>(botToken, method, formData);
+      sentCount += 1;
+    } catch (error) {
+      captureBackendException(error, {
+        tags: {
+          area: "telegram",
+          provider: "telegram",
+          operation: "send_channel_response",
+          chat_id: chatId,
+          response_type: media.responseType,
+          mime_type: media.mimeType,
+        },
+        extras: {
+          filename: media.filename,
+          hasUrl: Boolean(media.url),
+          byteLength: media.bytes?.byteLength ?? null,
+        },
+        level: "error",
+        fingerprint: ["telegram", "send_channel_response", media.responseType],
+      });
+      throw error;
+    }
   }
 
-  try {
-    await telegramApiFetchFormData<unknown>(botToken, method, formData);
-    return 1;
-  } catch (error) {
-    captureBackendException(error, {
-      tags: {
-        area: "telegram",
-        provider: "telegram",
-        operation: "send_channel_response",
-        chat_id: chatId,
-        response_type: media.responseType,
-        mime_type: media.mimeType,
-      },
-      extras: {
-        filename: media.filename,
-        hasUrl: Boolean(media.url),
-        byteLength: media.bytes?.byteLength ?? null,
-      },
-      level: "error",
-      fingerprint: ["telegram", "send_channel_response", media.responseType],
-    });
-    throw error;
-  }
+  return sentCount;
 };
 
 export const sendTelegramAutomationMessage = async (body: string): Promise<void> => {
