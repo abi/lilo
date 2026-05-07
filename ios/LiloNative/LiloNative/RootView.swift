@@ -5,7 +5,9 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if model.authEnabled && !model.isAuthenticated {
+            if !model.hasBootstrapped {
+                ProgressView("Loading Lilo...")
+            } else if model.authEnabled && !model.isAuthenticated {
                 LoginView()
             } else {
                 TabView(selection: $model.selectedTab) {
@@ -56,27 +58,103 @@ struct LoginView: View {
     @EnvironmentObject private var model: AppModel
     @State private var backendURL = APIClient.shared.baseURLString
     @State private var password = ""
+    @State private var workspaceName = WorkspaceProfileStore.shared.activeCredentials()?.name ?? ""
+    @State private var selectedWorkspaceID = WorkspaceProfileStore.shared.activeProfileID
 
     var body: some View {
         NavigationStack {
             Form {
+                if !model.workspaceProfiles.isEmpty {
+                    Section("Workspaces") {
+                        Picker("Workspace", selection: Binding(
+                            get: { selectedWorkspaceID ?? model.activeWorkspaceID ?? "" },
+                            set: { id in
+                                selectedWorkspaceID = id
+                                loadWorkspace(id: id)
+                            }
+                        )) {
+                            ForEach(model.workspaceProfiles) { profile in
+                                Text(profile.name).tag(profile.id)
+                            }
+                        }
+                    }
+                }
                 Section("Deployment") {
+                    TextField("Workspace name", text: $workspaceName)
                     TextField("Backend URL", text: $backendURL)
                         .textInputAutocapitalization(.never)
                         .keyboardType(.URL)
-                    Button("Use this URL") {
-                        Task { await model.saveBackendURL(backendURL) }
+                    SecureField("Password", text: $password)
+                    Button("Save workspace") {
+                        Task {
+                            await model.saveWorkspace(
+                                id: selectedWorkspaceID,
+                                name: workspaceName,
+                                backendURL: backendURL,
+                                password: password
+                            )
+                        }
                     }
                 }
                 Section("Password") {
-                    SecureField("Lilo password", text: $password)
                     Button("Sign in") {
-                        Task { await model.login(password: password) }
+                        Task {
+                            await model.signIntoWorkspace(
+                                id: selectedWorkspaceID,
+                                name: workspaceName,
+                                backendURL: backendURL,
+                                password: password
+                            )
+                        }
                     }
-                    .disabled(password.isEmpty)
+                    .disabled(backendURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty)
                 }
             }
-            .navigationTitle("Lilo")
+            .navigationTitle("Lilo Workspaces")
+            .onChange(of: model.activeWorkspaceID) { _, _ in
+                selectedWorkspaceID = model.activeWorkspaceID
+                loadWorkspace(id: model.activeWorkspaceID)
+            }
+            .onAppear {
+                selectedWorkspaceID = model.activeWorkspaceID
+                loadWorkspace(id: model.activeWorkspaceID)
+            }
+        }
+    }
+
+    private func loadWorkspace(id: String?) {
+        let credentials = id.flatMap { WorkspaceProfileStore.shared.credentials(for: $0) } ?? WorkspaceProfileStore.shared.activeCredentials()
+        backendURL = credentials?.backendURL ?? APIClient.shared.baseURLString
+        workspaceName = credentials?.name ?? ""
+        password = credentials?.password ?? ""
+    }
+}
+
+struct WorkspacePicker: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        ForEach(model.workspaceProfiles) { profile in
+            Button {
+                Task { await model.switchWorkspace(profile.id) }
+            } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(profile.name)
+                        if let credentials = WorkspaceProfileStore.shared.credentials(for: profile.id) {
+                            Text(credentials.backendURL)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer()
+                    if profile.id == model.activeWorkspaceID {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.blue)
+                    }
+                }
+            }
         }
     }
 }

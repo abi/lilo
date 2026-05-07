@@ -6,8 +6,11 @@ final class AppModel: ObservableObject {
     @Published var selectedTab: MainTab = .chats
     @Published var isAuthenticated = false
     @Published var authEnabled = false
+    @Published var hasBootstrapped = false
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var workspaceProfiles: [WorkspaceProfile] = []
+    @Published var activeWorkspaceID: String?
 
     @Published var chats: [ChatSummary] = []
     @Published var selectedChat: ChatDetail.ChatPayload?
@@ -36,7 +39,12 @@ final class AppModel: ObservableObject {
     var api = APIClient.shared
 
     func bootstrap() async {
+        defer { hasBootstrapped = true }
+        refreshWorkspaceProfiles()
         await refreshSession()
+        if authEnabled && !isAuthenticated {
+            await loginWithStoredPasswordIfAvailable()
+        }
         guard isAuthenticated || !authEnabled else { return }
         await refreshAll()
     }
@@ -56,10 +64,36 @@ final class AppModel: ObservableObject {
     func login(password: String) async {
         do {
             try await api.login(password: password)
+            savePasswordForActiveWorkspace(password)
             await refreshSession()
             await refreshAll()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func signIntoWorkspace(id: String?, name: String, backendURL: String, password: String) async {
+        do {
+            let credentials = WorkspaceCredentials(
+                id: id ?? UUID().uuidString,
+                name: name,
+                backendURL: backendURL,
+                password: password
+            )
+            let profile = try WorkspaceProfileStore.shared.save(credentials)
+            WorkspaceProfileStore.shared.setActive(id: profile.id)
+            refreshWorkspaceProfiles()
+            await resetForWorkspaceChange()
+            await refreshSession()
+            if authEnabled {
+                try await api.login(password: password)
+                await refreshSession()
+            }
+            if isAuthenticated || !authEnabled {
+                await refreshAll()
+            }
+        } catch {
+            handle(error)
         }
     }
 
@@ -257,15 +291,117 @@ final class AppModel: ObservableObject {
     }
 
     func saveBackendURL(_ value: String) async {
-        api.baseURLString = value
+        await saveWorkspace(
+            id: activeWorkspaceID,
+            name: WorkspaceProfileStore.shared.activeCredentials()?.name ?? "",
+            backendURL: value,
+            password: WorkspaceProfileStore.shared.activeCredentials()?.password ?? ""
+        )
+    }
+
+    func refreshWorkspaceProfiles() {
+        workspaceProfiles = WorkspaceProfileStore.shared.profiles
+        activeWorkspaceID = WorkspaceProfileStore.shared.activeProfileID
+    }
+
+    func saveWorkspace(id: String?, name: String, backendURL: String, password: String) async {
+        do {
+            let credentials = WorkspaceCredentials(
+                id: id ?? UUID().uuidString,
+                name: name,
+                backendURL: backendURL,
+                password: password
+            )
+            let profile = try WorkspaceProfileStore.shared.save(credentials)
+            await switchWorkspace(profile.id, attemptStoredLogin: true)
+        } catch {
+            handle(error)
+        }
+    }
+
+    func updateWorkspace(id: String, name: String, backendURL: String, password: String) async {
+        do {
+            let credentials = WorkspaceCredentials(
+                id: id,
+                name: name,
+                backendURL: backendURL,
+                password: password
+            )
+            _ = try WorkspaceProfileStore.shared.save(credentials, makeActive: id == activeWorkspaceID)
+            refreshWorkspaceProfiles()
+            if id == activeWorkspaceID {
+                await switchWorkspace(id, attemptStoredLogin: true)
+            }
+        } catch {
+            handle(error)
+        }
+    }
+
+    func switchWorkspace(_ id: String, attemptStoredLogin: Bool = true) async {
+        WorkspaceProfileStore.shared.setActive(id: id)
+        refreshWorkspaceProfiles()
+        await resetForWorkspaceChange()
+        await refreshSession()
+        if attemptStoredLogin && authEnabled && !isAuthenticated {
+            await loginWithStoredPasswordIfAvailable()
+        }
+        if isAuthenticated || !authEnabled {
+            await refreshAll()
+        }
+    }
+
+    func deleteWorkspace(_ profile: WorkspaceProfile) async {
+        WorkspaceProfileStore.shared.delete(id: profile.id)
+        refreshWorkspaceProfiles()
+        await resetForWorkspaceChange()
+        await bootstrap()
+    }
+
+    private func resetForWorkspaceChange() async {
         selectedChat = nil
         chats = []
+        workspaceApps = []
+        workspaceEntries = []
+        automationJobs = []
+        automationRuns = []
+        channels = []
+        models = []
+        systemPrompt = ""
+        selectedViewerPath = nil
+        composerText = ""
+        attachments = []
+        activeRunId = nil
+        isStreaming = false
+        isSocketReady = false
+        isAuthenticated = false
+        authEnabled = false
+        api.clearCookies()
         if let socket {
             await socket.close()
         }
         socket = nil
-        isSocketReady = false
-        await bootstrap()
+        socketTask?.cancel()
+        socketTask = nil
+    }
+
+    private func loginWithStoredPasswordIfAvailable() async {
+        guard let password = WorkspaceProfileStore.shared.activeCredentials()?.password,
+              !password.isEmpty else {
+            return
+        }
+        do {
+            try await api.login(password: password)
+            await refreshSession()
+        } catch {
+            isAuthenticated = false
+        }
+    }
+
+    private func savePasswordForActiveWorkspace(_ password: String) {
+        guard var credentials = WorkspaceProfileStore.shared.activeCredentials() else { return }
+        credentials.password = password
+        _ = try? WorkspaceProfileStore.shared.save(credentials)
+        refreshWorkspaceProfiles()
     }
 
     private func startSocket(chatId: String, runId: String?, afterSeq: Int) async {

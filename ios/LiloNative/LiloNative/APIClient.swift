@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 final class APIClient: @unchecked Sendable {
     static let shared = APIClient()
@@ -20,10 +21,16 @@ final class APIClient: @unchecked Sendable {
 
     var baseURLString: String {
         get {
-            normalizeBackendURL(UserDefaults.standard.string(forKey: "lilo.backendURL") ?? Self.defaultBackendURL)
+            WorkspaceProfileStore.shared.activeCredentials()?.backendURL ?? normalizeBackendURL(UserDefaults.standard.string(forKey: "lilo.backendURL") ?? Self.defaultBackendURL)
         }
         set {
-            UserDefaults.standard.set(normalizeBackendURL(newValue), forKey: "lilo.backendURL")
+            let normalized = normalizeBackendURL(newValue)
+            if var credentials = WorkspaceProfileStore.shared.activeCredentials() {
+                credentials.backendURL = normalized
+                _ = try? WorkspaceProfileStore.shared.save(credentials)
+            } else {
+                UserDefaults.standard.set(normalized, forKey: "lilo.backendURL")
+            }
         }
     }
 
@@ -114,6 +121,11 @@ final class APIClient: @unchecked Sendable {
         try validate(response: response, data: data)
     }
 
+    func clearCookies() {
+        session.configuration.httpCookieStorage?.removeCookies(since: .distantPast)
+        HTTPCookieStorage.shared.removeCookies(since: .distantPast)
+    }
+
     func upload(chatId: String, files: [PickedFile]) async throws -> [String] {
         let boundary = "Boundary-\(UUID().uuidString)"
         var request = URLRequest(url: try url(path: "/chats/\(chatId)/uploads"))
@@ -155,6 +167,168 @@ final class APIClient: @unchecked Sendable {
             }
             throw LiloAPIError.backend("Request failed with status \(http.statusCode)")
         }
+    }
+}
+
+struct WorkspaceProfile: Codable, Identifiable, Hashable {
+    var id: String
+    var name: String
+    var createdAt: Double
+}
+
+struct WorkspaceCredentials: Hashable {
+    var id: String
+    var name: String
+    var backendURL: String
+    var password: String
+}
+
+final class WorkspaceProfileStore: @unchecked Sendable {
+    static let shared = WorkspaceProfileStore()
+
+    private let defaults = UserDefaults.standard
+    private let profilesKey = "lilo.workspaces.profiles"
+    private let activeIDKey = "lilo.workspaces.activeID"
+    private let keychainService = "chat.os.lilo.native.workspaces"
+    private let encoder = JSONEncoder()
+    private let decoder = JSONDecoder()
+
+    private init() {
+        migrateLegacyWorkspaceIfNeeded()
+    }
+
+    var profiles: [WorkspaceProfile] {
+        get {
+            guard let data = defaults.data(forKey: profilesKey),
+                  let profiles = try? decoder.decode([WorkspaceProfile].self, from: data) else {
+                return []
+            }
+            return profiles
+        }
+        set {
+            defaults.set(try? encoder.encode(newValue), forKey: profilesKey)
+        }
+    }
+
+    var activeProfileID: String? {
+        get { defaults.string(forKey: activeIDKey) }
+        set { defaults.set(newValue, forKey: activeIDKey) }
+    }
+
+    func activeCredentials() -> WorkspaceCredentials? {
+        guard let activeProfileID else { return nil }
+        return credentials(for: activeProfileID)
+    }
+
+    func credentials(for id: String) -> WorkspaceCredentials? {
+        guard let profile = profiles.first(where: { $0.id == id }),
+              let backendURL = readSecret(account: "\(id).url") else {
+            return nil
+        }
+        return WorkspaceCredentials(
+            id: profile.id,
+            name: profile.name,
+            backendURL: backendURL,
+            password: readSecret(account: "\(id).password") ?? ""
+        )
+    }
+
+    @discardableResult
+    func save(_ credentials: WorkspaceCredentials, makeActive: Bool = true) throws -> WorkspaceProfile {
+        let trimmedName = credentials.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let profile = WorkspaceProfile(
+            id: credentials.id.isEmpty ? UUID().uuidString : credentials.id,
+            name: trimmedName.isEmpty ? workspaceName(from: credentials.backendURL) : trimmedName,
+            createdAt: profiles.first(where: { $0.id == credentials.id })?.createdAt ?? Date().timeIntervalSince1970
+        )
+
+        var nextProfiles = profiles.filter { $0.id != profile.id }
+        nextProfiles.append(profile)
+        profiles = nextProfiles.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        try writeSecret(normalizeBackendURL(credentials.backendURL), account: "\(profile.id).url")
+        try writeSecret(credentials.password, account: "\(profile.id).password")
+        if makeActive {
+            activeProfileID = profile.id
+        }
+        return profile
+    }
+
+    func delete(id: String) {
+        profiles = profiles.filter { $0.id != id }
+        deleteSecret(account: "\(id).url")
+        deleteSecret(account: "\(id).password")
+        if activeProfileID == id {
+            activeProfileID = profiles.first?.id
+        }
+    }
+
+    func setActive(id: String) {
+        activeProfileID = id
+    }
+
+    private func migrateLegacyWorkspaceIfNeeded() {
+        guard profiles.isEmpty else { return }
+        let legacyURL = defaults.string(forKey: "lilo.backendURL") ?? Self.defaultBackendURL
+        let credentials = WorkspaceCredentials(
+            id: UUID().uuidString,
+            name: workspaceName(from: legacyURL),
+            backendURL: legacyURL,
+            password: ""
+        )
+        _ = try? save(credentials)
+    }
+
+    private static var defaultBackendURL: String { "http://127.0.0.1:8787" }
+
+    private func workspaceName(from urlString: String) -> String {
+        URL(string: normalizeBackendURL(urlString))?.host ?? "Lilo Workspace"
+    }
+
+    private func readSecret(account: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+              let data = item as? Data else {
+            return nil
+        }
+        return String(data: data, encoding: .utf8)
+    }
+
+    private func writeSecret(_ value: String, account: String) throws {
+        let data = Data(value.utf8)
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrAccount as String: account,
+        ]
+        let attributes: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ]
+        let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        if status == errSecItemNotFound {
+            var addQuery = query
+            attributes.forEach { addQuery[$0.key] = $0.value }
+            let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+            guard addStatus == errSecSuccess else { throw LiloAPIError.backend("Could not save workspace credentials.") }
+        } else if status != errSecSuccess {
+            throw LiloAPIError.backend("Could not update workspace credentials.")
+        }
+    }
+
+    private func deleteSecret(account: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrAccount as String: account,
+        ]
+        SecItemDelete(query as CFDictionary)
     }
 }
 

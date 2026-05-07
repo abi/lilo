@@ -3,18 +3,44 @@ import UIKit
 
 struct SettingsView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var backendURL = APIClient.shared.baseURLString
-    @State private var password = ""
     @State private var showSystemPrompt = false
+    @State private var showAddWorkspace = false
 
     var body: some View {
         Form {
-            Section("Deployment") {
-                TextField("Backend URL", text: $backendURL)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                Button("Save and reconnect") {
-                    Task { await model.saveBackendURL(backendURL) }
+            Section("Workspaces") {
+                if let activeProfile {
+                    WorkspaceSummaryCard(profile: activeProfile, isActive: true)
+                } else {
+                    Text("No saved workspaces.")
+                        .foregroundStyle(.secondary)
+                }
+
+                NavigationLink {
+                    WorkspaceSwitcherView()
+                } label: {
+                    Label("Switch workspace", systemImage: "arrow.triangle.2.circlepath")
+                }
+
+                if let activeProfile {
+                    NavigationLink {
+                        EditWorkspaceView(profile: activeProfile)
+                    } label: {
+                        Label("Edit current workspace", systemImage: "slider.horizontal.3")
+                    }
+                }
+
+                Button {
+                    showAddWorkspace = true
+                } label: {
+                    Label("Add workspace", systemImage: "plus")
+                }
+            }
+
+            Section("Current workspace") {
+                if let credentials = WorkspaceProfileStore.shared.activeCredentials() {
+                    LabeledContent("Name", value: credentials.name)
+                    LabeledContent("Backend", value: credentials.backendURL)
                 }
                 if let gitURL = model.workspacePreferences.gitBrowserUrl ?? model.workspacePreferences.gitRemoteUrl,
                    let url = URL(string: gitURL) {
@@ -24,11 +50,10 @@ struct SettingsView: View {
 
             Section("Authentication") {
                 if model.authEnabled {
-                    SecureField("Password", text: $password)
                     Button("Sign in again") {
-                        Task { await model.login(password: password) }
+                        Task { await model.login(password: activePassword) }
                     }
-                    .disabled(password.isEmpty)
+                    .disabled(activePassword.isEmpty)
                 } else {
                     Label("Auth disabled", systemImage: "lock.open")
                 }
@@ -104,6 +129,255 @@ struct SettingsView: View {
                 }
             }
         }
+        .sheet(isPresented: $showAddWorkspace) {
+            AddWorkspaceView()
+        }
+    }
+
+    private var activeProfile: WorkspaceProfile? {
+        model.workspaceProfiles.first { $0.id == model.activeWorkspaceID }
+    }
+
+    private var activePassword: String {
+        WorkspaceProfileStore.shared.activeCredentials()?.password ?? ""
+    }
+}
+
+struct WorkspaceSwitcherView: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var showAddWorkspace = false
+
+    var body: some View {
+        Form {
+            if let activeProfile {
+                Section("Active") {
+                    WorkspaceSummaryCard(profile: activeProfile, isActive: true)
+                }
+            }
+
+            Section("Saved Workspaces") {
+                if model.workspaceProfiles.isEmpty {
+                    Text("No saved workspaces.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(model.workspaceProfiles) { profile in
+                        Button {
+                            guard profile.id != model.activeWorkspaceID else { return }
+                            Task { await model.switchWorkspace(profile.id) }
+                        } label: {
+                            WorkspaceSwitchRow(profile: profile, isActive: profile.id == model.activeWorkspaceID)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            Section {
+                Button {
+                    showAddWorkspace = true
+                } label: {
+                    Label("Add workspace", systemImage: "plus")
+                }
+            }
+        }
+        .navigationTitle("Switch Workspace")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showAddWorkspace = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+        .sheet(isPresented: $showAddWorkspace) {
+            AddWorkspaceView()
+        }
+    }
+
+    private var activeProfile: WorkspaceProfile? {
+        model.workspaceProfiles.first { $0.id == model.activeWorkspaceID }
+    }
+}
+
+struct WorkspaceSwitchRow: View {
+    var profile: WorkspaceProfile
+    var isActive: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            WorkspaceIcon(isActive: isActive)
+            WorkspaceText(profile: profile)
+            Spacer()
+            if isActive {
+                Text("Active")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.blue)
+            } else {
+                Image(systemName: "arrow.right.circle")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .contentShape(Rectangle())
+        .padding(.vertical, 4)
+    }
+}
+
+struct WorkspaceSummaryCard: View {
+    var profile: WorkspaceProfile
+    var isActive: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            WorkspaceIcon(isActive: isActive)
+            WorkspaceText(profile: profile)
+            Spacer()
+            if isActive {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.blue)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+struct WorkspaceText: View {
+    var profile: WorkspaceProfile
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(profile.name)
+                .font(.headline)
+                .foregroundStyle(.primary)
+            Text(backendURL)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+    }
+
+    private var backendURL: String {
+        WorkspaceProfileStore.shared.credentials(for: profile.id)?.backendURL ?? "Missing URL"
+    }
+}
+
+struct WorkspaceIcon: View {
+    var isActive: Bool
+
+    var body: some View {
+        Image(systemName: isActive ? "building.2.crop.circle.fill" : "building.2.crop.circle")
+            .font(.title3)
+            .foregroundStyle(isActive ? .blue : .secondary)
+            .frame(width: 30, height: 30)
+    }
+}
+
+struct EditWorkspaceView: View {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let profile: WorkspaceProfile
+    @State private var workspaceName: String
+    @State private var backendURL: String
+    @State private var password: String
+
+    init(profile: WorkspaceProfile) {
+        self.profile = profile
+        let credentials = WorkspaceProfileStore.shared.credentials(for: profile.id)
+        _workspaceName = State(initialValue: credentials?.name ?? profile.name)
+        _backendURL = State(initialValue: credentials?.backendURL ?? "")
+        _password = State(initialValue: credentials?.password ?? "")
+    }
+
+    var body: some View {
+        Form {
+            Section("Workspace") {
+                TextField("Workspace name", text: $workspaceName)
+                TextField("Backend URL", text: $backendURL)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                SecureField("Password", text: $password)
+            }
+
+            Section {
+                Button("Delete workspace", role: .destructive) {
+                    Task {
+                        await model.deleteWorkspace(profile)
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .navigationTitle("Edit Workspace")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") {
+                    Task {
+                        await model.updateWorkspace(
+                            id: profile.id,
+                            name: workspaceName,
+                            backendURL: backendURL,
+                            password: password
+                        )
+                        dismiss()
+                    }
+                }
+                .disabled(!canSave)
+            }
+        }
+    }
+
+    private var canSave: Bool {
+        !backendURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
+
+struct AddWorkspaceView: View {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var workspaceName = ""
+    @State private var backendURL = ""
+    @State private var password = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Workspace") {
+                    TextField("Workspace name", text: $workspaceName)
+                    TextField("Backend URL", text: $backendURL)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                    SecureField("Password", text: $password)
+                }
+            }
+            .navigationTitle("Add Workspace")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        Task {
+                            await model.signIntoWorkspace(
+                                id: nil,
+                                name: workspaceName,
+                                backendURL: backendURL,
+                                password: password
+                            )
+                            dismiss()
+                        }
+                    }
+                    .disabled(!canAdd)
+                }
+            }
+        }
+    }
+
+    private var canAdd: Bool {
+        !backendURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !password.isEmpty
     }
 }
 
