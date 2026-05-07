@@ -6,7 +6,13 @@
 
 <br/>
 
-Lilo is a personal AI assistant that lives in your Telegram. You can communicate with it just like you would with a human PA. You can text it pictures or voice notes. Lilo can remember not just things, but also store everything you send it. Need an old receipt? Lilo can send that over no problem. You can talk to Lilo, and Lilo can reply in voice notes too. Lilo can give you daily briefings, do research, build and connect with apps, manage your calendar and much more. While Telegram is the easiest way to communicate with Lilo, you can also use WhatsApp, web, desktop, native mobile app or email. However you communicate, Lilo just works.
+**Lilo is a personal AI assistant you can message like a human PA.**
+
+It starts in Telegram, where you can text it, send photos, forward receipts, or drop voice notes whenever something comes up. Lilo remembers the things you tell it and keeps track of the files you send. Need an old receipt? Just ask.
+
+You can talk to Lilo naturally, and it can reply by text or voice. It can give you daily briefings, research questions, manage your calendar, build and connect with apps, organize information.
+
+Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp, web, desktop, mobile, or email. Reach it anywhere.
 
 [![Join the Lilo Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/RAKmnS2G)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
