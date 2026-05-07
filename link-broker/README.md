@@ -27,6 +27,9 @@ PORT=8788
 Create a separate Railway service with this directory as the service root, or
 use the `link-broker/railway.toml` config from the repo root.
 
+The package declares `packageManager: pnpm@10.5.2` so Railway should use pnpm
+even when this directory is deployed as a standalone service root.
+
 The iOS entitlement should use the broker service domain:
 
 ```text
