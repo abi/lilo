@@ -22,6 +22,11 @@ Lilo is a monorepo with:
 - Frontend code should read Vite env-backed values through `frontend/src/config/config.ts`; do not read `import.meta.env` directly from components, hooks, stores, or libs.
 - If a new env var is needed, add it to the appropriate `config.ts` first, then consume it from there.
 
+## Open Source Privacy
+
+- This is an open source project. Avoid committing sensitive or author-specific information, including personal deployment URLs, private Lilo server URLs, workspace names, phone numbers, email addresses, API keys, tokens, or local filesystem details.
+- Keep examples, app entitlements, deep-link domains, docs, tests, and defaults generic or configurable. Do not hard-code details from an author's own Lilo setup unless the user explicitly asks for a local-only experiment and the change will not be committed/shared.
+
 ## Coding Agent
 
 The coding agent used in this product is Pi Mono:
