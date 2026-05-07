@@ -10,7 +10,7 @@
 
 Reach it on Telegram, where you can text it, send photos, forward receipts, or drop voice notes whenever something comes up. Lilo remembers the things you tell it and keeps track of the files you send. Need an old receipt? Just ask.
 
-You can talk to Lilo naturally, and it can reply by text or voice. It can give you daily briefings, research questions, manage your calendar, build and connect with apps, organize information.
+You can talk to Lilo naturally, and it can reply by text or voice. It can give you daily briefings, research questions, manage your calendar, build and connect with apps, send you helpful reminders, organize information, and more.
 
 Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp, web, desktop, mobile, or email. Reach it anywhere.
 
@@ -19,9 +19,7 @@ Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp,
 
 https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
 
-As you can see in the demo,
-
-Lilo can:
+As you can see in the demo:
 
 - You can send it a photo of your food, and it updates your calorie tracker.
 - You can leave a quick voice note about your sore forearm, and it remembers it for later, and suggests some exercises.
