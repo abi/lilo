@@ -357,6 +357,22 @@ final class AppModel: ObservableObject {
         await bootstrap()
     }
 
+    func openUniversalLink(_ url: URL) async {
+        guard let viewerPath = viewerPath(fromUniversalLink: url) else { return }
+        refreshWorkspaceProfiles()
+
+        let matchingWorkspaceID = workspaceID(matching: url)
+        if let matchingWorkspaceID, matchingWorkspaceID != activeWorkspaceID {
+            await switchWorkspace(matchingWorkspaceID, attemptStoredLogin: true)
+        } else if matchingWorkspaceID == nil, let host = url.host {
+            errorMessage = "Add https://\(host) as a workspace before opening this link."
+            return
+        }
+
+        selectedViewerPath = viewerPath
+        selectedTab = .files
+    }
+
     private func resetForWorkspaceChange() async {
         selectedChat = nil
         chats = []
@@ -382,6 +398,42 @@ final class AppModel: ObservableObject {
         socket = nil
         socketTask?.cancel()
         socketTask = nil
+    }
+
+    private func viewerPath(fromUniversalLink url: URL) -> String? {
+        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+           let viewer = components.queryItems?.first(where: { $0.name == "viewer" })?.value,
+           isWorkspaceViewerPath(viewer) {
+            return viewer
+        }
+
+        let decodedPath = url.path.removingPercentEncoding ?? url.path
+        return isWorkspaceViewerPath(decodedPath) ? decodedPath : nil
+    }
+
+    private func isWorkspaceViewerPath(_ value: String) -> Bool {
+        value.starts(with: "/workspace/") || value.starts(with: "/workspace-file/")
+    }
+
+    private func workspaceID(matching url: URL) -> String? {
+        guard let linkOrigin = origin(from: url) else { return nil }
+        return workspaceProfiles.first { profile in
+            guard let credentials = WorkspaceProfileStore.shared.credentials(for: profile.id),
+                  let workspaceURL = URL(string: credentials.backendURL),
+                  let workspaceOrigin = origin(from: workspaceURL) else {
+                return false
+            }
+            return workspaceOrigin == linkOrigin
+        }?.id
+    }
+
+    private func origin(from url: URL) -> String? {
+        guard let scheme = url.scheme?.lowercased(),
+              let host = url.host?.lowercased() else {
+            return nil
+        }
+        let port = url.port.map { ":\($0)" } ?? ""
+        return "\(scheme)://\(host)\(port)"
     }
 
     private func loginWithStoredPasswordIfAvailable() async {

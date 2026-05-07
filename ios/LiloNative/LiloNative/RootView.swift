@@ -51,6 +51,9 @@ struct RootView: View {
         } message: {
             Text(model.errorMessage ?? "")
         }
+        .onOpenURL { url in
+            Task { await model.openUniversalLink(url) }
+        }
     }
 }
 
