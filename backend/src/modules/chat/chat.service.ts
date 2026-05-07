@@ -95,10 +95,27 @@ export interface ChatContextSelectedElement {
   previewUrl?: string;
 }
 
+export interface ChatLocationSnapshot {
+  latitude?: number;
+  longitude?: number;
+  horizontalAccuracyMeters?: number;
+  altitudeMeters?: number | null;
+  courseDegrees?: number | null;
+  speedMetersPerSecond?: number | null;
+  capturedAt?: string;
+  source?: string;
+}
+
+export interface ChatLocationContext {
+  current?: ChatLocationSnapshot;
+  recent?: ChatLocationSnapshot[];
+}
+
 export interface ChatContext {
   viewerPath?: string;
   selectedElement?: ChatContextSelectedElement;
   selectedElements?: ChatContextSelectedElement[];
+  location?: ChatLocationContext;
 }
 
 export interface ChatPromptInput {
@@ -157,6 +174,59 @@ interface AppMemoryContextEntry {
   appName: string;
   memory: string;
 }
+
+const escapeXmlText = (value: string): string =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+
+const finiteNumber = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+
+const formatLocationSnapshot = (
+  snapshot: ChatLocationSnapshot,
+  tagName: "current_location" | "recent_location",
+): string | null => {
+  const latitude = finiteNumber(snapshot.latitude);
+  const longitude = finiteNumber(snapshot.longitude);
+  const horizontalAccuracyMeters = finiteNumber(snapshot.horizontalAccuracyMeters);
+
+  if (latitude === null || longitude === null || horizontalAccuracyMeters === null) {
+    return null;
+  }
+
+  const lines = [`<${tagName}>`];
+  lines.push(`<latitude>${latitude}</latitude>`);
+  lines.push(`<longitude>${longitude}</longitude>`);
+  lines.push(`<horizontal_accuracy_meters>${horizontalAccuracyMeters}</horizontal_accuracy_meters>`);
+
+  const altitudeMeters = finiteNumber(snapshot.altitudeMeters);
+  if (altitudeMeters !== null) {
+    lines.push(`<altitude_meters>${altitudeMeters}</altitude_meters>`);
+  }
+
+  const courseDegrees = finiteNumber(snapshot.courseDegrees);
+  if (courseDegrees !== null) {
+    lines.push(`<course_degrees>${courseDegrees}</course_degrees>`);
+  }
+
+  const speedMetersPerSecond = finiteNumber(snapshot.speedMetersPerSecond);
+  if (speedMetersPerSecond !== null) {
+    lines.push(`<speed_meters_per_second>${speedMetersPerSecond}</speed_meters_per_second>`);
+  }
+
+  if (typeof snapshot.capturedAt === "string" && snapshot.capturedAt.trim().length > 0) {
+    lines.push(`<captured_at>${escapeXmlText(snapshot.capturedAt.trim())}</captured_at>`);
+  }
+
+  if (typeof snapshot.source === "string" && snapshot.source.trim().length > 0) {
+    lines.push(`<source>${escapeXmlText(snapshot.source.trim())}</source>`);
+  }
+
+  lines.push(`</${tagName}>`);
+  return lines.join("\n");
+};
 
 interface ChatMetadata {
   modelSelection?: ChatModelSelection;
@@ -1528,6 +1598,28 @@ export class PiSdkChatService {
 
     if (context.viewerPath) {
       contextParts.push(`<current_viewer>${context.viewerPath}</current_viewer>`);
+    }
+
+    if (context.location?.current) {
+      const currentLocation = formatLocationSnapshot(context.location.current, "current_location");
+      const recentLocations = (context.location.recent ?? [])
+        .slice(0, 10)
+        .map((snapshot) => formatLocationSnapshot(snapshot, "recent_location"))
+        .filter((value): value is string => Boolean(value));
+
+      if (currentLocation) {
+        const locationParts = [
+          "<user_location_context>",
+          currentLocation,
+          ...(
+            recentLocations.length > 0
+              ? ["<recent_locations>", ...recentLocations, "</recent_locations>"]
+              : []
+          ),
+          "</user_location_context>",
+        ];
+        contextParts.push(locationParts.join("\n"));
+      }
     }
 
     if (attachments.length > 0) {

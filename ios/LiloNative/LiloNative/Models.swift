@@ -166,6 +166,27 @@ struct WorkspaceResponse: Codable {
     var preferences: WorkspacePreferences
 }
 
+struct UserLocationSnapshot: Codable, Hashable {
+    var latitude: Double
+    var longitude: Double
+    var horizontalAccuracyMeters: Double
+    var altitudeMeters: Double?
+    var courseDegrees: Double?
+    var speedMetersPerSecond: Double?
+    var capturedAt: String
+    var source: String
+}
+
+struct UserLocationContext: Codable, Hashable {
+    var current: UserLocationSnapshot
+    var recent: [UserLocationSnapshot]
+}
+
+struct ChatPromptContext: Codable, Hashable {
+    var viewerPath: String?
+    var location: UserLocationContext?
+}
+
 struct AutomationSchedule: Codable, Hashable {
     var type: String
     var expression: String?

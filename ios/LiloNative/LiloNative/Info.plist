@@ -26,6 +26,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Attach photos to Lilo chats.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Share your current location with Lilo chats when you choose to enable location context.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Attach photos and files to Lilo chats.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

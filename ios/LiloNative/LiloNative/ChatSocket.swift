@@ -136,8 +136,12 @@ actor ChatSocket {
         try await send(payload)
     }
 
-    func prompt(_ message: String, uploadIds: [String] = []) async throws {
-        try await send(["type": "prompt", "message": message, "uploadIds": uploadIds])
+    func prompt(_ message: String, uploadIds: [String] = [], context: ChatPromptContext? = nil) async throws {
+        var payload: [String: Any] = ["type": "prompt", "message": message, "uploadIds": uploadIds]
+        if let context {
+            payload["context"] = try context.jsonObject()
+        }
+        try await send(payload)
     }
 
     func stop(runId: String?) async throws {
@@ -169,6 +173,13 @@ actor ChatSocket {
             throw LiloAPIError.invalidResponse
         }
         try await task.send(.string(text))
+    }
+}
+
+private extension Encodable {
+    func jsonObject() throws -> Any {
+        let data = try JSONEncoder().encode(self)
+        return try JSONSerialization.jsonObject(with: data)
     }
 }
 
