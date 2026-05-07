@@ -6,13 +6,21 @@
 
 <br/>
 
-
-Lilo is a personal AI assistant that can help you with everything in life. It can track and execute your TODOs, remembers things, writes documents, builds apps, conducts research as well as remind you about things. You can reach it from anywhere: WhatsApp, Telegram, desktop, mobile or email.
+Lilo is a personal AI assistant that lives in your Telegram. You can communicate with it just like you would with a human PA. You can text it pictures or voice notes. Lilo can remember not just things, but also store everything you send it. Need an old receipt? Lilo can send that over no problem. You can talk to Lilo, and Lilo can reply in voice notes too. Lilo can give you daily briefings, do research, build and connect with apps, manage your calendar and much more. While Telegram is the easiest way to communicate with Lilo, you can also use WhatsApp, web, desktop, native mobile app or email. However you communicate, Lilo just works.
 
 [![Join the Lilo Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/RAKmnS2G)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
 
 https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
+
+As you can see in the demo,
+
+Lilo can:
+
+- Remember things about you
+- Store your photos and files
+- Remind you about things
+- Track and execute on your TODOs
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Mobile app](#mobile-app) · [Security](#security) · [Deployment](#deployment)
 
