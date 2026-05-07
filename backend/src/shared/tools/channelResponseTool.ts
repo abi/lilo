@@ -2,12 +2,14 @@ import { Type } from "@mariozechner/pi-ai";
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 
 export const CHANNEL_RESPONSE_TOOL_NAME = "send_channel_response";
+const VOICE_RESPONSE_CHUNK_MAX_CHARS = 3_500;
 
 export type ChannelResponseType = "voice" | "image" | "file";
 
 export interface SendChannelResponseDetails {
   responseType: ChannelResponseType;
   text?: string;
+  textChunks?: string[];
   filePath?: string;
   url?: string;
   caption?: string;
@@ -29,6 +31,17 @@ const normalizeOptionalString = (value: unknown): string | undefined => {
   return normalized.length > 0 ? normalized : undefined;
 };
 
+const normalizeOptionalStringArray = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = value
+    .map((item) => normalizeOptionalString(item))
+    .filter((item): item is string => Boolean(item));
+  return normalized.length > 0 ? normalized : undefined;
+};
+
 export const isSendChannelResponseDetails = (
   value: unknown,
 ): value is SendChannelResponseDetails =>
@@ -47,9 +60,10 @@ export const channelResponseTool: ToolDefinition = {
   description:
     "Send a non-text response back to the current Telegram or WhatsApp conversation. Use voice when the user asks you to read/say/speak something aloud. Use image or file for image, PDF, or other file responses. This tool is only delivered by external messaging channels.",
   promptSnippet:
-    "send_channel_response: for Telegram/WhatsApp, call this to send voice notes or media/files. Use response_type='voice' with text to read aloud; use response_type='image' or 'file' with file_path or url to send media. Do not also paste a full transcript when sending voice unless the user asks for text too.",
+    "send_channel_response: for Telegram/WhatsApp, call this to send voice notes or media/files. Use response_type='voice' with text to read aloud, or text_chunks when the spoken text is longer than 3500 characters; each chunk becomes a separate voice message. Use response_type='image' or 'file' with file_path or url to send media. Do not also paste a full transcript when sending voice unless the user asks for text too.",
   promptGuidelines: [
     "When a Telegram or WhatsApp user asks you to read something out loud, call send_channel_response with response_type='voice' and the exact text to speak.",
+    "For voice responses longer than 3500 characters, split the text into natural chunks under 3500 characters each and pass them as text_chunks in order. Do not omit content unless you tell the user you are summarizing.",
     "When a Telegram or WhatsApp user asks for an image, PDF, or other file response, call send_channel_response with response_type='image' or response_type='file' and either file_path or url.",
     "Use file_path for files in the workspace, such as memory/INDEX.md or /workspace-file/docs/report.pdf. Use url only for already-public media URLs.",
     "Do not call send_channel_response for ordinary text replies.",
@@ -61,8 +75,18 @@ export const channelResponseTool: ToolDefinition = {
     }),
     text: Type.Optional(
       Type.String({
-        description: "For voice responses, the exact text to read aloud.",
+        description: "For voice responses, the exact text to read aloud when it is under 3500 characters.",
+        maxLength: VOICE_RESPONSE_CHUNK_MAX_CHARS,
       }),
+    ),
+    text_chunks: Type.Optional(
+      Type.Array(
+        Type.String({
+          description:
+            "For long voice responses, ordered chunks of exact text to read aloud. Keep each chunk under 3500 characters.",
+          maxLength: VOICE_RESPONSE_CHUNK_MAX_CHARS,
+        }),
+      ),
     ),
     file_path: Type.Optional(
       Type.String({
@@ -101,6 +125,7 @@ export const channelResponseTool: ToolDefinition = {
     const details: SendChannelResponseDetails = {
       responseType,
       text: normalizeOptionalString(raw.text),
+      textChunks: normalizeOptionalStringArray(raw.text_chunks),
       filePath: normalizeOptionalString(raw.file_path),
       url: normalizeOptionalString(raw.url),
       caption: normalizeOptionalString(raw.caption),
@@ -109,8 +134,8 @@ export const channelResponseTool: ToolDefinition = {
       voiceInstructions: normalizeOptionalString(raw.voice_instructions),
     };
 
-    if (responseType === "voice" && !details.text) {
-      throw new Error("Voice responses require text");
+    if (responseType === "voice" && !details.text && !details.textChunks) {
+      throw new Error("Voice responses require text or text_chunks");
     }
 
     if (responseType !== "voice" && !details.filePath && !details.url) {

@@ -510,37 +510,43 @@ const sendWhatsAppChannelResponse = async (
   to: string,
   details: SendChannelResponseDetails,
 ): Promise<Array<{ sid: string | null; status: string | null }>> => {
-  const media = await prepareChannelResponseMedia(details);
-  const mediaUrl = getPublicUrlForChannelMedia(media);
+  const mediaBatch = await prepareChannelResponseMedia(details);
+  const results: Array<{ sid: string | null; status: string | null }> = [];
 
-  try {
-    return [
-      await sendWhatsAppReply(to, media.caption ?? "", mediaUrl, {
-        chunkIndex: 1,
-        chunkCount: 1,
-      }),
-    ];
-  } catch (error) {
-    captureBackendException(error, {
-      tags: {
-        area: "whatsapp",
-        provider: "twilio",
-        operation: "send_channel_response",
-        to: normalizeWhatsAppAddress(to),
-        response_type: media.responseType,
-        mime_type: media.mimeType,
-      },
-      extras: {
-        filename: media.filename,
-        mediaUrl,
-        hasUrl: Boolean(media.url),
-        byteLength: media.bytes?.byteLength ?? null,
-      },
-      level: "error",
-      fingerprint: ["whatsapp", "send_channel_response", media.responseType],
-    });
-    throw error;
+  for (const [index, media] of mediaBatch.entries()) {
+    const mediaUrl = getPublicUrlForChannelMedia(media);
+
+    try {
+      results.push(
+        await sendWhatsAppReply(to, media.caption ?? "", mediaUrl, {
+          chunkIndex: index + 1,
+          chunkCount: mediaBatch.length,
+        }),
+      );
+    } catch (error) {
+      captureBackendException(error, {
+        tags: {
+          area: "whatsapp",
+          provider: "twilio",
+          operation: "send_channel_response",
+          to: normalizeWhatsAppAddress(to),
+          response_type: media.responseType,
+          mime_type: media.mimeType,
+        },
+        extras: {
+          filename: media.filename,
+          mediaUrl,
+          hasUrl: Boolean(media.url),
+          byteLength: media.bytes?.byteLength ?? null,
+        },
+        level: "error",
+        fingerprint: ["whatsapp", "send_channel_response", media.responseType],
+      });
+      throw error;
+    }
   }
+
+  return results;
 };
 
 export const sendWhatsAppAutomationMessage = async (
