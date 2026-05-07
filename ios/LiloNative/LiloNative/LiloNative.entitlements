@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:focused-generosity-production-5ec5.up.railway.app</string>
+		<string>applinks:lilo-link-broker-production.up.railway.app</string>
 	</array>
 </dict>
 </plist>

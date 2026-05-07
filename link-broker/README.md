@@ -18,7 +18,7 @@ stay self-hosted and only generate broker URLs.
 ## Environment
 
 ```bash
-LILO_IOS_UNIVERSAL_LINK_APP_IDS=M3A8944T2H.com.getwhimsyworks.lilo
+LILO_IOS_UNIVERSAL_LINK_APP_IDS=<TEAM_ID>.<bundle.identifier>
 PORT=8788
 ```
 
