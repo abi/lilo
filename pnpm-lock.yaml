@@ -127,6 +127,8 @@ importers:
         specifier: ^0.9.3
         version: 0.9.3(typescript@5.9.3)(vite@5.4.21(@types/node@22.19.13))
 
+  link-broker: {}
+
 packages:
 
   '@alloc/quick-lru@5.2.0':

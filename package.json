@@ -9,7 +9,7 @@
     "dev:backend": "pnpm --filter backend dev",
     "dev:template": "LILO_WORKSPACE_DIR=workspace-template pnpm run dev",
     "setup:railway": "./scripts/setup-railway.sh",
-    "build": "pnpm -r --filter frontend --filter backend build",
+    "build": "pnpm -r --filter frontend --filter backend --filter link-broker build",
     "lint": "oxlint .",
     "format": "oxfmt --write ."
   }

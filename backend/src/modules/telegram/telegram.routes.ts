@@ -517,6 +517,7 @@ const sendTelegramReplyChunked = async (
   publicAppUrl = backendConfig.server.publicAppUrl,
 ): Promise<number> => {
   const formatted = formatTelegramMessagingOutput(body, {
+    linkBrokerUrl: backendConfig.deepLinks.linkBrokerUrl,
     publicAppUrl,
   });
   const chunks = splitTelegramReply(formatted.text);

@@ -396,10 +396,11 @@ final class AppModel: ObservableObject {
         guard let viewerPath = viewerPath(fromUniversalLink: url) else { return }
         refreshWorkspaceProfiles()
 
-        let matchingWorkspaceID = workspaceID(matching: url)
+        let workspaceURL = workspaceUrl(fromUniversalLink: url) ?? url
+        let matchingWorkspaceID = workspaceID(matching: workspaceURL)
         if let matchingWorkspaceID, matchingWorkspaceID != activeWorkspaceID {
             await switchWorkspace(matchingWorkspaceID, attemptStoredLogin: true)
-        } else if matchingWorkspaceID == nil, let host = url.host {
+        } else if matchingWorkspaceID == nil, let host = workspaceURL.host {
             errorMessage = "Add https://\(host) as a workspace before opening this link."
             return
         }
@@ -486,6 +487,17 @@ final class AppModel: ObservableObject {
 
         let decodedPath = url.path.removingPercentEncoding ?? url.path
         return isWorkspaceViewerPath(decodedPath) ? decodedPath : nil
+    }
+
+    private func workspaceUrl(fromUniversalLink url: URL) -> URL? {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let workspace = components.queryItems?.first(where: { $0.name == "workspace" })?.value,
+              let workspaceURL = URL(string: workspace),
+              ["https", "http"].contains(workspaceURL.scheme?.lowercased()) else {
+            return nil
+        }
+
+        return workspaceURL
     }
 
     private func isWorkspaceViewerPath(_ value: String) -> Bool {
