@@ -67,7 +67,7 @@ struct SettingsView: View {
                     }
                 ))
                 if let location = model.latestLocation {
-                    LabeledContent("Last shared", value: location.capturedAt)
+                    LabeledContent("Last shared", value: relativeDate(location.capturedAt))
                     LabeledContent("Accuracy", value: "\(Int(location.horizontalAccuracyMeters.rounded())) m")
                     Button("Refresh location") {
                         Task { await model.refreshCurrentLocation() }

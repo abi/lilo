@@ -256,7 +256,11 @@ railway_cmd "${volume_cmd[@]}"
 domain_cmd=(domain --port "$port")
 domain_output="$(railway_capture "${domain_cmd[@]}")"
 printf '%s\n' "$domain_output"
-domain_url="$(printf '%s\n' "$domain_output" | grep -Eo 'https://[^[:space:]]+' | tail -n 1 || true)"
+if command -v rg >/dev/null 2>&1; then
+  domain_url="$(printf '%s\n' "$domain_output" | rg -o 'https://[^[:space:]]+' | tail -n 1 || true)"
+else
+  domain_url="$(printf '%s\n' "$domain_output" | grep -Eo 'https://[^[:space:]]+' | tail -n 1 || true)"
+fi
 
 print_header "Done"
 print_note "URL: ${domain_url:-<not found in Railway output>}"

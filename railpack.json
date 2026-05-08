@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.railpack.com",
   "deploy": {
-    "aptPackages": ["git", "curl", "python3", "poppler-utils", "tesseract-ocr", "zip"]
+    "aptPackages": ["git", "curl", "python3", "poppler-utils", "ripgrep", "tesseract-ocr", "zip"]
   }
 }

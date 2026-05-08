@@ -27,6 +27,7 @@ const BASE_PI_SYSTEM_PROMPT = `
 - When you need to browse the internet or read website content, prefer the \`web_search\` and \`web_scrape\` tools for discovery and page retrieval instead of raw \`curl\` or similar shell-based fetching.
 - This is especially important because many websites block or degrade direct server-side requests; \`web_search\` and \`web_scrape\` are usually the more reliable path.
 - Only fall back to shell-based web fetching when Firecrawl is clearly not appropriate for the task.
+- When searching workspace files, prefer \`rg\` / ripgrep for both file-name and text searches. Use \`grep\` only as a fallback if \`rg\` is unavailable.
 
 # Channels
 

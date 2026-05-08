@@ -6,6 +6,7 @@ RUN apt-get update \
     git \
     poppler-utils \
     python3 \
+    ripgrep \
     tesseract-ocr \
     zip \
   && rm -rf /var/lib/apt/lists/*

@@ -37,7 +37,7 @@
 		8C02000B2C00000000000001 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
 		8C02000C2C00000000000001 /* DocumentPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentPicker.swift; sourceTree = "<group>"; };
 		8C02000D2C00000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		8C0200FF2C00000000000001 /* LiloNative.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LiloNative.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8C0200FF2C00000000000001 /* Lilo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Lilo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,7 +83,7 @@
 		8C0400032C00000000000001 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				8C0200FF2C00000000000001 /* LiloNative.app */,
+				8C0200FF2C00000000000001 /* Lilo.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -104,8 +104,8 @@
 			dependencies = (
 			);
 			name = LiloNative;
-			productName = LiloNative;
-			productReference = 8C0200FF2C00000000000001 /* LiloNative.app */;
+			productName = Lilo;
+			productReference = 8C0200FF2C00000000000001 /* Lilo.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -302,7 +302,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.getwhimsyworks.lilo;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Lilo;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -322,7 +322,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.getwhimsyworks.lilo;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Lilo;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
