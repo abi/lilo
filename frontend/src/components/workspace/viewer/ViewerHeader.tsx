@@ -1,4 +1,6 @@
+import { useState } from "react";
 import type { WorkspaceEntry } from "../types";
+import { authFetch } from "../../../lib/auth";
 
 interface ViewerHeaderProps {
   mobile?: boolean;
@@ -18,6 +20,57 @@ export function ViewerHeader({
   onBack,
   onRefresh,
 }: ViewerHeaderProps) {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const canDownload =
+    Boolean(selectedViewerUrl) &&
+    Boolean(selectedEntry) &&
+    selectedEntry?.kind !== "app" &&
+    selectedEntry?.kind !== "directory";
+  const downloadName = selectedEntry?.name || title || "download";
+
+  const handleDownload = async () => {
+    if (!selectedViewerUrl || !canDownload || isDownloading) {
+      return;
+    }
+
+    setIsDownloading(true);
+    setDownloadError(null);
+
+    try {
+      const response = await authFetch(selectedViewerUrl);
+      if (!response.ok) {
+        throw new Error(`Download failed (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = downloadName;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
+    } catch (error) {
+      setDownloadError(
+        error instanceof Error ? error.message : "Download failed",
+      );
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const downloadButtonLabel = isDownloading
+    ? "Downloading"
+    : downloadError
+      ? "Failed"
+      : "Download";
+  const downloadButtonTitle =
+    downloadError ?? (canDownload ? `Download ${downloadName}` : undefined);
+
   const mobileBackMark =
     selectedEntry?.kind === "app" && selectedEntry.iconHref ? (
       <img
@@ -63,6 +116,32 @@ export function ViewerHeader({
           <span className="truncate font-heading text-lg font-semibold tracking-tight">{title}</span>
         </button>
         <div className="flex min-w-0 items-center gap-1">
+          {canDownload ? (
+            <button
+              type="button"
+              className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded border border-neutral-200 bg-neutral-50 px-2.5 text-xs font-medium text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-900 active:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:border-neutral-500 dark:hover:text-neutral-200 dark:active:bg-neutral-800"
+              onClick={handleDownload}
+              disabled={isDownloading}
+              aria-label={`Download ${downloadName}`}
+              title={downloadButtonTitle}
+            >
+              <svg
+                className="h-3.5 w-3.5 shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <path d="M7 10l5 5 5-5" />
+                <path d="M12 15V3" />
+              </svg>
+              {downloadButtonLabel}
+            </button>
+          ) : null}
           <button
             type="button"
             className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded border border-neutral-200 bg-neutral-50 px-2.5 text-xs font-medium text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-900 active:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:border-neutral-500 dark:hover:text-neutral-200 dark:active:bg-neutral-800"
@@ -111,6 +190,32 @@ export function ViewerHeader({
           </p>
         </div>
         <div className="flex items-center gap-1.5">
+          {canDownload ? (
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-500 transition hover:border-neutral-400 hover:text-neutral-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:border-neutral-500 dark:hover:text-neutral-200"
+              onClick={handleDownload}
+              disabled={isDownloading}
+              aria-label={`Download ${downloadName}`}
+              title={downloadButtonTitle}
+            >
+              <svg
+                className="h-3.5 w-3.5 shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <path d="M7 10l5 5 5-5" />
+                <path d="M12 15V3" />
+              </svg>
+              {downloadButtonLabel}
+            </button>
+          ) : null}
           <button
             type="button"
             className="flex items-center gap-1.5 rounded border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-500 transition hover:border-neutral-400 hover:text-neutral-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:border-neutral-500 dark:hover:text-neutral-200"
