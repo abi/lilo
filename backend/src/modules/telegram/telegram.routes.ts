@@ -63,6 +63,7 @@ type TelegramMessage = {
   caption?: string;
   chat: TelegramChat;
   from?: TelegramUser;
+  reply_to_message?: TelegramMessage;
   photo?: TelegramPhotoSize[];
   document?: TelegramFileAttachment;
   audio?: TelegramFileAttachment;
@@ -112,6 +113,13 @@ type TelegramVoiceNoteTranscript = {
   transcript?: string;
   error?: string;
   model?: string;
+};
+
+type TelegramReplyContext = {
+  messageId: number;
+  fromLabel: string;
+  text: string;
+  media: string[];
 };
 
 const getTelegramBotToken = (): string =>
@@ -740,10 +748,14 @@ const downloadTelegramFile = async (
   };
 };
 
-const loadInboundMedia = async (message: TelegramMessage): Promise<UploadedChatFile[]> => {
+const loadInboundMedia = async (
+  message: TelegramMessage,
+  source: "current" | "reply" = "current",
+): Promise<UploadedChatFile[]> => {
   const botToken = getTelegramBotToken();
   const uploads: UploadedChatFile[] = [];
   const photos = message.photo ?? [];
+  const namePrefix = source === "reply" ? "telegram-reply" : "telegram";
 
   if (photos.length > 0) {
     const preferred = [...photos].sort((left, right) => {
@@ -757,17 +769,18 @@ const loadInboundMedia = async (message: TelegramMessage): Promise<UploadedChatF
         botToken,
         {
           file_id: preferred.file_id,
-          file_name: `telegram-photo-${message.message_id}.jpg`,
+          file_name: `${namePrefix}-photo-${message.message_id}.jpg`,
           mime_type: "image/jpeg",
           file_size: preferred.file_size,
         },
-        "telegram-photo",
+        `${namePrefix}-photo`,
       );
       if (upload) {
         uploads.push(upload);
       }
     } catch (error) {
       console.warn("[telegram] failed to process inbound photo", {
+        source,
         fileId: preferred.file_id,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -775,12 +788,12 @@ const loadInboundMedia = async (message: TelegramMessage): Promise<UploadedChatF
   }
 
   const attachments: Array<{ prefix: string; file: TelegramFileAttachment | undefined }> = [
-    { prefix: "telegram-document", file: message.document },
-    { prefix: "telegram-audio", file: message.audio },
-    { prefix: "telegram-voice", file: message.voice },
-    { prefix: "telegram-video", file: message.video },
-    { prefix: "telegram-video-note", file: message.video_note },
-    { prefix: "telegram-animation", file: message.animation },
+    { prefix: `${namePrefix}-document`, file: message.document },
+    { prefix: `${namePrefix}-audio`, file: message.audio },
+    { prefix: `${namePrefix}-voice`, file: message.voice },
+    { prefix: `${namePrefix}-video`, file: message.video },
+    { prefix: `${namePrefix}-video-note`, file: message.video_note },
+    { prefix: `${namePrefix}-animation`, file: message.animation },
   ];
 
   for (const { prefix, file } of attachments) {
@@ -795,6 +808,7 @@ const loadInboundMedia = async (message: TelegramMessage): Promise<UploadedChatF
       }
     } catch (error) {
       console.warn("[telegram] failed to process inbound media", {
+        source,
         prefix,
         fileId: file.file_id,
         mimeType: file.mime_type ?? "unknown",
@@ -807,6 +821,25 @@ const loadInboundMedia = async (message: TelegramMessage): Promise<UploadedChatF
 };
 
 const extractTelegramMessage = (update: TelegramUpdate): TelegramMessage | null => update.message ?? null;
+
+const describeUploads = (uploads: UploadedChatFile[]): string[] =>
+  uploads.map((upload) => `${upload.originalName} (${upload.mimeType}, ${upload.size} bytes)`);
+
+const buildReplyContext = (
+  message: TelegramMessage | undefined,
+  media: UploadedChatFile[],
+): TelegramReplyContext | null => {
+  if (!message) {
+    return null;
+  }
+
+  return {
+    messageId: message.message_id,
+    fromLabel: describeTelegramUser(message.from),
+    text: (message.text ?? message.caption ?? "").trim(),
+    media: describeUploads(media),
+  };
+};
 
 const transcribeInboundVoiceNotes = async (
   uploads: UploadedChatFile[],
@@ -874,11 +907,15 @@ const buildInboundTelegramPrompt = ({
   inboundText,
   fromLabel,
   chatLabel,
+  currentMedia,
+  replyContext,
   transcripts,
 }: {
   inboundText: string;
   fromLabel: string;
   chatLabel: string;
+  currentMedia: string[];
+  replyContext: TelegramReplyContext | null;
   transcripts: TelegramVoiceNoteTranscript[];
 }): string => {
   const parts = [
@@ -891,6 +928,27 @@ const buildInboundTelegramPrompt = ({
     "",
     `Telegram message from user: ${inboundText || "(empty message)"}`,
   ];
+
+  if (currentMedia.length > 0) {
+    parts.push("", "Current message media attachment(s):", ...currentMedia.map((item) => `- ${item}`));
+  }
+
+  if (replyContext) {
+    parts.push(
+      "",
+      "The current Telegram message is a reply to this earlier message:",
+      `Replied-to message ID: ${replyContext.messageId}`,
+      `Replied-to sender: ${replyContext.fromLabel}`,
+      `Replied-to text: ${replyContext.text || "(empty message)"}`,
+    );
+
+    if (replyContext.media.length > 0) {
+      parts.push(
+        "Replied-to media attachment(s):",
+        ...replyContext.media.map((item) => `- ${item}`),
+      );
+    }
+  }
 
   if (transcripts.length > 0) {
     parts.push("", "Audio transcript(s):");
@@ -997,8 +1055,13 @@ export const registerTelegramRoutes = (app: Hono, chatService: PiSdkChatService)
       try {
         const now = new Date();
         const timezone = await getTelegramThreadTimezone();
-        const inboundMedia = await loadInboundMedia(message);
-        const audioTranscripts = await transcribeInboundVoiceNotes(inboundMedia);
+        const replyToMessage = message.reply_to_message;
+        const inboundMedia = await loadInboundMedia(message, "current");
+        const replyMedia = replyToMessage
+          ? await loadInboundMedia(replyToMessage, "reply")
+          : [];
+        const allInboundMedia = [...inboundMedia, ...replyMedia];
+        const audioTranscripts = await transcribeInboundVoiceNotes(allInboundMedia);
 
         let chatId = await resolveDailyTelegramChatId(threadKey, now, timezone);
         if (!chatId || !(await chatService.hasChat(chatId))) {
@@ -1008,20 +1071,22 @@ export const registerTelegramRoutes = (app: Hono, chatService: PiSdkChatService)
           console.log(`[telegram] created chat=${chatId} thread=${threadKey} timezone=${timezone}`);
         }
 
-        const resolvedUploads = inboundMedia.length > 0
+        const resolvedUploads = allInboundMedia.length > 0
           ? await chatService.resolveUploads(
               chatId,
-              await chatService.storeUploads(chatId, inboundMedia),
+              await chatService.storeUploads(chatId, allInboundMedia),
             )
           : { images: [], attachments: [] };
         const inboundPrompt = buildInboundTelegramPrompt({
           inboundText,
           fromLabel,
           chatLabel,
+          currentMedia: describeUploads(inboundMedia),
+          replyContext: buildReplyContext(replyToMessage, replyMedia),
           transcripts: audioTranscripts,
         });
         console.log(
-          `[telegram] inbound chat=${message.chat.id} thread=${threadKey} textLength=${inboundText.length} mediaCount=${inboundMedia.length} imageCount=${resolvedUploads.images.length} attachmentCount=${resolvedUploads.attachments.length} audioTranscriptCount=${audioTranscripts.length} timezone=${timezone}`,
+          `[telegram] inbound chat=${message.chat.id} thread=${threadKey} textLength=${inboundText.length} mediaCount=${allInboundMedia.length} currentMediaCount=${inboundMedia.length} replyMediaCount=${replyMedia.length} hasReplyContext=${Boolean(replyToMessage)} imageCount=${resolvedUploads.images.length} attachmentCount=${resolvedUploads.attachments.length} audioTranscriptCount=${audioTranscripts.length} timezone=${timezone}`,
         );
 
         const currentChat = await chatService.getChat(chatId);
