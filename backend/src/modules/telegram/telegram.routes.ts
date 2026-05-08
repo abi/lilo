@@ -654,7 +654,7 @@ const sendTelegramChatAction = async (
   });
 };
 
-const sendTelegramThumbsUpReaction = async (
+const sendTelegramEyesReaction = async (
   chatId: number,
   messageId: number,
 ): Promise<void> => {
@@ -662,7 +662,7 @@ const sendTelegramThumbsUpReaction = async (
   await telegramApiFetch(botToken, "setMessageReaction", {
     chat_id: chatId,
     message_id: messageId,
-    reaction: [{ type: "emoji", emoji: "👍" }],
+    reaction: [{ type: "emoji", emoji: "👀" }],
   });
 };
 
@@ -1005,9 +1005,9 @@ export const registerTelegramRoutes = (app: Hono, chatService: PiSdkChatService)
 
     const processTelegram = async () => {
       try {
-        await sendTelegramThumbsUpReaction(message.chat.id, message.message_id);
+        await sendTelegramEyesReaction(message.chat.id, message.message_id);
       } catch (error) {
-        console.warn("[telegram] failed to set thumbs up reaction", {
+        console.warn("[telegram] failed to set eyes reaction", {
           chatId: message.chat.id,
           messageId: message.message_id,
           error: error instanceof Error ? error.message : String(error),
@@ -1021,10 +1021,10 @@ export const registerTelegramRoutes = (app: Hono, chatService: PiSdkChatService)
           },
           extras: {
             messageId: message.message_id,
-            reaction: "thumbs_up",
+            reaction: "eyes",
           },
           level: "warning",
-          fingerprint: ["telegram", "set_message_reaction", "thumbs_up"],
+          fingerprint: ["telegram", "set_message_reaction", "eyes"],
         });
       }
 
