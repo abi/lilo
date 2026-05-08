@@ -480,18 +480,28 @@ final class AppModel: ObservableObject {
 
     private func viewerPath(fromUniversalLink url: URL) -> String? {
         if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-           let viewer = components.queryItems?.first(where: { $0.name == "viewer" })?.value,
+           let viewer = components.queryItems?.first(where: { $0.name == "viewer" || $0.name == "v" })?.value,
            isWorkspaceViewerPath(viewer) {
             return viewer
         }
 
         let decodedPath = url.path.removingPercentEncoding ?? url.path
+        if decodedPath.starts(with: "/open/") {
+            let compactPath = "/" + decodedPath.dropFirst(6)
+            return isWorkspaceViewerPath(compactPath) ? compactPath : nil
+        }
+
+        if decodedPath.starts(with: "/o/") {
+            let compactPath = "/" + decodedPath.dropFirst(3)
+            return isWorkspaceViewerPath(compactPath) ? compactPath : nil
+        }
+
         return isWorkspaceViewerPath(decodedPath) ? decodedPath : nil
     }
 
     private func workspaceUrl(fromUniversalLink url: URL) -> URL? {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let workspace = components.queryItems?.first(where: { $0.name == "workspace" })?.value,
+              let workspace = components.queryItems?.first(where: { $0.name == "workspace" || $0.name == "w" })?.value,
               let workspaceURL = URL(string: workspace),
               ["https", "http"].contains(workspaceURL.scheme?.lowercased()) else {
             return nil

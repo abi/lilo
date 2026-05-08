@@ -11,9 +11,12 @@ stay self-hosted and only generate broker URLs.
 - `GET /health`
 - `GET /.well-known/apple-app-site-association`
 - `GET /apple-app-site-association`
+- `GET /open/<workspace-viewer-path>?w=<https-url>`
 - `GET /open?workspace=<https-url>&viewer=<workspace-viewer-path>`
 
 `viewer` must start with `/workspace/` or `/workspace-file/`.
+`/open/...` is the compact form used for messaging buttons; `/open?...` remains
+supported for older verbose links.
 
 ## Environment
 

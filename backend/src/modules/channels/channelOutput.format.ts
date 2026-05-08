@@ -177,11 +177,10 @@ const getWorkspaceBrokerUrl = (
 
   try {
     const brokerUrl = new URL(options.linkBrokerUrl);
-    brokerUrl.pathname = "/open";
+    brokerUrl.pathname = `/open/${encodeWorkspaceFilePath(viewerPath)}`;
     brokerUrl.search = "";
     brokerUrl.hash = "";
-    brokerUrl.searchParams.set("workspace", options.publicAppUrl);
-    brokerUrl.searchParams.set("viewer", `/${viewerPath}`);
+    brokerUrl.searchParams.set("w", options.publicAppUrl);
     return brokerUrl.toString();
   } catch {
     return null;
@@ -239,6 +238,10 @@ const isAllowedWorkspaceLinkUrl = (
       const brokerUrl = new URL(options.linkBrokerUrl);
       if (parsed.origin === brokerUrl.origin && parsed.pathname === "/open") {
         return Boolean(parsed.searchParams.get("workspace") && parsed.searchParams.get("viewer"));
+      }
+
+      if (parsed.origin === brokerUrl.origin && parsed.pathname.startsWith("/open/")) {
+        return Boolean(parsed.searchParams.get("w") && isWorkspaceViewerPath(parsed.pathname.slice(5)));
       }
     }
 
