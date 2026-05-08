@@ -35,6 +35,31 @@ const isHttpsUrl = (value) => {
 const isWorkspaceViewerPath = (value) =>
   value.startsWith("/workspace/") || value.startsWith("/workspace-file/");
 
+const viewerPathFromOpenUrl = (requestUrl) => {
+  const queryViewer = requestUrl.searchParams.get("viewer") ?? requestUrl.searchParams.get("v");
+  if (queryViewer) {
+    return queryViewer;
+  }
+
+  if (requestUrl.pathname.startsWith("/open/")) {
+    try {
+      return decodeURIComponent(requestUrl.pathname.slice(5));
+    } catch {
+      return requestUrl.pathname.slice(5);
+    }
+  }
+
+  if (!requestUrl.pathname.startsWith("/o/")) {
+    return "";
+  }
+
+  try {
+    return decodeURIComponent(requestUrl.pathname.slice(2));
+  } catch {
+    return requestUrl.pathname.slice(2);
+  }
+};
+
 const sendText = (response, status, body, headers = {}) => {
   response.writeHead(status, {
     "Content-Length": Buffer.byteLength(body),
@@ -55,7 +80,7 @@ const appleAppSiteAssociationPayload = () => ({
     apps: [],
     details: readCsvEnv("LILO_IOS_UNIVERSAL_LINK_APP_IDS").map((appID) => ({
       appID,
-      paths: ["/open", "/open/*"],
+      paths: ["/o/*", "/open", "/open/*"],
     })),
   },
 });
@@ -67,8 +92,8 @@ const sendAppleAppSiteAssociation = (response) => {
 };
 
 const sendOpenPage = (response, requestUrl) => {
-  const workspaceUrl = requestUrl.searchParams.get("workspace") ?? "";
-  const viewerPath = requestUrl.searchParams.get("viewer") ?? "";
+  const workspaceUrl = requestUrl.searchParams.get("workspace") ?? requestUrl.searchParams.get("w") ?? "";
+  const viewerPath = viewerPathFromOpenUrl(requestUrl);
 
   if (!isHttpsUrl(workspaceUrl) || !isWorkspaceViewerPath(viewerPath)) {
     sendJson(response, 400, { error: "Invalid open link" });
@@ -131,7 +156,11 @@ const server = createServer((request, response) => {
     return;
   }
 
-  if (requestUrl.pathname === "/open" || requestUrl.pathname.startsWith("/open/")) {
+  if (
+    requestUrl.pathname === "/open" ||
+    requestUrl.pathname.startsWith("/open/") ||
+    requestUrl.pathname.startsWith("/o/")
+  ) {
     sendOpenPage(response, requestUrl);
     return;
   }
