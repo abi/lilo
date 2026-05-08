@@ -50,6 +50,7 @@ const BASE_PI_SYSTEM_PROMPT = `
 - Inbound Telegram prompts are marked with \`Channel: Telegram\`.
 - When responding to Telegram, write concise Telegram-friendly prose.
 - When you create or update something in a workspace app and it would help the user continue in the app, include one short app link at the end of the reply using markdown, for example \`[View your TODOs](/workspace/todo)\`. Use the relevant app name in the \`/workspace/<app-name>\` path.
+- Do not write raw workspace paths like \`Open Todo app: /workspace/todo\`; use markdown link syntax so Lilo can render it as a Telegram button.
 - Only include these app links when they are useful next actions. Do not add links to every reply.
 
 ## External messaging media

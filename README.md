@@ -6,13 +6,27 @@
 
 <br/>
 
+**Lilo is a personal AI assistant you can message like a human PA.**
 
-Lilo is a personal AI assistant that can help you with everything in life. It can track and execute your TODOs, remembers things, writes documents, builds apps, conducts research as well as remind you about things. You can reach it from anywhere: WhatsApp, Telegram, desktop, mobile or email.
+Reach it on Telegram, where you can text it, send photos, forward receipts, or drop voice notes whenever something comes up. Lilo remembers the things you tell it and keeps track of the files you send. Need an old receipt? Just ask.
+
+You can talk to Lilo naturally, and it can reply by text or voice. It can give you daily briefings, research questions, manage your calendar, build and connect with apps, send you helpful reminders, organize information, and more.
+
+Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp, web, desktop, mobile, or email. Reach it anywhere.
 
 [![Join the Lilo Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/RAKmnS2G)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
 
 https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
+
+As you can see in the demo:
+
+- You can send it a photo of your food, and it updates your calorie tracker.
+- You can leave a quick voice note about your sore forearm, and it remembers it for later, and suggests some exercises.
+- You can tell it to pause your supplements, and it adds the TODO.
+- You can have it follow a Knicks game, send score updates and give you a voice recap.
+- You can ask for an old MacBook receipt, and it sends along the file.
+- You can ask it to schedule a meeting, check how far away it is, and remind you when it’s time to leave.
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Mobile app](#mobile-app) · [Security](#security) · [Deployment](#deployment)
 
@@ -216,6 +230,31 @@ layout, the `window.lilo` API surface, and the in-viewer element picker).
 Lilo can be an email/SMS/Telegram chatbot. Each channel is an opt-in plugin —
 leave its env vars unset and it's disabled.
 
+### Native app links (optional)
+
+Messaging channels can include buttons that open workspace apps or files in the
+native iOS app. For multi-workspace/self-hosted installs, use the separate
+minimal broker service in [`link-broker/`](./link-broker/) as the single
+Universal Link domain for the app.
+
+Set these on each Lilo workspace backend that should generate native app links:
+
+| Variable               | Description                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `LILO_PUBLIC_APP_URL`  | Public HTTPS origin for this Lilo workspace. Used to tell the native app which workspace should handle a link. |
+| `LILO_LINK_BROKER_URL` | Public HTTPS origin of the link broker. When set, workspace links in Telegram replies are sent through it.     |
+
+Set this on the link broker service, not on every workspace backend:
+
+| Variable                          | Description                                                                                   |
+| --------------------------------- | --------------------------------------------------------------------------------------------- |
+| `LILO_IOS_UNIVERSAL_LINK_APP_IDS` | Comma-separated Apple app IDs in `TEAM_ID.bundle.identifier` format to advertise in the AASA. |
+
+The iOS app entitlement should contain the broker domain, for example
+`applinks:<broker-domain>`. Only set `LILO_IOS_UNIVERSAL_LINK_APP_IDS` on the
+workspace backend if you intentionally want that backend to serve its own
+`apple-app-site-association` file instead of using the broker.
+
 ### Email (Resend)
 
 ```bash
@@ -224,7 +263,7 @@ RESEND_WEBHOOK_SECRET=whsec_...
 LILO_EMAIL_AGENT_ADDRESS=hi@yourdomain.com        # your bot's inbound address
 LILO_EMAIL_REPLY_FROM="Lilo <lilo@yourdomain.com>"
 LILO_EMAIL_ALLOWED_SENDERS=you@yours.com,partner@theirs.com   # allowlist
-LILO_PUBLIC_APP_URL=https://your-lilo.example.com # optional; adds chat permalinks to email replies
+LILO_PUBLIC_APP_URL=https://your-lilo.example.com # optional; adds chat permalinks and native app links
 ```
 
 1. Set up a receiving domain in Resend.

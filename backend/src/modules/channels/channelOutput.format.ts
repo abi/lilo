@@ -4,6 +4,7 @@ const MAX_LINK_BUTTONS = 4;
 const MAX_LINK_BUTTON_TEXT_LENGTH = 64;
 
 interface FormatMessagingOutputOptions {
+  linkBrokerUrl?: string | null;
   publicAppUrl?: string | null;
   target?: "plain" | "telegram";
 }
@@ -161,6 +162,38 @@ const getWorkspaceViewerUrl = (
   }
 };
 
+const getWorkspaceBrokerUrl = (
+  href: string,
+  options: FormatMessagingOutputOptions,
+): string | null => {
+  if (options.target !== "telegram" || !options.linkBrokerUrl || !options.publicAppUrl) {
+    return null;
+  }
+
+  const viewerPath = getWorkspaceViewerPath(href);
+  if (!viewerPath) {
+    return null;
+  }
+
+  try {
+    const brokerUrl = new URL(options.linkBrokerUrl);
+    brokerUrl.pathname = "/open";
+    brokerUrl.search = "";
+    brokerUrl.hash = "";
+    brokerUrl.searchParams.set("workspace", options.publicAppUrl);
+    brokerUrl.searchParams.set("viewer", `/${viewerPath}`);
+    return brokerUrl.toString();
+  } catch {
+    return null;
+  }
+};
+
+const getWorkspaceMessagingUrl = (
+  href: string,
+  options: FormatMessagingOutputOptions,
+): string | null =>
+  getWorkspaceBrokerUrl(href, options) ?? getWorkspaceViewerUrl(href, options.publicAppUrl);
+
 const formatWorkspaceLinksForMessaging = (
   body: string,
   options: FormatMessagingOutputOptions,
@@ -168,7 +201,7 @@ const formatWorkspaceLinksForMessaging = (
   const withMarkdownLinks = body.replace(
     /\[([^\]\n]+)\]\((\/workspace(?:-file)?\/[^)\s]+)\)/g,
     (_match, label: string, href: string) => {
-      const target = getWorkspaceViewerUrl(href, options.publicAppUrl);
+      const target = getWorkspaceMessagingUrl(href, options);
       if (!target) {
         return label;
       }
@@ -183,7 +216,7 @@ const formatWorkspaceLinksForMessaging = (
     /(^|[\s(])\/workspace(?:-file)?\/[^\s)]+/g,
     (match, prefix: string) => {
       const href = match.slice(prefix.length);
-      const target = getWorkspaceViewerUrl(href, options.publicAppUrl);
+      const target = getWorkspaceMessagingUrl(href, options);
       return target ? `${prefix}${target}` : match;
     },
   );
@@ -196,19 +229,24 @@ const normalizeButtonText = (label: string): string =>
     .trim()
     .slice(0, MAX_LINK_BUTTON_TEXT_LENGTH);
 
-const isWorkspaceViewerUrl = (url: string, publicAppUrl?: string | null): boolean => {
+const isAllowedWorkspaceLinkUrl = (
+  url: string,
+  options: FormatMessagingOutputOptions,
+): boolean => {
   try {
     const parsed = new URL(url);
+    if (options.linkBrokerUrl) {
+      const brokerUrl = new URL(options.linkBrokerUrl);
+      if (parsed.origin === brokerUrl.origin && parsed.pathname === "/open") {
+        return Boolean(parsed.searchParams.get("workspace") && parsed.searchParams.get("viewer"));
+      }
+    }
+
     if (!isWorkspaceViewerPath(parsed.pathname)) {
       return false;
     }
 
-    if (!publicAppUrl) {
-      return true;
-    }
-
-    const publicUrl = new URL(publicAppUrl);
-    return parsed.origin === publicUrl.origin;
+    return !options.publicAppUrl || parsed.origin === new URL(options.publicAppUrl).origin;
   } catch {
     return false;
   }
@@ -225,7 +263,7 @@ const extractWorkspaceLinkButtons = (
       return;
     }
 
-    if (!isWorkspaceViewerUrl(url, options.publicAppUrl)) {
+    if (!isAllowedWorkspaceLinkUrl(url, options)) {
       return;
     }
 
@@ -254,7 +292,7 @@ const extractWorkspaceLinkButtons = (
   return buttons;
 };
 
-const removeStandaloneWorkspaceMarkdownLinkLines = (
+const removeStandaloneWorkspaceLinkLines = (
   body: string,
   buttons: MessagingLinkButton[],
 ): string => {
@@ -267,8 +305,18 @@ const removeStandaloneWorkspaceMarkdownLinkLines = (
     .replace(/\r\n/g, "\n")
     .split("\n")
     .filter((line) => {
-      const match = line.trim().match(/^(?:[-*]\s*)?\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)$/);
-      return !match || !buttonUrls.has(match[2]);
+      const trimmed = line.trim();
+      const markdownMatch = trimmed.match(/^(?:[-*]\s*)?\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)$/);
+      if (markdownMatch) {
+        return !buttonUrls.has(markdownMatch[2]);
+      }
+
+      const labelUrlMatch = trimmed.match(/^(?:[-*]\s*)?([^:\n]{1,80}):\s*(https?:\/\/[^\s)]+)$/);
+      if (labelUrlMatch) {
+        return !buttonUrls.has(labelUrlMatch[2]);
+      }
+
+      return true;
     })
     .join("\n")
     .replace(/\n{3,}/g, "\n\n");
@@ -381,7 +429,7 @@ export const formatTelegramMessagingOutput = (
     target: "telegram",
   });
   const linkButtons = extractWorkspaceLinkButtons(withWorkspaceLinks, options);
-  const textBody = removeStandaloneWorkspaceMarkdownLinkLines(withWorkspaceLinks, linkButtons);
+  const textBody = removeStandaloneWorkspaceLinkLines(withWorkspaceLinks, linkButtons);
   const text = formatTelegramHtmlForMessaging(textBody).trim();
 
   return {

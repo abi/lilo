@@ -145,6 +145,7 @@ export const backendConfig = {
   },
   deepLinks: {
     iosUniversalLinkAppIds: readCsvEnv("LILO_IOS_UNIVERSAL_LINK_APP_IDS"),
+    linkBrokerUrl: readEnv("LILO_LINK_BROKER_URL"),
   },
 } as const;
 

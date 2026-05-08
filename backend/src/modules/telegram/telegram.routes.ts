@@ -511,9 +511,14 @@ const sendTelegramReply = async (
   }
 };
 
-const sendTelegramReplyChunked = async (chatId: number, body: string): Promise<number> => {
+const sendTelegramReplyChunked = async (
+  chatId: number,
+  body: string,
+  publicAppUrl = backendConfig.server.publicAppUrl,
+): Promise<number> => {
   const formatted = formatTelegramMessagingOutput(body, {
-    publicAppUrl: backendConfig.server.publicAppUrl,
+    linkBrokerUrl: backendConfig.deepLinks.linkBrokerUrl,
+    publicAppUrl,
   });
   const chunks = splitTelegramReply(formatted.text);
 
@@ -659,6 +664,18 @@ const sendTelegramThumbsUpReaction = async (
     message_id: messageId,
     reaction: [{ type: "emoji", emoji: "👍" }],
   });
+};
+
+const getRequestPublicOrigin = (request: Request): string | null => {
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwardedHost || request.headers.get("host")?.trim();
+  if (!host) {
+    return null;
+  }
+
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const proto = forwardedProto || new URL(request.url).protocol.replace(/:$/, "") || "https";
+  return `${proto}://${host}`;
 };
 
 const startTelegramTypingIndicatorLoop = (chatId: number): (() => void) => {
@@ -984,6 +1001,7 @@ export const registerTelegramRoutes = (app: Hono, chatService: PiSdkChatService)
     const fromLabel = describeTelegramUser(message.from);
     const chatLabel = describeTelegramChat(message.chat);
     const threadKey = buildTelegramThreadKey(message.chat);
+    const publicAppUrl = backendConfig.server.publicAppUrl ?? getRequestPublicOrigin(c.req.raw);
 
     const processTelegram = async () => {
       try {
@@ -1071,7 +1089,7 @@ export const registerTelegramRoutes = (app: Hono, chatService: PiSdkChatService)
           }
 
           sendQueue = sendQueue.then(async () => {
-            const chunks = await sendTelegramReplyChunked(message.chat.id, bodyToSend);
+            const chunks = await sendTelegramReplyChunked(message.chat.id, bodyToSend, publicAppUrl);
             sentMessageCount += chunks;
             console.log(
               `[telegram] replied chat=${chatId} thread=${threadKey} kind=${kind} chunks=${chunks} sentMessageCount=${sentMessageCount}`,
