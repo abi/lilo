@@ -662,6 +662,18 @@ const sendTelegramChatAction = async (
   });
 };
 
+const sendTelegramEyesReaction = async (
+  chatId: number,
+  messageId: number,
+): Promise<void> => {
+  const botToken = getTelegramBotToken();
+  await telegramApiFetch(botToken, "setMessageReaction", {
+    chat_id: chatId,
+    message_id: messageId,
+    reaction: [{ type: "emoji", emoji: "👀" }],
+  });
+};
+
 const getRequestPublicOrigin = (request: Request): string | null => {
   const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
   const host = forwardedHost || request.headers.get("host")?.trim();
@@ -1050,6 +1062,30 @@ export const registerTelegramRoutes = (app: Hono, chatService: PiSdkChatService)
     const publicAppUrl = backendConfig.server.publicAppUrl ?? getRequestPublicOrigin(c.req.raw);
 
     const processTelegram = async () => {
+      try {
+        await sendTelegramEyesReaction(message.chat.id, message.message_id);
+      } catch (error) {
+        console.warn("[telegram] failed to set eyes reaction", {
+          chatId: message.chat.id,
+          messageId: message.message_id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        captureBackendException(error, {
+          tags: {
+            area: "telegram",
+            provider: "telegram",
+            operation: "set_message_reaction",
+            chat_id: message.chat.id,
+          },
+          extras: {
+            messageId: message.message_id,
+            reaction: "eyes",
+          },
+          level: "warning",
+          fingerprint: ["telegram", "set_message_reaction", "eyes"],
+        });
+      }
+
       const stopTypingIndicator = startTelegramTypingIndicatorLoop(message.chat.id);
 
       try {
