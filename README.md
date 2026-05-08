@@ -2,17 +2,17 @@
 
 <img src="./frontend/public/readme-logo.png" alt="Lilo" width="300px" />
 
-</div>
 
 <br/>
+<br/>
 
-**Lilo is a personal AI assistant you can message like a human PA.**
+**Lilo is a personal AI assistant that can help you with almost anything.**
 
-Reach it on Telegram, where you can text it, send photos, forward receipts, or drop voice notes whenever something comes up. Lilo remembers the things you tell it and keeps track of the files you send. Need an old receipt? Just ask.
+You text Lilo like a human. Send photos, forward receipts, or drop voice notes. Lilo remembers everything. Lilo can reply by text or voice. Lilo can also track your TODOs, manage your calendar, conduct research, build apps, send you reminders and monitor things for you.
 
-You can talk to Lilo naturally, and it can reply by text or voice. It can give you daily briefings, research questions, manage your calendar, build and connect with apps, send you helpful reminders, organize information, and more.
+Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp, web, desktop, mobile, or email.
 
-Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp, web, desktop, mobile, or email. Reach it anywhere.
+Here's a quick demo of how Lilo helps me via Telegram.
 
 [![Join the Lilo Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/RAKmnS2G)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
@@ -20,6 +20,7 @@ Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp,
 
 https://github.com/user-attachments/assets/7e744b4c-87e1-4b87-bb55-bc15169126d3
 
+</div>
 
 As you can see in the demo:
 
@@ -39,29 +40,6 @@ As you can see in the demo:
 > **Alpha software.** Expect breaking changes, rough setup, and bugs. Back
 > up your workspace via git sync, and read [Security](#security) before
 > running it on a public host.
-
----
-
-## Features
-
-
-<table>
-<tr><td><b>🧱 Apps on demand</b></td><td>Ships with a starter set (Desktop launcher, Todo, Calories, Calculator, Wordpad, Minesweeper) and you can ask the agent to build more. All apps have full agentic capabilities.</td></tr>
-<tr><td><b>🗂️ Full workspace</b></td><td>Store anything as files in the filesystem and preview markdown, code, images, and PDFs inline — accessible to both you and the agent.</td></tr>
-<tr><td><b>💬 Talk to Lilo anywhere</b></td><td>Inbound message webhooks for <b>Email</b> (Resend), <b>WhatsApp</b> (Twilio), and <b>Telegram</b>. The agent replies in the same channel and keeps a persistent chat per contact.</td></tr>
-<tr><td><b>🧠 Memory</b></td><td>Remembers details about you, your tasks, and your work.</td></tr>
-<tr><td><b>⏰ Reminders & automations</b></td><td>Schedule recurring prompts and reminders that run in fresh chats, update workspace state, and notify you through configured messaging channels only when needed.</td></tr>
-<tr><td><b>🧩 Skills</b></td><td>Teach Lilo reusable workflows with workspace skills so the agent can load specialized instructions when a task calls for them.</td></tr>
-<tr><td><b>🎨 Rich tool suite</b></td><td>Image generation (Replicate), web search & scraping (Firecrawl), headless browser automation (Browserbase), filesystem ops, shell execution, network fetch — all callable by apps and the agent when configured.</td></tr>
-<tr><td><b>📱 Mobile-ready</b></td><td>Optimized for phones. All apps render seamlessly on desktop and mobile.</td></tr>
-<tr><td><b>🔐 Password-gated and private</b></td><td>One env var locks down the entire web app and all backend APIs (REST + WebSocket). Webhooks stay accessible with their own provider-signed requests.</td></tr>
-<tr><td><b>🧰 Model-agnostic</b></td><td>Pick between <b>GPT 5.5</b>, <b>GPT 5.4 Mini</b>, <b>Claude Opus 4.7</b>, and <b>Kimi K2.6</b> per chat. Route through OpenAI, Anthropic, or OpenRouter depending on configured keys.</td></tr>
-<tr><td><b>🔄 Git-backed cloud sync</b></td><td>Optionally sync your workspace to a git remote so the entire workspace (apps, data, and memories) is versioned and portable across devices.</td></tr>
-<tr><td><b>⌨️ Keyboard-first UX</b></td><td><code>⌘K</code> / <code>Ctrl+K</code> command palette for instant app switching. Browser back/forward navigates between previously opened apps.</td></tr>
-</table>
-
-
----
 
 ## Quick start
 
