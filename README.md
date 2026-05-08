@@ -8,19 +8,21 @@
 
 **Lilo is a personal AI assistant that can help you with almost anything.**
 
+[![Join the Lilo Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/RAKmnS2G)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
+
+</div>
+
 You text Lilo like a human. Send photos, forward receipts, or drop voice notes. Lilo remembers everything. Lilo can reply by text or voice. Lilo can also track your TODOs, manage your calendar, conduct research, build apps, send you reminders and monitor things for you.
 
 Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp, web, desktop, mobile, or email.
 
 Here's a quick demo of how Lilo helps me via Telegram.
 
-[![Join the Lilo Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/RAKmnS2G)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
 
 
 https://github.com/user-attachments/assets/7e744b4c-87e1-4b87-bb55-bc15169126d3
 
-</div>
 
 As you can see in the demo:
 
