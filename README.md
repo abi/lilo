@@ -17,7 +17,12 @@ Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp,
 [![Join the Lilo Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/RAKmnS2G)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
 
-https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
+
+
+https://github.com/user-attachments/assets/ed9ed9ec-6b37-4d20-a3dd-e21b727d1360
+
+
+
 
 As you can see in the demo:
 
