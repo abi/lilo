@@ -649,6 +649,18 @@ const sendTelegramChatAction = async (
   });
 };
 
+const sendTelegramThumbsUpReaction = async (
+  chatId: number,
+  messageId: number,
+): Promise<void> => {
+  const botToken = getTelegramBotToken();
+  await telegramApiFetch(botToken, "setMessageReaction", {
+    chat_id: chatId,
+    message_id: messageId,
+    reaction: [{ type: "emoji", emoji: "👍" }],
+  });
+};
+
 const startTelegramTypingIndicatorLoop = (chatId: number): (() => void) => {
   let stopped = false;
   let interval: ReturnType<typeof setInterval> | null = null;
@@ -974,6 +986,30 @@ export const registerTelegramRoutes = (app: Hono, chatService: PiSdkChatService)
     const threadKey = buildTelegramThreadKey(message.chat);
 
     const processTelegram = async () => {
+      try {
+        await sendTelegramThumbsUpReaction(message.chat.id, message.message_id);
+      } catch (error) {
+        console.warn("[telegram] failed to set thumbs up reaction", {
+          chatId: message.chat.id,
+          messageId: message.message_id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        captureBackendException(error, {
+          tags: {
+            area: "telegram",
+            provider: "telegram",
+            operation: "set_message_reaction",
+            chat_id: message.chat.id,
+          },
+          extras: {
+            messageId: message.message_id,
+            reaction: "thumbs_up",
+          },
+          level: "warning",
+          fingerprint: ["telegram", "set_message_reaction", "thumbs_up"],
+        });
+      }
+
       const stopTypingIndicator = startTelegramTypingIndicatorLoop(message.chat.id);
 
       try {
