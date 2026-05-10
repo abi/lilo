@@ -31,6 +31,8 @@ final class AppModel: ObservableObject {
     @Published var workspaceEntries: [WorkspaceEntry] = []
     @Published var workspacePreferences = WorkspacePreferences(timeZone: "America/New_York")
     @Published var selectedViewerPath: String?
+    @Published var presentedViewerPath: String?
+    @Published var isOpeningUniversalLink = false
 
     @Published var automationJobs: [AutomationJob] = []
     @Published var automationRuns: [AutomationRunRecord] = []
@@ -44,6 +46,7 @@ final class AppModel: ObservableObject {
     private var socket: ChatSocket?
     private var socketTask: Task<Void, Never>?
     private let locationProvider = LocationProvider()
+    private var pendingViewerPathAfterAuthentication: String?
 
     var api = APIClient.shared
 
@@ -82,6 +85,7 @@ final class AppModel: ObservableObject {
             savePasswordForActiveWorkspace(password)
             await refreshSession()
             await refreshAll()
+            openPendingViewerIfNeeded()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -106,6 +110,7 @@ final class AppModel: ObservableObject {
             }
             if isAuthenticated || !authEnabled {
                 await refreshAll()
+                openPendingViewerIfNeeded()
             }
         } catch {
             handle(error)
@@ -253,7 +258,16 @@ final class AppModel: ObservableObject {
 
     func openViewer(_ path: String) {
         selectedViewerPath = path
-        selectedTab = .files
+        if isWorkspaceAppViewerPath(path) {
+            presentedViewerPath = path
+        } else {
+            presentedViewerPath = nil
+            selectedTab = .files
+        }
+    }
+
+    func closePresentedViewer() {
+        presentedViewerPath = nil
     }
 
     func refreshAutomations() async {
@@ -394,6 +408,9 @@ final class AppModel: ObservableObject {
 
     func openUniversalLink(_ url: URL) async {
         guard let viewerPath = viewerPath(fromUniversalLink: url) else { return }
+        isOpeningUniversalLink = true
+        defer { isOpeningUniversalLink = false }
+
         refreshWorkspaceProfiles()
 
         let workspaceURL = workspaceUrl(fromUniversalLink: url) ?? url
@@ -403,10 +420,23 @@ final class AppModel: ObservableObject {
         } else if matchingWorkspaceID == nil, let host = workspaceURL.host {
             errorMessage = "Add https://\(host) as a workspace before opening this link."
             return
+        } else {
+            await refreshSession()
+            if authEnabled && !isAuthenticated {
+                await loginWithStoredPasswordIfAvailable()
+            }
+            if isAuthenticated || !authEnabled {
+                await refreshWorkspace()
+            }
         }
 
-        selectedViewerPath = viewerPath
-        selectedTab = .files
+        guard isAuthenticated || !authEnabled else {
+            selectedViewerPath = viewerPath
+            pendingViewerPathAfterAuthentication = viewerPath
+            return
+        }
+
+        openViewer(viewerPath)
     }
 
     private func resetForWorkspaceChange() async {
@@ -420,6 +450,7 @@ final class AppModel: ObservableObject {
         models = []
         systemPrompt = ""
         selectedViewerPath = nil
+        presentedViewerPath = nil
         composerText = ""
         attachments = []
         activeRunId = nil
@@ -512,6 +543,19 @@ final class AppModel: ObservableObject {
 
     private func isWorkspaceViewerPath(_ value: String) -> Bool {
         value.starts(with: "/workspace/") || value.starts(with: "/workspace-file/")
+    }
+
+    private func isWorkspaceAppViewerPath(_ value: String) -> Bool {
+        value.starts(with: "/workspace/") && !value.starts(with: "/workspace-file/")
+    }
+
+    private func openPendingViewerIfNeeded() {
+        guard isAuthenticated || !authEnabled,
+              let viewerPath = pendingViewerPathAfterAuthentication else {
+            return
+        }
+        pendingViewerPathAfterAuthentication = nil
+        openViewer(viewerPath)
     }
 
     private func workspaceID(matching url: URL) -> String? {

@@ -126,6 +126,20 @@ final class APIClient: @unchecked Sendable {
         HTTPCookieStorage.shared.removeCookies(since: .distantPast)
     }
 
+    func cookies(for url: URL) -> [HTTPCookie] {
+        let sharedCookies = HTTPCookieStorage.shared.cookies(for: url) ?? []
+        let sessionCookies = session.configuration.httpCookieStorage?.cookies(for: url) ?? []
+        var seen = Set<String>()
+        return (sharedCookies + sessionCookies).filter { cookie in
+            let key = "\(cookie.domain)|\(cookie.path)|\(cookie.name)"
+            if seen.contains(key) {
+                return false
+            }
+            seen.insert(key)
+            return true
+        }
+    }
+
     func upload(chatId: String, files: [PickedFile]) async throws -> [String] {
         let boundary = "Boundary-\(UUID().uuidString)"
         var request = URLRequest(url: try url(path: "/chats/\(chatId)/uploads"))

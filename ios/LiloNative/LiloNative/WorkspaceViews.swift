@@ -257,6 +257,7 @@ struct ViewerRoute: Identifiable, Hashable {
 
 struct ViewerScreen: View {
     var path: String
+    var showsNavigationChrome = true
 
     var body: some View {
         let targetPath = viewerTargetPath(path)
@@ -271,11 +272,55 @@ struct ViewerScreen: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(isWorkspaceAppViewerPath(targetPath) ? .hidden : .automatic, for: .navigationBar)
+        .toolbar(
+            (isWorkspaceAppViewerPath(targetPath) || !showsNavigationChrome) ? .hidden : .automatic,
+            for: .navigationBar
+        )
     }
 
     private var title: String {
         viewerTargetPath(path).split(separator: "/").last.map(String.init) ?? "Viewer"
+    }
+}
+
+struct PresentedViewerHost: View {
+    @EnvironmentObject private var model: AppModel
+    var path: String
+
+    var body: some View {
+        let targetPath = viewerTargetPath(path)
+        Group {
+            if isWorkspaceAppViewerPath(targetPath) {
+                ZStack(alignment: .topLeading) {
+                    ViewerScreen(path: path, showsNavigationChrome: false)
+                        .ignoresSafeArea()
+                    Button {
+                        model.closePresentedViewer()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .frame(width: 40, height: 40)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .accessibilityLabel("Close app")
+                    .padding(.top, 12)
+                    .padding(.leading, 12)
+                }
+            } else {
+                NavigationStack {
+                    ViewerScreen(path: path)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button("Close") {
+                                    model.closePresentedViewer()
+                                }
+                            }
+                        }
+                }
+            }
+        }
+        .id(path)
     }
 }
 

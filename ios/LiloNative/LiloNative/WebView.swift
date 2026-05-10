@@ -5,10 +5,19 @@ import WebKit
 struct WebView: UIViewRepresentable {
     var url: URL
 
+    final class Coordinator {
+        var requestedURL: URL?
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.applicationNameForUserAgent = "LiloNative"
+        configuration.websiteDataStore = .default()
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.allowsBackForwardNavigationGestures = true
         webView.scrollView.contentInsetAdjustmentBehavior = .automatic
@@ -16,9 +25,31 @@ struct WebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        if webView.url != url {
-            var request = URLRequest(url: url)
-            request.setValue("1", forHTTPHeaderField: "X-Lilo-Native-Viewer")
+        guard context.coordinator.requestedURL != url else {
+            return
+        }
+
+        context.coordinator.requestedURL = url
+        var request = URLRequest(url: url)
+        request.setValue("1", forHTTPHeaderField: "X-Lilo-Native-Viewer")
+
+        let cookies = APIClient.shared.cookies(for: url)
+        guard !cookies.isEmpty else {
+            webView.load(request)
+            return
+        }
+
+        let group = DispatchGroup()
+        for cookie in cookies {
+            group.enter()
+            webView.configuration.websiteDataStore.httpCookieStore.setCookie(cookie) {
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) {
+            guard context.coordinator.requestedURL == url else {
+                return
+            }
             webView.load(request)
         }
     }

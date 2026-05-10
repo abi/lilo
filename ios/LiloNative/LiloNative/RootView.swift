@@ -5,10 +5,14 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if !model.hasBootstrapped {
+            if model.isOpeningUniversalLink {
+                OpeningLinkView()
+            } else if !model.hasBootstrapped {
                 ProgressView("Loading Lilo...")
             } else if model.authEnabled && !model.isAuthenticated {
                 LoginView()
+            } else if let presentedViewerPath = model.presentedViewerPath {
+                PresentedViewerHost(path: presentedViewerPath)
             } else {
                 TabView(selection: $model.selectedTab) {
                     NavigationStack {
@@ -54,6 +58,22 @@ struct RootView: View {
         .onOpenURL { url in
             Task { await model.openUniversalLink(url) }
         }
+    }
+}
+
+struct OpeningLinkView: View {
+    var body: some View {
+        VStack(spacing: 14) {
+            ProgressView()
+                .controlSize(.large)
+            Text("Opening app...")
+                .font(.headline)
+            Text("Connecting to your Lilo workspace")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemBackground))
     }
 }
 
