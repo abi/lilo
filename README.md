@@ -6,32 +6,27 @@
 <br/>
 <br/>
 
-**Lilo is a personal AI assistant that can help with almost anything.**
+**Lilo is a Telegram personal assistant**
 
 [![Join the Lilo Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/RAKmnS2G)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
 
 </div>
 
-Text Lilo like a human. Send photos, forward receipts, or drop voice notes. Lilo will remember it. Lilo can reply by text or voice. Lilo can also track your TODOs, manage your calendar, conduct research, build apps, send you reminders and monitor things for you.
+Here are a few things Lilo can do:
+
+- Send Lilo photos of food, and it tracks your calories.
+- Leave a voice note on your run to pause your supplements, and Lilo adds a TODO.
+- Ask Lilo to remind you when the Knicks game starts and send you score updates every 5 minutes.
+- Ask Lilo to read an article out loud. Or give you a summary of the top stories on Hacker News.
+- Collect a Uber receipt, and pull it up later to file for a reimbursement at work.
+- Schedule a meeting with Jess next week, ask for suggestions on meeting location, and next week, remind you when it’s time to leave for the meeting.
 
 Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp, web, desktop, mobile, or email.
 
-Here's a quick demo of how Lilo helps me via Telegram.
-
-
+Quick demo:
 
 https://github.com/user-attachments/assets/7e744b4c-87e1-4b87-bb55-bc15169126d3
-
-
-As you can see in the demo:
-
-- You can send it a photo of your food, and it updates your calorie tracker.
-- You can leave a quick voice note about your sore forearm, and it remembers it for later, and suggests some exercises.
-- You can tell it to pause your supplements, and it adds the TODO.
-- You can have it follow a Knicks game, send score updates and give you a voice recap.
-- You can ask for an old MacBook receipt, and it sends along the file.
-- You can ask it to schedule a meeting, check how far away it is, and remind you when it’s time to leave.
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Mobile app](#mobile-app) · [Security](#security) · [Deployment](#deployment)
 
