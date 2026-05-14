@@ -2,31 +2,31 @@
 
 <img src="./frontend/public/readme-logo.png" alt="Lilo" width="300px" />
 
-</div>
 
 <br/>
+<br/>
 
-**Lilo is a personal AI assistant you can message like a human PA.**
-
-Reach it on Telegram, where you can text it, send photos, forward receipts, or drop voice notes whenever something comes up. Lilo remembers the things you tell it and keeps track of the files you send. Need an old receipt? Just ask.
-
-You can talk to Lilo naturally, and it can reply by text or voice. It can give you daily briefings, research questions, manage your calendar, build and connect with apps, send you helpful reminders, organize information, and more.
-
-Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp, web, desktop, mobile, or email. Reach it anywhere.
+**Lilo is a Telegram personal assistant**
 
 [![Join the Lilo Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/RAKmnS2G)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
 
-https://github.com/user-attachments/assets/2094e7f6-4cb7-4d38-8371-eab8d76f39e5
+</div>
 
-As you can see in the demo:
+Here are a few things Lilo can do:
 
-- You can send it a photo of your food, and it updates your calorie tracker.
-- You can leave a quick voice note about your sore forearm, and it remembers it for later, and suggests some exercises.
-- You can tell it to pause your supplements, and it adds the TODO.
-- You can have it follow a Knicks game, send score updates and give you a voice recap.
-- You can ask for an old MacBook receipt, and it sends along the file.
-- You can ask it to schedule a meeting, check how far away it is, and remind you when it’s time to leave.
+- Send Lilo photos of food, and it tracks your calories.
+- Leave a voice note on your run to pause your supplements, and Lilo adds a TODO.
+- Ask Lilo to remind you when the Knicks game starts and send you score updates every 5 minutes.
+- Ask Lilo to read an article out loud. Or give you a summary of the top stories on Hacker News.
+- Collect a Uber receipt, and pull it up later to file for a reimbursement at work.
+- Schedule a meeting with Jess next week, ask for suggestions on meeting location, and next week, remind you when it’s time to leave for the meeting.
+
+Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp, web, desktop, mobile, or email.
+
+Quick demo:
+
+https://github.com/user-attachments/assets/7e744b4c-87e1-4b87-bb55-bc15169126d3
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Mobile app](#mobile-app) · [Security](#security) · [Deployment](#deployment)
 
@@ -37,29 +37,6 @@ As you can see in the demo:
 > **Alpha software.** Expect breaking changes, rough setup, and bugs. Back
 > up your workspace via git sync, and read [Security](#security) before
 > running it on a public host.
-
----
-
-## Features
-
-
-<table>
-<tr><td><b>🧱 Apps on demand</b></td><td>Ships with a starter set (Desktop launcher, Todo, Calories, Calculator, Wordpad, Minesweeper) and you can ask the agent to build more. All apps have full agentic capabilities.</td></tr>
-<tr><td><b>🗂️ Full workspace</b></td><td>Store anything as files in the filesystem and preview markdown, code, images, and PDFs inline — accessible to both you and the agent.</td></tr>
-<tr><td><b>💬 Talk to Lilo anywhere</b></td><td>Inbound message webhooks for <b>Email</b> (Resend), <b>WhatsApp</b> (Twilio), and <b>Telegram</b>. The agent replies in the same channel and keeps a persistent chat per contact.</td></tr>
-<tr><td><b>🧠 Memory</b></td><td>Remembers details about you, your tasks, and your work.</td></tr>
-<tr><td><b>⏰ Reminders & automations</b></td><td>Schedule recurring prompts and reminders that run in fresh chats, update workspace state, and notify you through configured messaging channels only when needed.</td></tr>
-<tr><td><b>🧩 Skills</b></td><td>Teach Lilo reusable workflows with workspace skills so the agent can load specialized instructions when a task calls for them.</td></tr>
-<tr><td><b>🎨 Rich tool suite</b></td><td>Image generation (Replicate), web search & scraping (Firecrawl), headless browser automation (Browserbase), filesystem ops, shell execution, network fetch — all callable by apps and the agent when configured.</td></tr>
-<tr><td><b>📱 Mobile-ready</b></td><td>Optimized for phones. All apps render seamlessly on desktop and mobile.</td></tr>
-<tr><td><b>🔐 Password-gated and private</b></td><td>One env var locks down the entire web app and all backend APIs (REST + WebSocket). Webhooks stay accessible with their own provider-signed requests.</td></tr>
-<tr><td><b>🧰 Model-agnostic</b></td><td>Pick between <b>GPT 5.5</b>, <b>GPT 5.4 Mini</b>, <b>Claude Opus 4.7</b>, and <b>Kimi K2.6</b> per chat. Route through OpenAI, Anthropic, or OpenRouter depending on configured keys.</td></tr>
-<tr><td><b>🔄 Git-backed cloud sync</b></td><td>Optionally sync your workspace to a git remote so the entire workspace (apps, data, and memories) is versioned and portable across devices.</td></tr>
-<tr><td><b>⌨️ Keyboard-first UX</b></td><td><code>⌘K</code> / <code>Ctrl+K</code> command palette for instant app switching. Browser back/forward navigates between previously opened apps.</td></tr>
-</table>
-
-
----
 
 ## Quick start
 
