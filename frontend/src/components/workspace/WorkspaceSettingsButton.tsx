@@ -18,6 +18,7 @@ interface WorkspaceSettingsButtonProps {
   onRequestTemplateUpdate?: (update: WorkspaceTemplateUpdate) => void;
   onDismissTemplateUpdate?: (update: WorkspaceTemplateUpdate) => Promise<void> | void;
   onOpenAutomations?: () => void;
+  onOpenSkills?: () => void;
   onTimeZoneChange: (timeZone: string) => void;
   onDefaultChatModelChange: (
     selection: NonNullable<WorkspacePreferences["defaultChatModelSelection"]>,
@@ -159,6 +160,7 @@ export function WorkspaceSettingsButton({
   onRequestTemplateUpdate,
   onDismissTemplateUpdate,
   onOpenAutomations,
+  onOpenSkills,
   onTimeZoneChange,
   onDefaultChatModelChange,
   theme,
@@ -383,37 +385,68 @@ export function WorkspaceSettingsButton({
 
                   <section className="border-b border-neutral-200 px-4 py-4 dark:border-neutral-700">
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
-                      Automations
+                      Agent capabilities
                     </p>
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-left transition hover:border-neutral-300 hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:hover:border-neutral-600 dark:hover:bg-neutral-900"
-                      onClick={() => {
-                        setIsOpen(false);
-                        setQuery("");
-                        onOpenAutomations?.();
-                      }}
-                    >
-                      <span>
-                        <span className="block text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                          Automation channel
-                        </span>
-                        <span className="mt-0.5 block text-xs text-neutral-500 dark:text-neutral-400">
-                          Pick where scheduled automation replies are sent.
-                        </span>
-                      </span>
-                      <svg
-                        className="h-4 w-4 shrink-0 text-neutral-400"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                    <div className="grid gap-2">
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-left transition hover:border-neutral-300 hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:hover:border-neutral-600 dark:hover:bg-neutral-900"
+                        onClick={() => {
+                          setIsOpen(false);
+                          setQuery("");
+                          onOpenAutomations?.();
+                        }}
                       >
-                        <path d="m9 18 6-6-6-6" />
-                      </svg>
-                    </button>
+                        <span>
+                          <span className="block text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                            Automation channel
+                          </span>
+                          <span className="mt-0.5 block text-xs text-neutral-500 dark:text-neutral-400">
+                            Pick where scheduled automation replies are sent.
+                          </span>
+                        </span>
+                        <svg
+                          className="h-4 w-4 shrink-0 text-neutral-400"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="m9 18 6-6-6-6" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-left transition hover:border-neutral-300 hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:hover:border-neutral-600 dark:hover:bg-neutral-900"
+                        onClick={() => {
+                          setIsOpen(false);
+                          setQuery("");
+                          onOpenSkills?.();
+                        }}
+                      >
+                        <span>
+                          <span className="block text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                            Workspace skills
+                          </span>
+                          <span className="mt-0.5 block text-xs text-neutral-500 dark:text-neutral-400">
+                            View skill instructions available to the agent.
+                          </span>
+                        </span>
+                        <svg
+                          className="h-4 w-4 shrink-0 text-neutral-400"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="m9 18 6-6-6-6" />
+                        </svg>
+                      </button>
+                    </div>
                   </section>
 
                   <section className="flex min-h-0 flex-1 flex-col border-b border-neutral-200 dark:border-neutral-700">

@@ -6,6 +6,8 @@ import type {
   WorkspaceEntry,
   WorkspaceFrequentDocument,
   WorkspacePreferences,
+  WorkspaceSkill,
+  WorkspaceSkillDiagnostic,
   WorkspaceTemplateUpdate,
 } from "../components/workspace/types";
 import { formatSetupError, parseErrorMessage } from "./workspace/utils";
@@ -213,6 +215,10 @@ export function useWorkspaceCatalog({
   const [workspaceEntries, setWorkspaceEntries] = useState<WorkspaceEntry[]>([]);
   const [viewerOpenStats, setViewerOpenStats] =
     useState<ViewerOpenStats>(() => readViewerOpenStats());
+  const [workspaceSkills, setWorkspaceSkills] = useState<WorkspaceSkill[]>([]);
+  const [workspaceSkillDiagnostics, setWorkspaceSkillDiagnostics] = useState<
+    WorkspaceSkillDiagnostic[]
+  >([]);
   const [templateUpdates, setTemplateUpdates] = useState<WorkspaceTemplateUpdate[]>([]);
   const [selectedViewerPath, setSelectedViewerPath] = useState<string | null>(() =>
     readInitialSelectedViewerPath(),
@@ -241,6 +247,8 @@ export function useWorkspaceCatalog({
       const payload = (await response.json()) as {
         apps?: WorkspaceAppLink[];
         entries?: WorkspaceEntry[];
+        skills?: WorkspaceSkill[];
+        skillDiagnostics?: WorkspaceSkillDiagnostic[];
         templateUpdates?: WorkspaceTemplateUpdate[];
         preferences?: Partial<WorkspacePreferences>;
       };
@@ -249,9 +257,13 @@ export function useWorkspaceCatalog({
         (app) => app.name !== NATIVE_DESKTOP_APP_NAME,
       );
       const entries = payload.entries ?? [];
+      const skills = payload.skills ?? [];
+      const skillDiagnostics = payload.skillDiagnostics ?? [];
       const updates = payload.templateUpdates ?? [];
       setWorkspaceApps(apps);
       setWorkspaceEntries(entries);
+      setWorkspaceSkills(skills);
+      setWorkspaceSkillDiagnostics(skillDiagnostics);
       setTemplateUpdates(updates);
       setWorkspacePreferences({
         timeZone: payload.preferences?.timeZone ?? DEFAULT_WORKSPACE_TIME_ZONE,
@@ -632,6 +644,8 @@ export function useWorkspaceCatalog({
   return {
     workspaceApps,
     workspaceEntries,
+    workspaceSkills,
+    workspaceSkillDiagnostics,
     templateUpdates,
     selectedViewerPath,
     viewerRefreshKey,

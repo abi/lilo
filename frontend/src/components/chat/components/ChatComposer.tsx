@@ -1,6 +1,7 @@
 import type {
   ChangeEventHandler,
   FormEventHandler,
+  KeyboardEvent,
   KeyboardEventHandler,
   RefObject,
 } from "react";
@@ -20,6 +21,42 @@ import {
 import { QueuedMessagesPanel } from "./QueuedMessagesPanel";
 import { SelectedElementAttachmentChip } from "./SelectedElementAttachmentChip";
 import { toChatModelOption } from "../modelOptions";
+import type { WorkspaceSkill } from "../../workspace/types";
+
+type SlashSkillToken = {
+  start: number;
+  end: number;
+  query: string;
+  key: string;
+};
+
+function getSlashSkillToken(draft: string, cursorPosition: number): SlashSkillToken | null {
+  const prefix = draft.slice(0, cursorPosition);
+  const match = /(?:^|\s)(\/[^\s/]*)$/.exec(prefix);
+  if (!match) {
+    return null;
+  }
+
+  const token = match[1];
+  const start = prefix.length - token.length;
+  const suffixTokenLength = /^[^\s]*/.exec(draft.slice(cursorPosition))?.[0].length ?? 0;
+  const end = cursorPosition + suffixTokenLength;
+  const query = token.slice(1);
+
+  return {
+    start,
+    end,
+    query,
+    key: `${start}:${end}:${query}`,
+  };
+}
+
+function resizeTextarea(textarea: HTMLTextAreaElement) {
+  textarea.style.height = "auto";
+  const clamped = Math.min(textarea.scrollHeight, 384);
+  textarea.style.height = `${clamped}px`;
+  textarea.style.overflowY = textarea.scrollHeight > 384 ? "auto" : "hidden";
+}
 
 const TEXT_PREVIEW_BYTE_LIMIT = 200_000;
 
@@ -79,6 +116,7 @@ interface ChatComposerProps {
   queuedMessages: ChatQueuedMessage[];
   isQueuePaused: boolean;
   selectedFiles: File[];
+  workspaceSkills?: WorkspaceSkill[];
   isBusy: boolean;
   modelProvider: ChatModelProvider;
   modelId: ChatModelId;
@@ -89,6 +127,7 @@ interface ChatComposerProps {
   onSubmit: FormEventHandler<HTMLFormElement>;
   onInputChange: ChangeEventHandler<HTMLTextAreaElement>;
   onInputKeyDown: KeyboardEventHandler<HTMLTextAreaElement>;
+  onSetDraft: (chatId: string, draft: string) => void;
   onSelectFiles: ChangeEventHandler<HTMLInputElement>;
   onStopChat: (chatId: string) => Promise<void>;
   onScrollToBottom: () => void;
@@ -130,6 +169,7 @@ export function ChatComposer({
   queuedMessages,
   isQueuePaused,
   selectedFiles,
+  workspaceSkills = [],
   isBusy,
   modelProvider,
   modelId,
@@ -140,6 +180,7 @@ export function ChatComposer({
   onSubmit,
   onInputChange,
   onInputKeyDown,
+  onSetDraft,
   onSelectFiles,
   onStopChat,
   onScrollToBottom,
@@ -164,6 +205,8 @@ export function ChatComposer({
   const [filePreviewUrls, setFilePreviewUrls] = useState<Map<File, string>>(
     () => new Map(),
   );
+  const [activeSkillIndex, setActiveSkillIndex] = useState(0);
+  const [dismissedSkillTokenKey, setDismissedSkillTokenKey] = useState<string | null>(null);
   const hasComposerContent =
     draft.trim().length > 0 ||
     selectedFiles.length > 0 ||
@@ -245,6 +288,30 @@ export function ChatComposer({
     });
   };
 
+  const textarea = inputRef.current;
+  const cursorPosition = textarea?.selectionStart ?? draft.length;
+  const slashToken = getSlashSkillToken(draft, cursorPosition);
+  const skillSuggestions = slashToken
+    ? workspaceSkills
+        .filter((skill) => {
+          const query = slashToken.query.toLowerCase();
+          if (!query) {
+            return true;
+          }
+
+          return (
+            skill.name.toLowerCase().includes(query) ||
+            skill.description.toLowerCase().includes(query)
+          );
+        })
+        .slice(0, 6)
+    : [];
+  const isSkillMenuOpen =
+    Boolean(slashToken) &&
+    skillSuggestions.length > 0 &&
+    slashToken?.key !== dismissedSkillTokenKey;
+  const selectedSkillIndex = Math.min(activeSkillIndex, Math.max(skillSuggestions.length - 1, 0));
+
   const handleModelChange = async (
     modelSelection: {
       provider: ChatModelProvider;
@@ -261,6 +328,70 @@ export function ChatComposer({
     } catch {
       setModelChangeError(`Couldn't change model. Reverted to ${currentModelLabel}.`);
     }
+  };
+
+  const insertSkillMention = (skill: WorkspaceSkill) => {
+    if (!slashToken) {
+      return;
+    }
+
+    const mention = `/${skill.name} `;
+    const nextDraft = `${draft.slice(0, slashToken.start)}${mention}${draft.slice(slashToken.end)}`;
+    const nextCursorPosition = slashToken.start + mention.length;
+
+    onSetDraft(chatId, nextDraft);
+    setActiveSkillIndex(0);
+    setDismissedSkillTokenKey(
+      `${slashToken.start}:${slashToken.start + `/${skill.name}`.length}:${skill.name}`,
+    );
+
+    requestAnimationFrame(() => {
+      const nextTextarea = inputRef.current;
+      if (!nextTextarea) {
+        return;
+      }
+
+      nextTextarea.focus();
+      nextTextarea.setSelectionRange(nextCursorPosition, nextCursorPosition);
+      resizeTextarea(nextTextarea);
+    });
+  };
+
+  const handleTextareaKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isSkillMenuOpen) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setActiveSkillIndex((index) => (index + 1) % skillSuggestions.length);
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setActiveSkillIndex(
+          (index) => (index - 1 + skillSuggestions.length) % skillSuggestions.length,
+        );
+        return;
+      }
+
+      if (event.key === "Enter" || event.key === "Tab") {
+        event.preventDefault();
+        insertSkillMention(skillSuggestions[selectedSkillIndex]);
+        return;
+      }
+
+      if (event.key === "Escape" && slashToken) {
+        event.preventDefault();
+        setDismissedSkillTokenKey(slashToken.key);
+        return;
+      }
+    }
+
+    if (event.key.length === 1 || event.key === "Backspace" || event.key === "Delete") {
+      setActiveSkillIndex(0);
+      setDismissedSkillTokenKey(null);
+    }
+
+    onInputKeyDown(event);
   };
 
   return (
@@ -432,6 +563,55 @@ export function ChatComposer({
           </div>
         ) : null}
 
+        {isSkillMenuOpen && slashToken ? (
+          <div className="mb-1.5 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+            <div className="border-b border-neutral-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400 dark:border-neutral-800 dark:text-neutral-500">
+              Skills
+            </div>
+            <div className="max-h-64 overflow-y-auto p-1.5">
+              {skillSuggestions.map((skill, index) => (
+                <button
+                  key={skill.name}
+                  type="button"
+                  className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+                    index === selectedSkillIndex
+                      ? "bg-neutral-950 text-white dark:bg-neutral-100 dark:text-neutral-950"
+                      : "text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                  }`}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    insertSkillMention(skill);
+                  }}
+                >
+                  <span
+                    className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm font-semibold ${
+                      index === selectedSkillIndex
+                        ? "bg-white/15 text-white dark:bg-neutral-950/10 dark:text-neutral-950"
+                        : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
+                    }`}
+                  >
+                    /
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">
+                      /{skill.name}
+                    </span>
+                    <span
+                      className={`mt-0.5 line-clamp-2 block text-xs ${
+                        index === selectedSkillIndex
+                          ? "text-white/70 dark:text-neutral-950/60"
+                          : "text-neutral-500 dark:text-neutral-400"
+                      }`}
+                    >
+                      {skill.description}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <div className="group rounded-2xl border border-neutral-200 bg-neutral-50 shadow-sm transition focus-within:border-neutral-300 focus-within:bg-white focus-within:shadow-md focus-within:ring-1 focus-within:ring-neutral-300/60 dark:border-neutral-700 dark:bg-neutral-800 dark:focus-within:border-neutral-500 dark:focus-within:bg-neutral-900 dark:focus-within:ring-neutral-600/60">
           {selectedFiles.length > 0 || draftSelectedElements.length > 0 ? (
             <div className="flex flex-wrap gap-1.5 border-b border-neutral-200/70 px-3 pb-2 pt-2.5 dark:border-neutral-700/70">
@@ -490,7 +670,7 @@ export function ChatComposer({
             spellCheck={false}
             value={draft}
             onChange={onInputChange}
-            onKeyDown={onInputKeyDown}
+            onKeyDown={handleTextareaKeyDown}
             rows={1}
             placeholder={isBusy ? "Send follow-up\u2026" : "Chat with Lilo\u2026"}
           />

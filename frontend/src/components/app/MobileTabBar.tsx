@@ -16,6 +16,7 @@ interface MobileTabBarProps {
   onOpenChats: () => void;
   onOpenHome: () => void;
   onOpenAutomations: () => void;
+  onOpenSkills: () => void;
   onOpenWorkspaceOrViewer: (app?: WorkspaceAppLink) => void;
   onSaveWorkspaceTimeZone: (timeZone: string) => void;
   onDefaultChatModelChange: (
@@ -39,6 +40,7 @@ export function MobileTabBar({
   onOpenChats,
   onOpenHome,
   onOpenAutomations,
+  onOpenSkills,
   onOpenWorkspaceOrViewer,
   onSaveWorkspaceTimeZone,
   onDefaultChatModelChange,
@@ -145,6 +147,18 @@ export function MobileTabBar({
           <path d="M12 14v3l2 1" />
         </svg>
         Automations
+      </button>
+      <button
+        type="button"
+        onClick={onOpenSkills}
+        className={tabClass(mobileView === "skills")}
+      >
+        <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 3 4 7l8 4 8-4-8-4Z" />
+          <path d="M4 12l8 4 8-4" />
+          <path d="M4 17l8 4 8-4" />
+        </svg>
+        Skills
       </button>
       <WorkspaceSettingsButton
         workspaceTimeZone={workspaceTimeZone}

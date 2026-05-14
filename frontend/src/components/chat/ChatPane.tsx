@@ -17,7 +17,7 @@ import type {
   ChatSessionState,
 } from "../../store/chatStore";
 import type { AppChatSummary } from "../../hooks/useAppChats";
-import type { WorkspaceEntry } from "../workspace/types";
+import type { WorkspaceEntry, WorkspaceSkill } from "../workspace/types";
 import {
   clearAllComposerPersistence,
   loadComposerDraft,
@@ -97,6 +97,7 @@ interface ChatPaneProps {
   onNewChat?: () => void;
   workspaceApps?: WorkspaceAppViewer[];
   workspaceEntries?: WorkspaceEntry[];
+  workspaceSkills?: WorkspaceSkill[];
   onRetryLastMessage: (chatId: string) => Promise<void>;
   onStopChat: (chatId: string) => Promise<void>;
   onClearError: (chatId: string) => void;
@@ -132,6 +133,7 @@ export function ChatPane({
   onNewChat,
   workspaceApps = [],
   workspaceEntries = [],
+  workspaceSkills = [],
   onRetryLastMessage,
   onStopChat,
   onClearError,
@@ -527,6 +529,7 @@ export function ChatPane({
         queuedMessages={chat.queuedMessages}
         isQueuePaused={chat.isQueuePaused}
         selectedFiles={selectedFiles}
+        workspaceSkills={workspaceSkills}
         isBusy={isBusy}
         modelProvider={chat.modelProvider}
         modelId={chat.modelId}
@@ -541,6 +544,7 @@ export function ChatPane({
         onInputKeyDown={(event) => {
           void onInputKeyDown(event);
         }}
+        onSetDraft={onSetDraft}
         onSelectFiles={onSelectFiles}
         onStopChat={onStopChat}
         onScrollToBottom={() => scrollChatToBottom()}

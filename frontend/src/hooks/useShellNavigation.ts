@@ -156,8 +156,16 @@ export function useShellNavigation() {
     setMobileView("automations");
   }, []);
 
+  const openSkillsTab = useCallback(() => {
+    setMobileView("skills");
+  }, []);
+
   const openDesktopAutomations = useCallback(() => {
     setDesktopMainView("automations");
+  }, []);
+
+  const openDesktopSkills = useCallback(() => {
+    setDesktopMainView("skills");
   }, []);
 
   const backToMobileChatList = useCallback(() => {
@@ -214,7 +222,9 @@ export function useShellNavigation() {
     openChatsTab,
     openWorkspaceOrViewer,
     openAutomationsTab,
+    openSkillsTab,
     openDesktopAutomations,
+    openDesktopSkills,
     backToMobileChatList,
     backToMobileWorkspace,
     showSidebarPanel,

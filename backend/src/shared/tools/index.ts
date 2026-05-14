@@ -1,4 +1,5 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { activateSkillTool } from "./activateSkillTool.js";
 import { askUserQuestionTool } from "./askUserQuestionTool.js";
 import { browserAutomateTool } from "./browserbaseTools.js";
 import { channelResponseTool } from "./channelResponseTool.js";
@@ -9,6 +10,7 @@ import { templateAppListTool, templateAppReadTool } from "./templateAppTools.js"
 import { AUTOMATION_TOOLS } from "../../modules/automations/automation.tools.js";
 
 export const CUSTOM_TOOLS: ToolDefinition[] = [
+  activateSkillTool,
   askUserQuestionTool,
   channelResponseTool,
   openAppTool,

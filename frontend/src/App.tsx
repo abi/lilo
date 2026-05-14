@@ -11,6 +11,7 @@ import { MobileViewerScreen } from "./components/app/MobileViewerScreen";
 import { MobileTabBar } from "./components/app/MobileTabBar";
 import { MobileWorkspaceScreen } from "./components/app/MobileWorkspaceScreen";
 import { NativeDesktopHome } from "./components/app/NativeDesktopHome";
+import { SkillsScreen } from "./components/app/SkillsScreen";
 import { StartupErrorBanner } from "./components/app/StartupErrorBanner";
 import { useAgentActivity } from "./hooks/useAgentActivity";
 import { useAppChats } from "./hooks/useAppChats";
@@ -417,6 +418,16 @@ function App() {
     [workspace, shell],
   );
 
+  const handleOpenSkillFile = useCallback(
+    (viewerPath: string) => {
+      workspace.setSelectedViewerPath(viewerPath);
+      workspace.refreshViewer();
+      shell.openDesktopViewer();
+      shell.openMobileViewer();
+    },
+    [workspace, shell],
+  );
+
   // Global Cmd/Ctrl+K toggles the command palette.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -461,6 +472,7 @@ function App() {
             onToggleWorkspacePanel={shell.toggleWorkspacePanel}
             onOpenDesktop={shell.openDesktopHome}
             onOpenAutomations={shell.openDesktopAutomations}
+            onOpenSkills={shell.openDesktopSkills}
             onToggleArchived={shell.toggleArchivedInStrip}
             onSelectApp={handleOpenViewerApp}
             onReorderApps={workspace.saveAppOrder}
@@ -562,6 +574,16 @@ function App() {
         />
       ) : null}
 
+      {!isDesktop && shell.mobileView === "skills" ? (
+        <SkillsScreen
+          mobile
+          skills={workspace.workspaceSkills}
+          diagnostics={workspace.workspaceSkillDiagnostics}
+          onOpenSkillFile={handleOpenSkillFile}
+          onRefresh={() => void workspace.loadWorkspace()}
+        />
+      ) : null}
+
       {isDesktop ? (
       <div className="min-h-0 min-w-0 flex-1 flex">
         <DesktopWorkspaceChatShell
@@ -575,6 +597,8 @@ function App() {
           workspaceApps={workspace.workspaceApps}
           workspaceEntries={workspace.workspaceEntries}
           frequentDocuments={workspace.frequentDocuments}
+          workspaceSkills={workspace.workspaceSkills}
+          workspaceSkillDiagnostics={workspace.workspaceSkillDiagnostics}
           fileViewerText={workspace.fileViewerText}
           fileViewerError={workspace.fileViewerError}
           isLoadingFileViewer={workspace.isLoadingFileViewer}
@@ -618,6 +642,8 @@ function App() {
           onToggleShowAppChats={() => setShowAppChats((value) => !value)}
           onRefreshChats={refreshChatList}
           onAutomationOutputChannelChange={workspace.saveAutomationOutputChannel}
+          onOpenSkillFile={handleOpenSkillFile}
+          onRefreshWorkspace={() => void workspace.loadWorkspace()}
           pickerInjection={pickerInjection}
         />
       </div>
@@ -630,6 +656,7 @@ function App() {
         viewerPath={workspace.selectedViewerPath}
         workspaceApps={workspace.workspaceApps}
         workspaceEntries={workspace.workspaceEntries}
+        workspaceSkills={workspace.workspaceSkills}
         onBackToChatList={shell.backToMobileChatList}
         onOpenViewerApp={handleOpenMobileViewerApp}
         onSetDraft={setDraft}
@@ -690,6 +717,7 @@ function App() {
           onOpenChats={shell.openChatsTab}
           onOpenHome={handleOpenMobileHome}
           onOpenAutomations={shell.openAutomationsTab}
+          onOpenSkills={shell.openSkillsTab}
           onOpenWorkspaceOrViewer={(app) => {
             if (app) {
               workspace.setSelectedViewerPath(app.viewerPath);

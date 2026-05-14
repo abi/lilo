@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { captureBackendException } from "../observability/sentry.js";
+import { discoverWorkspaceSkills } from "../skills/skills.js";
 
 const PROMPTS_DIR = dirname(fileURLToPath(import.meta.url));
 const SOUL_FILE_NAME = "SOUL.md";
@@ -670,8 +671,43 @@ const buildDeploymentPrompt = ({ publicAppUrl }: PiSystemPromptOptions): string 
 `;
 };
 
+const buildSkillsPrompt = async (workspaceDir: string): Promise<string> => {
+  const catalog = await discoverWorkspaceSkills(workspaceDir);
+  if (catalog.skills.length === 0) {
+    return "";
+  }
+
+  const skills = catalog.skills
+    .map(
+      (skill) => [
+        "  <skill>",
+        `    <name>${skill.name}</name>`,
+        `    <description>${skill.description}</description>`,
+        `    <location>${skill.skillFileRelativePath}</location>`,
+        "  </skill>",
+      ].join("\n"),
+    )
+    .join("\n");
+
+  return `# Skills
+
+Workspace skills provide specialized instructions for specific tasks. Use progressive disclosure:
+
+- The skill catalog below is already loaded so you can decide when a skill is relevant.
+- When the task matches a skill description, call the \`activate_skill\` tool with the exact skill name before proceeding.
+- If a user explicitly names a skill using \`/skill-name\` or \`$skill-name\`, the skill may already be included in \`<explicitly_activated_skills>\`; if it is not, call \`activate_skill\`.
+- Do not activate the same skill more than once in a chat unless the user asks you to reload it.
+- Skill resources are not loaded eagerly. If activated instructions reference supporting files, read only those files as needed.
+
+<available_skills>
+${skills}
+</available_skills>
+
+`;
+};
+
 export const buildPiSystemPrompt = async (
   workspaceDir: string,
   options: PiSystemPromptOptions = {},
 ): Promise<string> =>
-  `${await readWorkspaceSoulPrompt(workspaceDir)}${BASE_PI_SYSTEM_PROMPT}${buildDeploymentPrompt(options)}${readDesignSystemPrompt()}`;
+  `${await readWorkspaceSoulPrompt(workspaceDir)}${BASE_PI_SYSTEM_PROMPT}${buildDeploymentPrompt(options)}${await buildSkillsPrompt(workspaceDir)}${readDesignSystemPrompt()}`;

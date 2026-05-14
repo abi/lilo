@@ -51,6 +51,10 @@ export const formatToolSummary = (
       return `Open App ${input.app_name}`;
     }
 
+    if (name === "activate_skill" && typeof input.name === "string") {
+      return `Activated skill ${input.name}`;
+    }
+
     if (name === "generate_images" || name === "generate_image") {
       const prompts = input.prompts as string[] | undefined;
       const count = Array.isArray(prompts) ? prompts.length : 1;

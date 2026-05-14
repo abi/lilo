@@ -23,6 +23,7 @@ interface DesktopCollapsedSidebarStripProps {
   onToggleWorkspacePanel: () => void;
   onOpenDesktop: () => void;
   onOpenAutomations: () => void;
+  onOpenSkills: () => void;
   onToggleArchived: () => void;
   onSelectApp: (href: string) => void;
   onReorderApps: (appNames: string[]) => void;
@@ -177,6 +178,7 @@ export function DesktopCollapsedSidebarStrip({
   onToggleWorkspacePanel,
   onOpenDesktop,
   onOpenAutomations,
+  onOpenSkills,
   onToggleArchived,
   onSelectApp,
   onReorderApps,
@@ -226,6 +228,7 @@ export function DesktopCollapsedSidebarStrip({
   const isDesktopActive = desktopMainView === "desktop";
   const isWorkspacePanelActive = desktopSidebarPanel === "workspace";
   const isAutomationsActive = desktopMainView === "automations";
+  const isSkillsActive = desktopMainView === "skills";
 
   return (
     <div className="hidden min-h-0 w-24 shrink-0 flex-col items-center gap-2 border-r border-neutral-200 bg-white px-2 py-3 dark:border-neutral-700 dark:bg-neutral-900 md:flex">
@@ -283,6 +286,24 @@ export function DesktopCollapsedSidebarStrip({
           <path d="M12 14v3l2 1" />
         </svg>
         <span className="text-[10px] font-medium">Automations</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={onOpenSkills}
+        className={`flex flex-col items-center gap-1 rounded-lg px-1 py-1.5 transition ${
+          isSkillsActive
+            ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
+            : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
+        }`}
+        title="Open skills"
+      >
+        <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 3 4 7l8 4 8-4-8-4Z" />
+          <path d="M4 12l8 4 8-4" />
+          <path d="M4 17l8 4 8-4" />
+        </svg>
+        <span className="text-[10px] font-medium">Skills</span>
       </button>
 
       <button
@@ -395,6 +416,7 @@ export function DesktopCollapsedSidebarStrip({
           onRequestTemplateUpdate={onRequestTemplateUpdate}
           onDismissTemplateUpdate={onDismissTemplateUpdate}
           onOpenAutomations={onOpenAutomations}
+          onOpenSkills={onOpenSkills}
           onTimeZoneChange={onSaveWorkspaceTimeZone}
           onDefaultChatModelChange={onDefaultChatModelChange}
           theme={theme}

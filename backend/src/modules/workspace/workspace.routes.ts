@@ -38,6 +38,10 @@ import {
   dismissWorkspaceTemplateUpdate,
   getWorkspaceTemplateUpdates,
 } from "../../shared/workspace/templateUpdates.js";
+import {
+  activateWorkspaceSkill,
+  discoverWorkspaceSkills,
+} from "../../shared/skills/skills.js";
 import { isSupportedChatModelSelection } from "../../shared/pi/runtime.js";
 import {
   getShellRunSnapshot,
@@ -1848,11 +1852,14 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
       WORKSPACE_TEMPLATE_DIR,
       sortedApps,
     );
+    const skillCatalog = await discoverWorkspaceSkills(WORKSPACE_ROOT);
     return c.json({
       apps: sortedApps,
       files,
       entries: await collectWorkspaceEntries(sortedApps),
       templateUpdates,
+      skills: skillCatalog.skills,
+      skillDiagnostics: skillCatalog.diagnostics,
       preferences: {
         timeZone: prefs.timeZone ?? DEFAULT_WORKSPACE_TIME_ZONE,
         ...(prefs.defaultChatModelSelection
@@ -1878,6 +1885,21 @@ export const registerWorkspaceRoutes = (app: Hono): void => {
     }
 
     return c.json(result);
+  });
+
+  app.get("/workspace/skills", async (c) => {
+    const catalog = await discoverWorkspaceSkills(WORKSPACE_ROOT);
+    return c.json(catalog);
+  });
+
+  app.get("/workspace/skills/:name", async (c) => {
+    const name = c.req.param("name");
+    const skill = await activateWorkspaceSkill(name, WORKSPACE_ROOT);
+    if (!skill) {
+      return c.json({ error: "Skill not found" }, 404);
+    }
+
+    return c.json(skill);
   });
 
   app.get("/workspace-file/:filePath{.+}", async (c) => {

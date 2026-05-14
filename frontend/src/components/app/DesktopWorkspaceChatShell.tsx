@@ -15,9 +15,12 @@ import type {
   WorkspaceAppLink,
   WorkspaceEntry,
   WorkspaceFrequentDocument,
+  WorkspaceSkill,
+  WorkspaceSkillDiagnostic,
 } from "../workspace/types";
 import { AutomationsScreen } from "./AutomationsScreen";
 import { NativeDesktopHome } from "./NativeDesktopHome";
+import { SkillsScreen } from "./SkillsScreen";
 import type { DesktopMainView } from "./types";
 
 interface DesktopWorkspaceChatShellProps {
@@ -31,6 +34,8 @@ interface DesktopWorkspaceChatShellProps {
   workspaceApps: WorkspaceAppLink[];
   workspaceEntries: WorkspaceEntry[];
   frequentDocuments: WorkspaceFrequentDocument[];
+  workspaceSkills: WorkspaceSkill[];
+  workspaceSkillDiagnostics: WorkspaceSkillDiagnostic[];
   fileViewerText: string | null;
   fileViewerError: string | null;
   isLoadingFileViewer: boolean;
@@ -91,6 +96,8 @@ interface DesktopWorkspaceChatShellProps {
   onToggleShowAppChats: () => void;
   onRefreshChats: () => Promise<void>;
   onAutomationOutputChannelChange: (channel: AutomationOutputChannel) => Promise<void> | void;
+  onOpenSkillFile: (viewerPath: string) => void;
+  onRefreshWorkspace: () => void;
   pickerInjection: ViewerPickerInjection;
 }
 
@@ -105,6 +112,8 @@ export function DesktopWorkspaceChatShell({
   workspaceApps,
   workspaceEntries,
   frequentDocuments,
+  workspaceSkills,
+  workspaceSkillDiagnostics,
   fileViewerText,
   fileViewerError,
   isLoadingFileViewer,
@@ -143,6 +152,8 @@ export function DesktopWorkspaceChatShell({
   onToggleShowAppChats,
   onRefreshChats,
   onAutomationOutputChannelChange,
+  onOpenSkillFile,
+  onRefreshWorkspace,
   pickerInjection,
 }: DesktopWorkspaceChatShellProps) {
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
@@ -177,6 +188,13 @@ export function DesktopWorkspaceChatShell({
           <AutomationsScreen
             automationOutputChannel={automationOutputChannel}
             onAutomationOutputChannelChange={onAutomationOutputChannelChange}
+          />
+        ) : mainView === "skills" ? (
+          <SkillsScreen
+            skills={workspaceSkills}
+            diagnostics={workspaceSkillDiagnostics}
+            onOpenSkillFile={onOpenSkillFile}
+            onRefresh={onRefreshWorkspace}
           />
         ) : (
           <ViewerPane
@@ -232,6 +250,7 @@ export function DesktopWorkspaceChatShell({
             mobile={false}
             workspaceApps={workspaceApps}
             workspaceEntries={workspaceEntries}
+            workspaceSkills={workspaceSkills}
             onOpenViewerApp={onOpenViewerApp}
             onOpenViewerPath={onOpenViewerPath}
             viewerPicker={{

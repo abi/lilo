@@ -40,6 +40,10 @@ import {
 import { captureBackendException } from "../../shared/observability/sentry.js";
 import { CUSTOM_TOOLS } from "../../shared/tools/index.js";
 import { readWorkspaceAppPrefs } from "../../shared/workspace/appPrefs.js";
+import {
+  activateWorkspaceSkill,
+  discoverWorkspaceSkills,
+} from "../../shared/skills/skills.js";
 
 export type ChatMessageRole =
   | "user"
@@ -494,6 +498,22 @@ const formatArchivedAppsContext = (appNames: string[]): string => {
     "",
     "Archived apps still exist, but you should not use, modify, or update them unless the user explicitly asks you to work on them or confirms that you should.",
   ].join("\n");
+};
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const findExplicitSkillMentions = async (
+  workspaceDir: string,
+  message: string,
+): Promise<string[]> => {
+  const catalog = await discoverWorkspaceSkills(workspaceDir);
+  const names = catalog.skills.map((skill) => skill.name);
+  const mentioned = names.filter((name) => {
+    const pattern = new RegExp(`(^|\\s)[/$]${escapeRegExp(name)}(?=$|\\s|[.,!?;:])`, "i");
+    return pattern.test(message);
+  });
+  return [...new Set(mentioned)];
 };
 
 const serializeAgentMessages = (messages: SessionAgentMessage[]): ChatMessage[] => {
@@ -1620,6 +1640,35 @@ export class PiSdkChatService {
         ];
         contextParts.push(locationParts.join("\n"));
       }
+    }
+
+    const explicitSkillNames = await findExplicitSkillMentions(this.workspaceDir, rawMessage);
+    if (explicitSkillNames.length > 0) {
+      contextParts.push("<explicitly_activated_skills>");
+      for (const skillName of explicitSkillNames) {
+        const skill = await activateWorkspaceSkill(skillName, this.workspaceDir);
+        if (!skill) {
+          continue;
+        }
+
+        const resources = skill.resources.length > 0
+          ? skill.resources.map((resource) => `  <file>${resource}</file>`).join("\n")
+          : "  <none/>";
+        contextParts.push(
+          [
+            `<skill_content name="${skill.name}">`,
+            skill.body,
+            "",
+            `Skill directory: ${skill.directoryRelativePath}`,
+            "Relative paths in this skill are relative to the skill directory.",
+            "<skill_resources>",
+            resources,
+            "</skill_resources>",
+            "</skill_content>",
+          ].join("\n"),
+        );
+      }
+      contextParts.push("</explicitly_activated_skills>");
     }
 
     if (attachments.length > 0) {

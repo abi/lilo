@@ -55,3 +55,19 @@ export type WorkspaceTemplateUpdate = {
   currentVersion: string | null;
   latestVersion: string;
 };
+
+export type WorkspaceSkill = {
+  name: string;
+  description: string;
+  source: "workspace" | "workspace-agents";
+  sourceLabel: string;
+  directoryRelativePath: string;
+  skillFileRelativePath: string;
+  viewerPath: string;
+};
+
+export type WorkspaceSkillDiagnostic = {
+  level: "warning" | "error";
+  message: string;
+  path?: string;
+};
