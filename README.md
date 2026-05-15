@@ -28,13 +28,13 @@ Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp,
 
 | Find kid-friendly dinner | Track meals | Pull up return info |
 | --- | --- | --- |
-| <img src="./docs/readme-assets/telegram-restaurant.png" alt="Telegram chat asking Lilo for a kid-friendly restaurant nearby" width="260" /> | <img src="./docs/readme-assets/telegram-restaurant.png" alt="Telegram chat asking Lilo to track food and calories" width="260" /> | <img src="./docs/readme-assets/telegram-restaurant.png" alt="Telegram chat asking Lilo to find a return code at the UPS store" width="260" /> |
-| Ask from the sidewalk and get a practical nearby recommendation with the details that matter. | Send a food photo or quick note and let Lilo keep the calorie tracker up to date. | Ask for a code or receipt when you need it, and Lilo finds the right workspace file. |
+| <img src="./docs/readme-assets/telegram-restaurant-card.png" alt="Telegram chat asking Lilo for a kid-friendly restaurant nearby" width="220" height="178" /> | <img src="./docs/readme-assets/telegram-restaurant-card.png" alt="Telegram chat asking Lilo to track food and calories" width="220" height="178" /> | <img src="./docs/readme-assets/telegram-restaurant-card.png" alt="Telegram chat asking Lilo to find a return code at the UPS store" width="220" height="178" /> |
+| Ask nearby and get a practical recommendation. | Send food and keep calories up to date. | Pull up return codes, receipts, and files. |
 
 | Manage TODOs | Follow a game | Find a work spot |
 | --- | --- | --- |
-| <img src="./docs/readme-assets/telegram-restaurant.png" alt="Telegram chat asking Lilo to pause supplements and add a TODO" width="260" /> | <img src="./docs/readme-assets/telegram-restaurant.png" alt="Telegram chat asking Lilo for game updates and summaries" width="260" /> | <img src="./docs/readme-assets/telegram-restaurant.png" alt="Telegram chat asking Lilo for a laptop-friendly cafe nearby" width="260" /> |
-| Leave a voice note like “pause my supplements” and Lilo turns it into a task. | Get the start time, a voice summary, and follow-up updates while the game is live. | Share your location and ask for a laptop-friendly cafe with outlets and seating. |
+| <img src="./docs/readme-assets/telegram-restaurant-card.png" alt="Telegram chat asking Lilo to pause supplements and add a TODO" width="220" height="178" /> | <img src="./docs/readme-assets/telegram-restaurant-card.png" alt="Telegram chat asking Lilo for game updates and summaries" width="220" height="178" /> | <img src="./docs/readme-assets/telegram-restaurant-card.png" alt="Telegram chat asking Lilo for a laptop-friendly cafe nearby" width="220" height="178" /> |
+| Turn voice notes into durable TODOs. | Get summaries and live score updates. | Find laptop-friendly cafes nearby. |
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Mobile app](#mobile-app) · [Security](#security) · [Deployment](#deployment)
 
