@@ -24,9 +24,17 @@ Here are a few things Lilo can do:
 
 Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp, web, desktop, mobile, or email.
 
-Quick demo:
+## What you can ask Lilo
 
-https://github.com/user-attachments/assets/7e744b4c-87e1-4b87-bb55-bc15169126d3
+| Find kid-friendly dinner | Track meals | Pull up return info |
+| --- | --- | --- |
+| <img src="./docs/readme-assets/telegram-restaurant.png" alt="Telegram chat asking Lilo for a kid-friendly restaurant nearby" width="260" /> | <img src="./docs/readme-assets/telegram-restaurant.png" alt="Telegram chat asking Lilo to track food and calories" width="260" /> | <img src="./docs/readme-assets/telegram-restaurant.png" alt="Telegram chat asking Lilo to find a return code at the UPS store" width="260" /> |
+| Ask from the sidewalk and get a practical nearby recommendation with the details that matter. | Send a food photo or quick note and let Lilo keep the calorie tracker up to date. | Ask for a code or receipt when you need it, and Lilo finds the right workspace file. |
+
+| Manage TODOs | Follow a game | Find a work spot |
+| --- | --- | --- |
+| <img src="./docs/readme-assets/telegram-restaurant.png" alt="Telegram chat asking Lilo to pause supplements and add a TODO" width="260" /> | <img src="./docs/readme-assets/telegram-restaurant.png" alt="Telegram chat asking Lilo for game updates and summaries" width="260" /> | <img src="./docs/readme-assets/telegram-restaurant.png" alt="Telegram chat asking Lilo for a laptop-friendly cafe nearby" width="260" /> |
+| Leave a voice note like “pause my supplements” and Lilo turns it into a task. | Get the start time, a voice summary, and follow-up updates while the game is live. | Share your location and ask for a laptop-friendly cafe with outlets and seating. |
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Mobile app](#mobile-app) · [Security](#security) · [Deployment](#deployment)
 
