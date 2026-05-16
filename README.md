@@ -26,15 +26,20 @@ Telegram is the easiest way to use Lilo, but it works wherever you do: WhatsApp,
 
 ## What you can ask Lilo
 
-| Find kid-friendly dinner | Track meals | Pull up return info |
-| --- | --- | --- |
-| <img src="./docs/readme-assets/use-case-restaurant.png" alt="Telegram chat asking Lilo for a kid-friendly restaurant nearby" width="220" height="178" /> | <img src="./docs/readme-assets/use-case-calories.png" alt="Telegram chat asking Lilo to track food and calories" width="220" height="178" /> | <img src="./docs/readme-assets/use-case-return.png" alt="Telegram chat asking Lilo to find a return code at the store" width="220" height="178" /> |
-| Ask nearby and get a practical recommendation. | Send food and keep calories up to date. | Pull up return codes, receipts, and files. |
+| Find kid-friendly dinner | Track meals |
+| --- | --- |
+| <img src="./docs/readme-assets/use-case-restaurant.png" alt="Telegram chat asking Lilo for a kid-friendly restaurant nearby" width="300" height="242" /> | <img src="./docs/readme-assets/use-case-calories.png" alt="Telegram chat asking Lilo to track food and calories" width="300" height="242" /> |
+| Ask nearby and get a practical recommendation. | Send food and keep calories up to date. |
 
-| Manage TODOs | Follow a game | Find a work spot |
-| --- | --- | --- |
-| <img src="./docs/readme-assets/use-case-todo.png" alt="Telegram chat asking Lilo to pause supplements and add a TODO" width="220" height="178" /> | <img src="./docs/readme-assets/use-case-game.png" alt="Telegram chat asking Lilo for game updates and summaries" width="220" height="178" /> | <img src="./docs/readme-assets/use-case-cafe.png" alt="Telegram chat asking Lilo for a laptop-friendly cafe nearby" width="220" height="178" /> |
-| Turn voice notes into durable TODOs. | Get summaries and live score updates. | Find laptop-friendly cafes nearby. |
+| Pull up return info | Manage TODOs |
+| --- | --- |
+| <img src="./docs/readme-assets/use-case-return.png" alt="Telegram chat asking Lilo to find a return code at the store" width="300" height="242" /> | <img src="./docs/readme-assets/use-case-todo.png" alt="Telegram chat asking Lilo to pause supplements and add a TODO" width="300" height="242" /> |
+| Pull up return codes, receipts, and files. | Turn voice notes into durable TODOs. |
+
+| Follow a game | Find a work spot |
+| --- | --- |
+| <img src="./docs/readme-assets/use-case-game.png" alt="Telegram chat asking Lilo for game updates and summaries" width="300" height="242" /> | <img src="./docs/readme-assets/use-case-cafe.png" alt="Telegram chat asking Lilo for a laptop-friendly cafe nearby" width="300" height="242" /> |
+| Get summaries and live score updates. | Find laptop-friendly cafes nearby. |
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Workspace apps](#workspace-apps) · [External messaging](#external-messaging) · [Mobile app](#mobile-app) · [Security](#security) · [Deployment](#deployment)
 
